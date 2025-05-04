@@ -1,0 +1,12 @@
+{
+  "name": "electron-overlay-example",
+  "version": "1.0.0",
+  "description": "Electron overlay window example",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^28.0.0"
+  }
+}

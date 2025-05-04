@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Electron Overlay Example</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: rgba(50, 50, 50, 0.7);
+      color: white;
+      overflow: hidden;
+      user-select: none;
+      /* Removed window draggability since we're using keyboard shortcuts instead */
+    }
+    #container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      padding: 10px;
+    }
+    /* Removed close button styles */
+  </style>
+</head>
+<body>
+  <div id="container">
+    <h3>Visual Context Interface (VCI)</h3>
+    <div id="status">Use ⌘+H to capture screenshots.</div>
+    <textarea id="promptInput" placeholder="Enter your prompt..." style="width: 100%; margin-top: 10px;" rows="2"></textarea>
+    <div id="analysisResult" style="margin-top: 10px; max-height: 200px; overflow-y: auto;"></div>
+  </div>
+
+  <script>
+  window.addEventListener('DOMContentLoaded', () => {
+    const statusDiv = document.getElementById('status');
+    const promptInput = document.getElementById('promptInput');
+    const resultDiv = document.getElementById('analysisResult');
+
+    // Screenshot status updates
+    window.api.onScreenshotStatus((status) => {
+      statusDiv.innerText = status;
+    });
+
+    // Analysis results
+    window.api.onAnalysisResult((result) => {
+      resultDiv.innerText = result;
+    });
+
+    // Prompt submission feedback
+    window.api.onSubmitResult((result) => {
+      statusDiv.innerText = result;
+    });
+
+    // Context reset
+    window.api.onContextReset(() => {
+      statusDiv.innerText = 'Context reset. Use ⌘+H to capture screenshots.';
+      promptInput.value = '';
+      resultDiv.innerText = '';
+    });
+
+    // Submit on Cmd+Enter
+    promptInput.addEventListener('keydown', (event) => {
+      if (event.metaKey && event.key === 'Enter') {
+        const prompt = promptInput.value.trim();
+        if (prompt) {
+          window.api.submitPrompt(prompt);
+        }
+        event.preventDefault();
+      }
+    });
+  });
+  </script>
+</body>
+</html>
