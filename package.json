@@ -11,9 +11,11 @@
     "watch": "tsc -w",
     "electron-dev": "nodemon --watch dist --exec \"electron .\""
   },
+  "dependencies": {
+    "electron": "^36.1.0"
+  },
   "devDependencies": {
     "@types/node": "^22.15.3",
-    "electron": "^36.1.0",
     "typescript": "^5.8.3",
     "concurrently": "^8.2.2",
     "nodemon": "^3.0.3"
