@@ -1,11 +1,7 @@
 import { openai } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
-import { exec } from 'child_process';
 import * as fs from 'fs';
-import { promisify } from 'util';
 import { z } from 'zod';
-
-const execAsync = promisify(exec);
 
 // Define the schema for code analysis results
 const codeAnalysisSchema = z.object({
