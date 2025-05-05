@@ -8,7 +8,7 @@ import { analyzeCodeFromImages, CodeAnalysisResult } from './codeAnalyzer';
 import dotenv from 'dotenv';
 
 // Load environment variables from .env file
-dotenv.config();
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 // Store the mainWindow reference in module scope for the keyboard handlers
 let mainWindowRef: BrowserWindow | null = null;
