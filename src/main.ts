@@ -309,15 +309,6 @@ async function captureScreenshot(): Promise<string | null> {
     const windowPosition = mainWindowRef.getPosition();
     const wasAlwaysOnTop = mainWindowRef.isAlwaysOnTop();
     
-    // Hide the app window to avoid capturing it in the screenshot
-    if (wasVisible) {
-      // Temporarily disable always-on-top to ensure it doesn't appear in fullscreen apps
-      if (wasAlwaysOnTop) {
-        mainWindowRef.setAlwaysOnTop(false);
-      }
-      mainWindowRef.hide();
-    }
-    
     // Wait to ensure the window is fully hidden
     await new Promise(resolve => setTimeout(resolve, 500));
     

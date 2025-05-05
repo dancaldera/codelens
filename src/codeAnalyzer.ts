@@ -118,6 +118,10 @@ export async function analyzeCodeFromImages(
       // Clear the main timeout since we got a response
       clearTimeout(analysisTimeout);
       
+      // Log the full OpenAI response for debugging
+      console.log('OpenAI raw response:', JSON.stringify(result, null, 2));
+      console.log('Analysis from OpenAI:', JSON.stringify(result.object.analysis, null, 2));
+      
       return result.object.analysis;
     } catch (error) {
       console.error('AI analysis error:', error instanceof Error ? error.message : 'Unknown error');
