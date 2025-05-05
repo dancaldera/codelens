@@ -6,11 +6,16 @@
   "scripts": {
     "build": "tsc",
     "start": "npm run build && electron .",
-    "typescript-check": "tsc --noEmit"
+    "typescript-check": "tsc --noEmit",
+    "dev": "concurrently \"npm run watch\" \"npm run electron-dev\"",
+    "watch": "tsc -w",
+    "electron-dev": "nodemon --watch dist --exec \"electron .\""
   },
   "devDependencies": {
     "@types/node": "^22.15.3",
     "electron": "^36.1.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.3"
   }
 }
