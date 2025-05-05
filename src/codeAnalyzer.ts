@@ -1,7 +1,6 @@
-import { openai } from '@ai-sdk/openai';
-import { generateObject } from 'ai';
 import * as fs from 'fs';
 import { z } from 'zod';
+import { OpenAI } from 'openai';
 
 // Define the schema for code analysis results
 const codeAnalysisSchema = z.object({
@@ -59,35 +58,8 @@ export async function analyzeCodeFromImages(
       };
     }
     
-    // Get basic image info for the analysis
-    const imageInfo = await Promise.all(
-      imagePaths.map(async (path, index) => {
-        try {
-          const stats = await fs.promises.stat(path);
-          return `Image ${index + 1}: ${path.split('/').pop()} (${Math.round(stats.size/1024)} KB)`;
-        } catch (err) {
-          return `Image ${index + 1}: Unable to read file info`;
-        }
-      })
-    );
+    console.log('Images to analyze:', imagePaths);
     
-    console.log('Images to analyze:', imageInfo);
-    
-    // Use a simpler, faster approach - just analyze based on file info
-    // This avoids getting stuck in OCR or other slow processes
-    
-    // Create a quick analysis to send to the API
-    const quickAnalysis = `
-      Please analyze the code shown in these images:
-      ${imageInfo.join('\n')}
-      
-      ${prompt}
-      
-      Note: The actual image content is not available for direct analysis.
-      Please provide your best possible analysis based on the context.
-    `;
-    
-    // Use a faster model with a quick timeout
     try {
       // Check if OpenAI API key is configured properly
       if (!isOpenAIConfigured()) {
@@ -101,28 +73,146 @@ export async function analyzeCodeFromImages(
         };
       }
       
-      const generatePromise = generateObject({
-        model: openai('gpt-4o-mini'),
-        schema: codeAnalysisSchema,
-        prompt: quickAnalysis,
+      // Read the image files and convert them to base64 format
+      const imageContents = await Promise.all(
+        imagePaths.map(async (path) => {
+          try {
+            // Read the image file as a buffer
+            const imageBuffer = await fs.promises.readFile(path);
+            // Convert the buffer to a base64 string
+            const base64Image = imageBuffer.toString('base64');
+            // Get the file extension to determine the MIME type
+            const fileExtension = path.split('.').pop()?.toLowerCase();
+            let mimeType = 'image/png'; // Default to png
+            
+            // Set appropriate MIME type based on extension
+            if (fileExtension === 'jpg' || fileExtension === 'jpeg') {
+              mimeType = 'image/jpeg';
+            } else if (fileExtension === 'gif') {
+              mimeType = 'image/gif';
+            } else if (fileExtension === 'webp') {
+              mimeType = 'image/webp';
+            }
+            
+            return {
+              type: 'image_url' as const,
+              image_url: {
+                url: `data:${mimeType};base64,${base64Image}`
+              }
+            };
+          } catch (err) {
+            console.error(`Failed to read image: ${path}`, err);
+            return null;
+          }
+        })
+      );
+      
+      // Filter out any null values from failed image loads
+      const validImages = imageContents.filter((img): img is { type: 'image_url', image_url: { url: string } } => img !== null);
+      
+      if (validImages.length === 0) {
+        console.error('None of the images could be read');
+        clearTimeout(analysisTimeout);
+        return {
+          code: 'Failed to read image files',
+          summary: 'Please make sure the image files are valid and accessible',
+          timeComplexity: 'N/A',
+          spaceComplexity: 'N/A',
+          language: 'N/A'
+        };
+      }
+      
+      // Create the content array with the prompt text and images
+      const content = [
+        {
+          type: 'text' as const,
+          text: `Please analyze the code shown in these ${validImages.length} images. ${prompt} Extract the code and provide detailed analysis including the time complexity and space complexity.`
+        },
+        ...validImages
+      ];
+      
+      // Create a direct OpenAI client for vision API
+      const openaiClient = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
       });
       
-      // Race against a 10-second timeout
-      const timeoutPromise = new Promise<{object: {analysis: CodeAnalysisResult}}>((_, reject) => {
-        setTimeout(() => reject(new Error('AI response timeout')), 10000);
+      // Call the OpenAI API with the images
+      const response = await openaiClient.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: content
+          }
+        ],
+        max_tokens: 1000,
+        temperature: 0.2,
       });
       
-      // Wait for either the AI response or the timeout
-      const result = await Promise.race([generatePromise, timeoutPromise]);
+      const responseText = response.choices[0]?.message.content || '';
+      console.log('OpenAI raw response:', responseText);
       
-      // Clear the main timeout since we got a response
-      clearTimeout(analysisTimeout);
-      
-      // Log the full OpenAI response for debugging
-      console.log('OpenAI raw response:', JSON.stringify(result, null, 2));
-      console.log('Analysis from OpenAI:', JSON.stringify(result.object.analysis, null, 2));
-      
-      return result.object.analysis;
+      // Try to parse the response as JSON
+      try {
+        // Look for JSON in the response - it might be embedded in markdown code blocks
+        let jsonStr = responseText;
+        
+        // Try to find JSON in code blocks
+        const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        if (jsonMatch && jsonMatch[1]) {
+          jsonStr = jsonMatch[1];
+        }
+        
+        // Try to detect if this is JSON already or needs to be structured
+        let analysis: CodeAnalysisResult;
+        
+        if (jsonStr.trim().startsWith('{')) {
+          // Try to parse as direct JSON
+          try {
+            const parsed = JSON.parse(jsonStr);
+            analysis = {
+              code: parsed.code || '',
+              summary: parsed.summary || '',
+              timeComplexity: parsed.timeComplexity || 'O(?)',
+              spaceComplexity: parsed.spaceComplexity || 'O(?)',
+              language: parsed.language || 'Unknown'
+            };
+          } catch (e) {
+            // If JSON parsing fails, create a structured response from the text
+            analysis = {
+              code: extractCodeFromText(responseText),
+              summary: responseText.substring(0, 200) + (responseText.length > 200 ? '...' : ''),
+              timeComplexity: extractComplexity(responseText, 'time') || 'Not provided',
+              spaceComplexity: extractComplexity(responseText, 'space') || 'Not provided',
+              language: extractLanguage(responseText) || 'Unknown'
+            };
+          }
+        } else {
+          // No JSON found, create a structured response
+          analysis = {
+            code: extractCodeFromText(responseText),
+            summary: responseText.substring(0, 200) + (responseText.length > 200 ? '...' : ''),
+            timeComplexity: extractComplexity(responseText, 'time') || 'Not provided',
+            spaceComplexity: extractComplexity(responseText, 'space') || 'Not provided',
+            language: extractLanguage(responseText) || 'Unknown'
+          };
+        }
+        
+        clearTimeout(analysisTimeout);
+        return analysis;
+      } catch (error) {
+        console.error('Error processing OpenAI response:', error);
+        clearTimeout(analysisTimeout);
+        
+        // Try to extract useful information from the text response
+        return {
+          code: extractCodeFromText(responseText) || 'Code extraction failed',
+          summary: responseText.substring(0, 200) + (responseText.length > 200 ? '...' : ''),
+          timeComplexity: extractComplexity(responseText, 'time') || 'Not identified',
+          spaceComplexity: extractComplexity(responseText, 'space') || 'Not identified',
+          language: extractLanguage(responseText) || 'Unknown'
+        };
+      }
     } catch (error) {
       console.error('AI analysis error:', error instanceof Error ? error.message : 'Unknown error');
       
@@ -141,4 +231,45 @@ export async function analyzeCodeFromImages(
     clearTimeout(analysisTimeout);
     return defaultResponse;
   }
+}
+
+// Helper function to extract code blocks from text
+function extractCodeFromText(text: string): string {
+  const codeBlockRegex = /```(?:\w+)?\s*([\s\S]*?)\s*```/g;
+  let extractedCode = '';
+  let match;
+  
+  while ((match = codeBlockRegex.exec(text)) !== null) {
+    extractedCode += match[1] + '\n\n';
+  }
+  
+  return extractedCode.trim() || text.substring(0, 500);
+}
+
+// Helper function to extract complexity information from text
+function extractComplexity(text: string, type: 'time' | 'space'): string | null {
+  const complexityRegex = new RegExp(`${type}\\s*complexity[\\s:]*([^\\n.]+)`, 'i');
+  const match = text.match(complexityRegex);
+  return match ? match[1].trim() : null;
+}
+
+// Helper function to extract programming language from text
+function extractLanguage(text: string): string | null {
+  // Common language patterns
+  const languageRegex = /language[:\s]+(\w+)/i;
+  const codeBlockRegex = /```(\w+)/;
+  
+  // Try to find explicit language mention
+  const langMatch = text.match(languageRegex);
+  if (langMatch && langMatch[1]) {
+    return langMatch[1];
+  }
+  
+  // Try to infer from code block
+  const codeMatch = text.match(codeBlockRegex);
+  if (codeMatch && codeMatch[1] && codeMatch[1].toLowerCase() !== 'json') {
+    return codeMatch[1];
+  }
+  
+  return null;
 }
