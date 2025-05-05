@@ -6,7 +6,6 @@
   "scripts": {
     "build": "tsc",
     "start": "npm run build && electron .",
-    "start:tools": "DEVTOOLS=true npm run start",
     "typescript-check": "tsc --noEmit"
   },
   "devDependencies": {

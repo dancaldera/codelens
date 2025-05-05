@@ -86,15 +86,6 @@ function createWindow(): void {
     console.error(`Page failed to load: ${errorDescription} (${errorCode})`);
   });
   
-  // Try to disable extensions if possible (this is optional)
-  try {
-    // We'll just log that we're skipping this step since it's not critical
-    console.log('Extensions API not available in this Electron version - skipping extension disabling');
-  } catch (error) {
-    // Silently ignore this error - it's not critical
-    console.log('Extensions API not available - this is normal');
-  }
-  
   // Catch DevTools protocol errors
   mainWindow.webContents.session.webRequest.onErrorOccurred(
     { urls: ['*://*/*'] },
