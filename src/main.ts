@@ -675,6 +675,46 @@ ipcMain.on('submit-prompt', (event, prompt: string) => {
   }
 });
 
+// Handle API key saving
+ipcMain.on('save-api-key', (event, apiKey: string) => {
+  if (!apiKey) return;
+  
+  // Save the API key to the environment variables
+  process.env.OPENAI_API_KEY = apiKey;
+  
+  // Also save to .env file
+  try {
+    const envPath = path.resolve(process.cwd(), '.env');
+    const envContent = fs.existsSync(envPath) 
+      ? fs.readFileSync(envPath, 'utf8') 
+      : '';
+    
+    // Parse existing content to preserve other variables
+    const envLines = envContent.split('\n').filter(line => !line.startsWith('OPENAI_API_KEY='));
+    
+    // Add the updated API key
+    envLines.push(`OPENAI_API_KEY=${apiKey}`);
+    
+    // Write back to .env file
+    fs.writeFileSync(envPath, envLines.join('\n'));
+    
+    console.log('API key saved successfully');
+    if (mainWindowRef) {
+      mainWindowRef.webContents.send('screenshot-status', 'API key saved successfully');
+    }
+  } catch (error) {
+    console.error('Error saving API key:', error);
+    if (mainWindowRef) {
+      mainWindowRef.webContents.send('screenshot-status', 'Error saving API key');
+    }
+  }
+});
+
+// Handle API key retrieval
+ipcMain.handle('get-api-key', () => {
+  return process.env.OPENAI_API_KEY || '';
+});
+
 // New handler for getting the prompt from the renderer
 ipcMain.on('prompt-response', (event, prompt: string) => {
   console.log('Prompt response received:', prompt);

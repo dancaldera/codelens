@@ -205,10 +205,49 @@
     #analysisResult p {
       margin: 5px 0;
     }
+    /* API Key Input Styling */
+    .api-key-container {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: var(--small-font-size);
+      justify-content: center;
+    }
+    #apiKeyInput {
+      background-color: rgba(60, 60, 60, 0.5);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      padding: 4px 8px;
+      font-size: var(--small-font-size);
+      width: 200px;
+      margin-left: 5px;
+    }
+    #apiKeyInput::placeholder {
+      color: rgba(255, 255, 255, 0.4);
+    }
+    #apiKeySaveBtn {
+      background-color: rgba(60, 60, 60, 0.5);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      padding: 4px 8px;
+      font-size: var(--small-font-size);
+      margin-left: 5px;
+      cursor: pointer;
+    }
+    #apiKeySaveBtn:hover {
+      background-color: rgba(80, 80, 80, 0.5);
+    }
   </style>
 </head>
 <body>
   <div id="container">
+    <div class="api-key-container">
+      <span>OpenAI API Key:</span>
+      <input type="password" id="apiKeyInput" placeholder="Enter your API key" />
+      <button id="apiKeySaveBtn">Save</button>
+    </div>
     <div class="screenshot-container">
       <div id="screenshot1" class="screenshot-thumbnail">1</div>
       <div id="screenshot2" class="screenshot-thumbnail">2</div>
@@ -249,6 +288,8 @@
     const languageButton = document.getElementById('languageButton');
     const languageMenu = document.getElementById('languageMenu');
     const loadingIndicator = document.getElementById('loadingIndicator');
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const apiKeySaveBtn = document.getElementById('apiKeySaveBtn');
     
     // Current selected language
     let selectedLanguage = '';
@@ -436,6 +477,40 @@
       
       console.log(`Font size factor: ${fontSizeFactor.toFixed(2)}`);
     });
+    
+    // API Key handling
+    apiKeySaveBtn.addEventListener('click', () => {
+      const apiKey = apiKeyInput.value.trim();
+      if (apiKey) {
+        window.api.saveApiKey(apiKey);
+        // Mask the API key for security
+        apiKeyInput.value = '••••••••••••••••••••••••••';
+        // Hide the API key container when API key is saved
+        document.querySelector('.api-key-container').style.display = 'none';
+        if (statusDiv) {
+          statusDiv.innerText = 'API key saved successfully';
+        }
+      } else {
+        if (statusDiv) {
+          statusDiv.innerText = 'Please enter a valid API key';
+        }
+      }
+    });
+    
+    // Load saved API key on startup
+    window.api.getApiKey().then(apiKey => {
+      if (apiKey) {
+        // Show masked characters instead of the actual key
+        apiKeyInput.value = '••••••••••••••••••••••••••';
+        // Hide the API key container when API key is already saved
+        document.querySelector('.api-key-container').style.display = 'none';
+      }
+    });
+    
+    // Initial status text
+    if (statusDiv) {
+      statusDiv.innerText = '⌘+H: Capture • ⌘+G: Reset • ⌘+B: Toggle • ⌘+Arrow: Move • ⌘+1-2: Opacity • ⌘+3-4: Font • ⌘+5-6: Size';
+    }
   });
   </script>
 </body>
