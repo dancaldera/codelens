@@ -25,6 +25,7 @@ function createWindow(): void {
     height: 300,
     frame: false, // Often used for overlay-type windows
     opacity: 0.6, // Slightly more opaque for better readability
+    minimizable: false, // Prevent the window from being minimized
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
