@@ -110,6 +110,8 @@ app.whenReady().then(createWindow);
 function registerGlobalShortcuts(window: BrowserWindow): void {
   // Define move amount for movement shortcuts
   const MOVE_AMOUNT = 25;
+  const OPACITY_STEP = 0.1;
+  const SIZE_STEP = 25;
   
   // Register Command+Arrow keys for window movement
   globalShortcut.register('CommandOrControl+Up', () => {
@@ -134,6 +136,54 @@ function registerGlobalShortcuts(window: BrowserWindow): void {
     if (!window) return;
     const [x, y] = window.getPosition();
     window.setPosition(x + MOVE_AMOUNT, y);
+  });
+  
+  // Register Command+1 to reduce opacity by 10%
+  globalShortcut.register('CommandOrControl+1', () => {
+    if (!window) return;
+    let opacity = window.getOpacity();
+    opacity = Math.max(0.1, opacity - OPACITY_STEP); // Ensure opacity doesn't go below 0.1
+    window.setOpacity(opacity);
+    console.log(`Reduced opacity to: ${opacity.toFixed(1)}`);
+  });
+  
+  // Register Command+2 to increase opacity by 10%
+  globalShortcut.register('CommandOrControl+2', () => {
+    if (!window) return;
+    let opacity = window.getOpacity();
+    opacity = Math.min(1.0, opacity + OPACITY_STEP); // Ensure opacity doesn't go above 1.0
+    window.setOpacity(opacity);
+    console.log(`Increased opacity to: ${opacity.toFixed(1)}`);
+  });
+  
+  // Register Command+3 to reduce font size
+  globalShortcut.register('CommandOrControl+3', () => {
+    if (!window) return;
+    window.webContents.send('change-font-size', 'decrease');
+    console.log('Decreased font size');
+  });
+  
+  // Register Command+4 to increase font size
+  globalShortcut.register('CommandOrControl+4', () => {
+    if (!window) return;
+    window.webContents.send('change-font-size', 'increase');
+    console.log('Increased font size');
+  });
+  
+  // Register Command+5 to reduce window size
+  globalShortcut.register('CommandOrControl+5', () => {
+    if (!window) return;
+    const [width, height] = window.getSize();
+    window.setSize(Math.max(200, width - SIZE_STEP), Math.max(150, height - SIZE_STEP)); // Min size 200x150
+    console.log(`Reduced window size to: ${width - SIZE_STEP}x${height - SIZE_STEP}`);
+  });
+  
+  // Register Command+6 to increase window size
+  globalShortcut.register('CommandOrControl+6', () => {
+    if (!window) return;
+    const [width, height] = window.getSize();
+    window.setSize(width + SIZE_STEP, height + SIZE_STEP);
+    console.log(`Increased window size to: ${width + SIZE_STEP}x${height + SIZE_STEP}`);
   });
   
   // Register Command+B for toggling visibility

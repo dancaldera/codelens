@@ -13,6 +13,7 @@ interface ApiInterface {
   openScreenshot: (index: number) => void;
   onGetPrompt: (callback: () => string) => void;
   onShowLoading: (callback: () => void) => void;
+  onChangeFontSize: (callback: (direction: string) => void) => void;
 }
 
 interface ScreenshotImageData {
@@ -57,7 +58,10 @@ contextBridge.exposeInMainWorld('api', {
     }),
   // Show loading indicator
   onShowLoading: (callback: () => void) => 
-    ipcRenderer.on('show-loading', () => callback())
+    ipcRenderer.on('show-loading', () => callback()),
+  // Font size change handler
+  onChangeFontSize: (callback: (direction: string) => void) => 
+    ipcRenderer.on('change-font-size', (e: IpcRendererEvent, direction: string) => callback(direction))
 } as ApiInterface);
 
 // Handle screenshot trigger from main process

@@ -40,6 +40,13 @@
   <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.7.0/build/highlight.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.7.0/build/styles/github-dark.min.css">
   <style>
+    :root {
+      --base-font-size: 13px;
+      --code-font-size: 12px;
+      --small-font-size: 11px;
+      --header-font-size: 14px;
+    }
+    
     body {
       font-family: Arial, sans-serif;
       margin: 0;
@@ -48,6 +55,7 @@
       color: white;
       overflow: hidden;
       user-select: none;
+      font-size: var(--base-font-size);
     }
     #container {
       display: flex;
@@ -55,7 +63,7 @@
       height: 100vh;
       padding: 8px;
       box-sizing: border-box;
-      width: 400px;
+      width: auto;
     }
     .screenshot-container {
       display: flex;
@@ -71,7 +79,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 11px;
+      font-size: var(--small-font-size);
       background-size: cover;
       background-position: center;
       position: relative;
@@ -99,7 +107,7 @@
       border-radius: 3px;
       padding: 6px 10px;
       margin-left: 5px;
-      font-size: 13px;
+      font-size: var(--base-font-size);
       cursor: pointer;
       min-width: 100px;
       text-align: center;
@@ -124,7 +132,7 @@
     .language-option {
       padding: 6px 15px;
       cursor: pointer;
-      font-size: 13px;
+      font-size: var(--base-font-size);
       white-space: nowrap;
     }
     .language-option:hover {
@@ -134,7 +142,7 @@
       background-color: rgba(60, 60, 60, 0.5);
       border-radius: 3px;
       padding: 6px;
-      font-size: 13px;
+      font-size: var(--base-font-size);
       flex-grow: 1;
       overflow-y: auto;
       margin-bottom: 4px;
@@ -164,14 +172,14 @@
       margin-bottom: 10px;
     }
     .loading-text {
-      font-size: 14px;
+      font-size: var(--header-font-size);
       color: #fff;
     }
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
     #status {
-      font-size: 11px;
+      font-size: var(--small-font-size);
       color: rgba(255, 255, 255, 0.6);
       text-align: center;
       margin-bottom: 4px;
@@ -190,7 +198,7 @@
     }
     #analysisResult code {
       font-family: 'Courier New', monospace;
-      font-size: 12px;
+      font-size: var(--code-font-size);
     }
     #analysisResult p {
       margin: 5px 0;
@@ -320,7 +328,7 @@
     // Context reset
     window.api.onContextReset(() => {
       if (statusDiv) {
-        statusDiv.innerText = '⌘+H: Capture • ⌘+G: Reset • ⌘+B: Toggle • ⌘+Arrow: Move';
+        statusDiv.innerText = '⌘+H: Capture • ⌘+G: Reset • ⌘+B: Toggle • ⌘+Arrow: Move • ⌘+1-2: Opacity • ⌘+3-4: Font • ⌘+5-6: Size';
       }
       resultDiv.innerHTML = '';
       languageButton.textContent = 'Auto';
@@ -405,6 +413,26 @@
     // Listen for show-loading event from main process
     window.api.onShowLoading(() => {
       loadingIndicator.style.display = 'flex';
+    });
+    
+    // Handle font size changes
+    let fontSizeFactor = 1.0; // Default size factor
+    const fontSizeStep = 0.15; // 15% increase/decrease per step
+    
+    window.api.onChangeFontSize((direction) => {
+      if (direction === 'increase') {
+        fontSizeFactor = Math.min(2.0, fontSizeFactor + fontSizeStep); // Max 2x size
+      } else if (direction === 'decrease') {
+        fontSizeFactor = Math.max(0.7, fontSizeFactor - fontSizeStep); // Min 0.7x size
+      }
+      
+      // Update CSS variables based on the new font size factor
+      document.documentElement.style.setProperty('--base-font-size', `${Math.round(13 * fontSizeFactor)}px`);
+      document.documentElement.style.setProperty('--code-font-size', `${Math.round(12 * fontSizeFactor)}px`);
+      document.documentElement.style.setProperty('--small-font-size', `${Math.round(11 * fontSizeFactor)}px`);
+      document.documentElement.style.setProperty('--header-font-size', `${Math.round(14 * fontSizeFactor)}px`);
+      
+      console.log(`Font size factor: ${fontSizeFactor.toFixed(2)}`);
     });
   });
   </script>
