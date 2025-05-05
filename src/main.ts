@@ -4,7 +4,7 @@ import * as os from "os";
 import * as fs from "fs";
 import { exec, execFile } from 'child_process';
 import * as util from 'util';
-import { analyzeCodeFromImages, CodeAnalysisResult } from './codeAnalyzer';
+import { analyzeCodeFromImages, CodeAnalysisResult, extendAnalysisWithImage } from './codeAnalyzer';
 import dotenv from 'dotenv';
 
 // Load environment variables from .env file
@@ -16,6 +16,8 @@ let mainWindowRef: BrowserWindow | null = null;
 // State for storing captured screenshots
 let screenshotBuffers: Buffer[] = [];
 let screenshotPaths: string[] = [];
+// Track the previous analysis result for context
+let previousAnalysisResult: CodeAnalysisResult | null = null;
 
 function createWindow(): void {
   // Clear any previous references
@@ -210,7 +212,16 @@ function registerGlobalShortcuts(window: BrowserWindow): void {
   globalShortcut.register('CommandOrControl+H', () => {
     if (!window) return;
     console.log('Command+H pressed, triggering screenshot');
-    captureAndProcessScreenshot();
+    
+    // When Command+H is pressed with existing screenshots/analysis,
+    // we want to capture a new screenshot and extend the existing analysis
+    if (screenshotPaths.length > 0 && previousAnalysisResult) {
+      console.log('Extending existing analysis with new screenshot');
+      window.webContents.send('screenshot-status', 'Capturing additional screenshot...');
+      captureAndProcessAdditionalScreenshot();
+    } else {
+      captureAndProcessScreenshot();
+    }
   });
   
   // Register Command+G to reset context
@@ -221,6 +232,8 @@ function registerGlobalShortcuts(window: BrowserWindow): void {
     // Reset screenshot buffers
     screenshotBuffers = [];
     screenshotPaths = [];
+    // Reset previous analysis result
+    previousAnalysisResult = null;
     
     // Notify renderer to reset context
     window.webContents.send('context-reset');
@@ -454,6 +467,133 @@ async function captureAndProcessScreenshot(): Promise<void> {
   }
 }
 
+// Function to capture an additional screenshot and extend the existing analysis
+async function captureAndProcessAdditionalScreenshot(): Promise<void> {
+  if (!mainWindowRef) {
+    console.error('No window reference for capturing screenshot');
+    return;
+  }
+  
+  try {
+    mainWindowRef.webContents.send('screenshot-status', 'Capturing additional screenshot...');
+    
+    // Temporarily hide the mainWindow while capturing
+    const wasVisible = mainWindowRef.isVisible();
+    if (wasVisible) {
+      mainWindowRef.hide();
+    }
+    
+    // Capture the screenshot
+    const screenshotPath = await captureScreenshot();
+    
+    // Show the window again if it was visible before
+    if (wasVisible) {
+      mainWindowRef.show();
+    }
+    
+    // If screenshot capture failed
+    if (!screenshotPath) {
+      console.error('Failed to capture additional screenshot');
+      mainWindowRef.webContents.send('screenshot-status', 'Failed to capture additional screenshot');
+      return;
+    }
+    
+    // Add the new screenshot path to our array
+    screenshotPaths.push(screenshotPath);
+    
+    // Notify the renderer about the new screenshot
+    const screenshotCount = screenshotPaths.length;
+    mainWindowRef.webContents.send('screenshot-captured', { 
+      count: screenshotCount,
+      path: screenshotPath 
+    });
+    
+    mainWindowRef.webContents.send('screenshot-status', 'Additional screenshot captured, extending analysis...');
+    
+    // Analyze the screenshots with the extended context
+    analyzeWithExtendedContext();
+  } catch (error) {
+    console.error('Error capturing additional screenshot:', error);
+    if (mainWindowRef) {
+      mainWindowRef.webContents.send('screenshot-status', `Error: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+}
+
+// Function to analyze screenshots with extended context
+async function analyzeWithExtendedContext(): Promise<void> {
+  if (!mainWindowRef || !previousAnalysisResult) {
+    console.error('No window reference or previous analysis for extended analysis');
+    return;
+  }
+  
+  try {
+    mainWindowRef.webContents.send('screenshot-status', 'Extending analysis with new image...');
+    
+    // Get only the most recent screenshot path for extension
+    const newImagePath = screenshotPaths[screenshotPaths.length - 1];
+    
+    // Verify the image exists and is readable before proceeding
+    try {
+      await fs.promises.access(newImagePath, fs.constants.R_OK);
+      const stats = await fs.promises.stat(newImagePath);
+      if (stats.size === 0) {
+        throw new Error(`Image file is empty: ${newImagePath}`);
+      }
+      console.log(`Verified new image exists and is readable: ${newImagePath}, size: ${stats.size} bytes`);
+    } catch (fileError) {
+      console.error(`Error accessing image file: ${newImagePath}`, fileError);
+      mainWindowRef.webContents.send('screenshot-status', 'Error: The captured image is not accessible');
+      mainWindowRef.webContents.send('analysis-result', 'Error: The new screenshot could not be read. Please try capturing another screenshot.');
+      return;
+    }
+    
+    // Get the prompt from the renderer if available
+    const prompt = await new Promise<string>((resolve) => {
+      mainWindowRef?.webContents.send('get-prompt');
+      
+      // Set up a one-time listener for the prompt response
+      ipcMain.once('prompt-response', (event, promptText: string) => {
+        console.log('Received prompt response for extended analysis:', promptText);
+        resolve(promptText || 'Update the previous analysis with this additional image');
+      });
+      
+      // Set a timeout in case the renderer doesn't respond
+      setTimeout(() => {
+        console.log('Prompt response timeout for extended analysis, using default prompt');
+        resolve('Update the previous analysis with this additional image');
+      }, 500);
+    });
+    
+    console.log('About to call extendAnalysisWithImage with new path:', newImagePath);
+    
+    // Extend the previous analysis with the new image
+    const result = await extendAnalysisWithImage(
+      previousAnalysisResult, 
+      [newImagePath], 
+      prompt
+    );
+    
+    // Update the previous analysis result with the new extended result
+    previousAnalysisResult = result;
+    
+    console.log('Extended analysis complete, result:', result);
+    
+    // Format the analysis result for display
+    const formattedResult = formatAnalysisResult(result);
+    
+    // Send the result to the renderer
+    mainWindowRef.webContents.send('analysis-result', formattedResult);
+    mainWindowRef.webContents.send('screenshot-status', 'Extended analysis complete');
+  } catch (error) {
+    console.error('Error in extended screenshot analysis:', error);
+    if (mainWindowRef) {
+      mainWindowRef.webContents.send('analysis-result', `Error extending analysis: ${error instanceof Error ? error.message : String(error)}`);
+      mainWindowRef.webContents.send('screenshot-status', 'Extended analysis failed');
+    }
+  }
+}
+
 // Stub: analyze screenshots (replace with OpenAI Vision integration)
 async function analyzeScreenshots(): Promise<void> {
   if (!mainWindowRef) {
@@ -494,6 +634,9 @@ async function analyzeScreenshots(): Promise<void> {
     
     // Analyze the screenshots using the new codeAnalyzer module
     const result = await analyzeCodeFromImages(screenshotPaths, prompt);
+    
+    // Store the result for potential future extension
+    previousAnalysisResult = result;
     
     console.log('Analysis complete, result:', result);
     

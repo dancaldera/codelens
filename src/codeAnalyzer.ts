@@ -27,7 +27,8 @@ function isOpenAIConfigured(): boolean {
  */
 export async function analyzeCodeFromImages(
   imagePaths: string[],
-  prompt: string = 'Analyze the images and solve the coding problem in them'
+  prompt: string = 'Analyze the images and solve the coding problem in them',
+  previousContext?: string
 ): Promise<CodeAnalysisResult> {
   // Default response in case of errors or timeouts
   const defaultResponse: CodeAnalysisResult = {
@@ -126,7 +127,7 @@ export async function analyzeCodeFromImages(
       const content = [
         {
           type: 'text' as const,
-          text: `Please analyze the code shown in these ${validImages.length} images. ${prompt} Extract the code and provide detailed analysis including the time complexity and space complexity.`
+          text: `Please analyze the code shown in these ${validImages.length} images. ${prompt}${previousContext ? `\nPrevious context: ${previousContext}` : ''} Extract the code and provide detailed analysis including the time complexity and space complexity.`
         },
         ...validImages
       ];
@@ -230,6 +231,68 @@ export async function analyzeCodeFromImages(
     console.error('Error in analysis workflow:', error instanceof Error ? error.message : 'Unknown error');
     clearTimeout(analysisTimeout);
     return defaultResponse;
+  }
+}
+
+/**
+ * Extends an existing code analysis with additional images
+ * Uses the previous analysis as context for the new analysis
+ */
+export async function extendAnalysisWithImage(
+  previousAnalysis: CodeAnalysisResult,
+  newImagePaths: string[],
+  prompt: string = 'Update the previous analysis with this additional image'
+): Promise<CodeAnalysisResult> {
+  if (!newImagePaths || newImagePaths.length === 0) {
+    console.error('No image paths provided for extended analysis');
+    return previousAnalysis; // Return previous analysis if no new images
+  }
+  
+  // Verify all images exist before proceeding
+  try {
+    for (const path of newImagePaths) {
+      await fs.promises.access(path, fs.constants.R_OK);
+      const stats = await fs.promises.stat(path);
+      console.log(`Verified image file: ${path}, size: ${stats.size} bytes`);
+      if (stats.size === 0) {
+        throw new Error(`Image file is empty: ${path}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error verifying image files:', error);
+    // Return previous analysis with a warning added to the summary
+    return {
+      ...previousAnalysis,
+      summary: `${previousAnalysis.summary}\n\nWarning: Could not process additional image(s).`
+    };
+  }
+
+  // Create context string from previous analysis
+  const contextString = JSON.stringify({
+    previousCode: previousAnalysis.code,
+    previousSummary: previousAnalysis.summary,
+    previousTimeComplexity: previousAnalysis.timeComplexity,
+    previousSpaceComplexity: previousAnalysis.spaceComplexity,
+    previousLanguage: previousAnalysis.language
+  });
+
+  // Build a context-aware prompt
+  const contextPrompt = `${prompt}. Incorporate this new information with the previous analysis. 
+  If the new image provides additional context or corrects previous assumptions, please update 
+  the analysis accordingly while maintaining relevant information from the previous analysis.`;
+
+  console.log(`Extending analysis with ${newImagePaths.length} new image(s), previous context length: ${contextString.length}`);
+  
+  try {
+    // Call the main analysis function with the new image and context
+    return await analyzeCodeFromImages(newImagePaths, contextPrompt, contextString);
+  } catch (error) {
+    console.error('Error in extended analysis:', error);
+    // If analysis fails, return the previous analysis with error indication
+    return {
+      ...previousAnalysis,
+      summary: `${previousAnalysis.summary}\n\nNote: Attempted to extend analysis with new image, but encountered an error: ${error instanceof Error ? error.message : String(error)}`
+    };
   }
 }
 
