@@ -12,6 +12,7 @@ interface ApiInterface {
   onClearScreenshots: (callback: () => void) => void;
   openScreenshot: (index: number) => void;
   onGetPrompt: (callback: () => string) => void;
+  onShowLoading: (callback: () => void) => void;
 }
 
 interface ScreenshotImageData {
@@ -53,7 +54,10 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('get-prompt', (e: IpcRendererEvent) => {
       const promptText = callback();
       ipcRenderer.send('prompt-response', promptText);
-    })
+    }),
+  // Show loading indicator
+  onShowLoading: (callback: () => void) => 
+    ipcRenderer.on('show-loading', () => callback())
 } as ApiInterface);
 
 // Handle screenshot trigger from main process

@@ -17,10 +17,10 @@ function createWindow(): void {
   // Clear any previous references
   mainWindowRef = null;
   let mainWindow = new BrowserWindow({
-    width: 300,
-    height: 250,
+    width: 400,
+    height: 300,
     frame: false, // Often used for overlay-type windows
-    opacity: 0.85, // Slightly more opaque for better readability
+    opacity: 0.6, // Slightly more opaque for better readability
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -169,6 +169,17 @@ function registerGlobalShortcuts(window: BrowserWindow): void {
     
     // Clear the images in the renderer
     window.webContents.send('clear-screenshots');
+  });
+  
+  // Register Command+Enter to trigger analysis
+  globalShortcut.register('CommandOrControl+Enter', () => {
+    if (!window) return;
+    console.log('Command+Enter pressed, triggering analysis');
+    window.webContents.send('screenshot-status', 'Analyzing screenshots...');
+    // Show loading indicator
+    window.webContents.send('show-loading');
+    // Trigger analysis
+    window.webContents.send('submit-prompt', 'analyze');
   });
 }
 
@@ -485,6 +496,7 @@ ipcMain.on('submit-prompt', (event, prompt: string) => {
   
   // If we have screenshots, analyze them with the provided prompt
   if (screenshotPaths.length > 0) {
+    mainWindowRef.webContents.send('screenshot-status', 'Analyzing screenshots...');
     analyzeScreenshots();
   } else {
     // Just echo the prompt back if no screenshots

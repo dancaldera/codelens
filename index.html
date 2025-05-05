@@ -44,7 +44,7 @@
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 0;
-      background-color: rgba(40, 40, 40, 0.7);
+      background-color: rgba(0, 0, 0, 1);
       color: white;
       overflow: hidden;
       user-select: none;
@@ -55,6 +55,7 @@
       height: 100vh;
       padding: 8px;
       box-sizing: border-box;
+      width: 400px;
     }
     .screenshot-container {
       display: flex;
@@ -66,8 +67,6 @@
       width: 120px;
       height: 80px;
       margin: 0 4px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 3px;
       background-color: #222;
       display: flex;
       align-items: center;
@@ -91,29 +90,45 @@
     .prompt-container {
       display: flex;
       margin-bottom: 8px;
+      justify-content: center;
     }
-    textarea {
+    #languageButton {
       background-color: rgba(60, 60, 60, 0.5);
       color: white;
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 3px;
-      padding: 6px;
-      resize: none;
-      font-size: 13px;
-      flex-grow: 1;
-    }
-    textarea::placeholder {
-      color: rgba(255, 255, 255, 0.5);
-    }
-    select {
-      background-color: rgba(60, 60, 60, 0.5);
-      color: white;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 3px;
-      padding: 6px;
+      padding: 6px 10px;
       margin-left: 5px;
       font-size: 13px;
-      width: 100px;
+      cursor: pointer;
+      min-width: 100px;
+      text-align: center;
+    }
+    #languageButton:hover {
+      background-color: rgba(80, 80, 80, 0.5);
+    }
+    #languageMenu {
+      position: absolute;
+      background-color: rgba(40, 40, 40, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      padding: 5px 0;
+      z-index: 100;
+      display: none;
+      max-height: 300px;
+      overflow-y: auto;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .language-option {
+      padding: 6px 15px;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .language-option:hover {
+      background-color: rgba(80, 80, 80, 0.5);
     }
     #analysisResult {
       background-color: rgba(60, 60, 60, 0.5);
@@ -123,6 +138,37 @@
       flex-grow: 1;
       overflow-y: auto;
       margin-bottom: 4px;
+      position: relative;
+    }
+    #loadingIndicator {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.7);
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 10;
+      border-radius: 3px;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+      margin-bottom: 10px;
+    }
+    .loading-text {
+      font-size: 14px;
+      color: #fff;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
     #status {
       font-size: 11px;
@@ -159,37 +205,43 @@
     </div>
     
     <div class="prompt-container">
-      <textarea id="promptInput" placeholder="Enter prompt... (⌘+Enter to submit)" rows="2"></textarea>
-      <select id="languageSelect">
-        <option value="">Auto</option>
-        <option value="python">Python</option>
-        <option value="javascript">JavaScript</option>
-        <option value="typescript">TypeScript</option>
-        <option value="java">Java</option>
-        <option value="c">C</option>
-        <option value="cpp">C++</option>
-        <option value="csharp">C#</option>
-        <option value="go">Go</option>
-        <option value="rust">Rust</option>
-        <option value="ruby">Ruby</option>
-        <option value="php">PHP</option>
-        <option value="swift">Swift</option>
-      </select>
+      <div id="languageButton">Auto</div>
+      <div id="languageMenu">
+        <div class="language-option" data-value="">Auto</div>
+        <div class="language-option" data-value="python">Python</div>
+        <div class="language-option" data-value="javascript">JavaScript</div>
+        <div class="language-option" data-value="typescript">TypeScript</div>
+        <div class="language-option" data-value="java">Java</div>
+        <div class="language-option" data-value="c">C</div>
+        <div class="language-option" data-value="cpp">C++</div>
+        <div class="language-option" data-value="csharp">C#</div>
+        <div class="language-option" data-value="go">Go</div>
+        <div class="language-option" data-value="rust">Rust</div>
+        <div class="language-option" data-value="ruby">Ruby</div>
+        <div class="language-option" data-value="php">PHP</div>
+        <div class="language-option" data-value="swift">Swift</div>
+      </div>
     </div>
     
     <div id="analysisResult"></div>
-    
-    <div id="status">⌘+H: Capture • ⌘+G: Reset • ⌘+B: Toggle • ⌘+Arrow: Move</div>
+    <div id="loadingIndicator">
+      <div class="spinner"></div>
+      <div class="loading-text">Analyzing code...</div>
+    </div>
   </div>
 
   <script>
   window.addEventListener('DOMContentLoaded', () => {
     const statusDiv = document.getElementById('status');
-    const promptInput = document.getElementById('promptInput');
-    const languageSelect = document.getElementById('languageSelect');
     const resultDiv = document.getElementById('analysisResult');
     const screenshot1 = document.getElementById('screenshot1');
     const screenshot2 = document.getElementById('screenshot2');
+    const languageButton = document.getElementById('languageButton');
+    const languageMenu = document.getElementById('languageMenu');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    
+    // Current selected language
+    let selectedLanguage = '';
 
     // Configure marked.js to use highlight.js for code highlighting
     marked.setOptions({
@@ -201,14 +253,56 @@
       },
       breaks: true
     });
+    
+    // Language menu toggle
+    languageButton.addEventListener('click', (event) => {
+      // Position the menu below the button
+      const buttonRect = languageButton.getBoundingClientRect();
+      languageMenu.style.top = `${buttonRect.bottom}px`;
+      // Menu is centered via CSS
+      
+      // Toggle menu visibility
+      if (languageMenu.style.display === 'block') {
+        languageMenu.style.display = 'none';
+      } else {
+        languageMenu.style.display = 'block';
+      }
+      
+      event.stopPropagation();
+    });
+    
+    // Close menu when clicking outside
+    document.addEventListener('click', () => {
+      languageMenu.style.display = 'none';
+    });
+    
+    // Prevent menu from closing when clicking inside it
+    languageMenu.addEventListener('click', (event) => {
+      event.stopPropagation();
+    });
+    
+    // Language option selection
+    document.querySelectorAll('.language-option').forEach(option => {
+      option.addEventListener('click', () => {
+        selectedLanguage = option.getAttribute('data-value') || '';
+        languageButton.textContent = option.textContent;
+        languageMenu.style.display = 'none';
+        console.log(`Language selected: ${selectedLanguage || 'Auto'}`);
+      });
+    });
 
     // Screenshot status updates
     window.api.onScreenshotStatus((status) => {
-      statusDiv.innerText = status;
+      if (statusDiv) {
+        statusDiv.innerText = status;
+      }
     });
 
     // Analysis results with markdown rendering
     window.api.onAnalysisResult((result) => {
+      // Hide loading indicator
+      loadingIndicator.style.display = 'none';
+      
       resultDiv.innerHTML = marked.parse(result);
       // Apply syntax highlighting to code blocks
       document.querySelectorAll('pre code').forEach((block) => {
@@ -218,15 +312,19 @@
 
     // Prompt submission feedback
     window.api.onSubmitResult((result) => {
-      statusDiv.innerText = result;
+      if (statusDiv) {
+        statusDiv.innerText = result;
+      }
     });
 
     // Context reset
     window.api.onContextReset(() => {
-      statusDiv.innerText = '⌘+H: Capture • ⌘+G: Reset • ⌘+B: Toggle • ⌘+Arrow: Move';
-      promptInput.value = '';
+      if (statusDiv) {
+        statusDiv.innerText = '⌘+H: Capture • ⌘+G: Reset • ⌘+B: Toggle • ⌘+Arrow: Move';
+      }
       resultDiv.innerHTML = '';
-      languageSelect.value = '';
+      languageButton.textContent = 'Auto';
+      selectedLanguage = '';
       // Clear the screenshot thumbnails
       screenshot1.style.backgroundImage = '';
       screenshot1.innerHTML = '1';
@@ -252,6 +350,13 @@
         targetElement.dataset.path = imageData.path;
         
         console.log(`Displayed screenshot ${imageData.index}`);
+        
+        // Auto-submit analysis after second screenshot
+        if (imageData.index === 2) {
+          window.api.submitPrompt('analyze');
+          // Show loading indicator
+          loadingIndicator.style.display = 'flex';
+        }
       } catch (err) {
         console.error('Error displaying screenshot:', err);
         targetElement.innerHTML = 'Error';
@@ -287,31 +392,19 @@
       }
     });
 
-    // Submit on Cmd+Enter
-    promptInput.addEventListener('keydown', (event) => {
-      if (event.metaKey && event.key === 'Enter') {
-        const prompt = promptInput.value.trim();
-        if (prompt) {
-          window.api.submitPrompt(prompt);
-        }
-        event.preventDefault();
-      }
-    });
-    
     // Handle get-prompt requests from main process
     window.api.onGetPrompt(() => {
-      // Get the prompt text and language selection
-      const promptText = promptInput.value.trim();
-      const language = languageSelect.value;
+      // Create the predefined prompt with language selection if specified
+      const languageText = selectedLanguage ? selectedLanguage : 'code';
+      const predefinedPrompt = `You're an expert software developer, and you should resolve this ${languageText} problem with the best practices`;
       
-      // Create the combined prompt with language selection if specified
-      let fullPrompt = promptText || 'Analyze the images and solve the coding problem in them';
-      
-      if (language) {
-        fullPrompt += ` in ${language}`;
-      }
-      
-      return fullPrompt;
+      console.log(`Using predefined prompt: ${predefinedPrompt}`);
+      return predefinedPrompt;
+    });
+    
+    // Listen for show-loading event from main process
+    window.api.onShowLoading(() => {
+      loadingIndicator.style.display = 'flex';
     });
   });
   </script>
