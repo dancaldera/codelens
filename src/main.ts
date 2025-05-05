@@ -5,6 +5,10 @@ import * as fs from "fs";
 import { exec, execFile } from 'child_process';
 import * as util from 'util';
 import { analyzeCodeFromImages, CodeAnalysisResult } from './codeAnalyzer';
+import dotenv from 'dotenv';
+
+// Load environment variables from .env file
+dotenv.config();
 
 // Store the mainWindow reference in module scope for the keyboard handlers
 let mainWindowRef: BrowserWindow | null = null;
@@ -175,11 +179,15 @@ function registerGlobalShortcuts(window: BrowserWindow): void {
   globalShortcut.register('CommandOrControl+Enter', () => {
     if (!window) return;
     console.log('Command+Enter pressed, triggering analysis');
-    window.webContents.send('screenshot-status', 'Analyzing screenshots...');
+    console.log('Current screenshot paths:', screenshotPaths);
+    
     // Show loading indicator
     window.webContents.send('show-loading');
-    // Trigger analysis
-    window.webContents.send('submit-prompt', 'analyze');
+    window.webContents.send('screenshot-status', 'Analyzing screenshots...');
+    
+    // Directly call analyzeScreenshots instead of sending a message
+    // This avoids potential IPC message flow issues
+    analyzeScreenshots();
   });
 }
 
@@ -413,9 +421,12 @@ async function analyzeScreenshots(): Promise<void> {
     
     // Check if we have screenshot paths
     if (screenshotPaths.length < 1) {
+      console.error('No screenshot paths available for analysis');
       mainWindowRef.webContents.send('analysis-result', 'Error: No screenshots available for analysis');
       return;
     }
+    
+    console.log('Screenshot paths available for analysis:', screenshotPaths);
     
     // Get the prompt from the renderer if available
     const prompt = await new Promise<string>((resolve) => {
@@ -423,15 +434,23 @@ async function analyzeScreenshots(): Promise<void> {
       
       // Set up a one-time listener for the prompt response
       ipcMain.once('prompt-response', (event, promptText: string) => {
+        console.log('Received prompt response:', promptText);
         resolve(promptText || 'Analyze the images and solve the coding problem in them');
       });
       
       // Set a timeout in case the renderer doesn't respond
-      setTimeout(() => resolve('Analyze the images and solve the coding problem in them'), 500);
+      setTimeout(() => {
+        console.log('Prompt response timeout, using default prompt');
+        resolve('Analyze the images and solve the coding problem in them');
+      }, 500);
     });
+    
+    console.log('About to call analyzeCodeFromImages with paths:', screenshotPaths);
     
     // Analyze the screenshots using the new codeAnalyzer module
     const result = await analyzeCodeFromImages(screenshotPaths, prompt);
+    
+    console.log('Analysis complete, result:', result);
     
     // Format the analysis result for display
     const formattedResult = formatAnalysisResult(result);
@@ -447,6 +466,57 @@ async function analyzeScreenshots(): Promise<void> {
     }
   }
 }
+
+// Handle prompt submission from renderer
+ipcMain.on('submit-prompt', (event, prompt: string) => {
+  if (!mainWindowRef) return;
+  console.log('User prompt submitted:', prompt);
+  console.log('Current screenshot paths:', screenshotPaths);
+  
+  // If we have screenshots, analyze them with the provided prompt
+  if (screenshotPaths.length > 0) {
+    console.log('Screenshots available, triggering analysis');
+    mainWindowRef.webContents.send('screenshot-status', 'Analyzing screenshots...');
+    analyzeScreenshots();
+  } else {
+    console.log('No screenshots available, cannot analyze');
+    // Just echo the prompt back if no screenshots
+    mainWindowRef.webContents.send('submit-result', `Prompt received: ${prompt}`);
+  }
+});
+
+// New handler for getting the prompt from the renderer
+ipcMain.on('prompt-response', (event, prompt: string) => {
+  console.log('Prompt response received:', prompt);
+});
+
+app.on("window-all-closed", () => {
+  // Unregister shortcuts when all windows are closed
+  unregisterShortcuts();
+  
+  if (process.platform !== "darwin") {
+    app.quit();
+  }
+});
+
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
+});
+
+// Clean up shortcuts when app is about to quit
+app.on('will-quit', () => {
+  unregisterShortcuts();
+});
+
+// We don't need the keyboard events from renderer anymore
+// since we're using global shortcuts instead, but keeping
+// this handler for backward compatibility in case we add
+// more keyboard shortcuts in the future
+ipcMain.on('keyboard-event', (event, data: any) => {
+  // This is now handled by global shortcuts
+});
 
 // Format the analysis result for display
 function formatAnalysisResult(result: CodeAnalysisResult): string {
@@ -487,52 +557,4 @@ ipcMain.on('open-screenshot', (event, index: number) => {
   } else {
     console.error(`No file path for screenshot ${index}`);
   }
-});
-
-// Handle prompt submission from renderer
-ipcMain.on('submit-prompt', (event, prompt: string) => {
-  if (!mainWindowRef) return;
-  console.log('User prompt submitted:', prompt);
-  
-  // If we have screenshots, analyze them with the provided prompt
-  if (screenshotPaths.length > 0) {
-    mainWindowRef.webContents.send('screenshot-status', 'Analyzing screenshots...');
-    analyzeScreenshots();
-  } else {
-    // Just echo the prompt back if no screenshots
-    mainWindowRef.webContents.send('submit-result', `Prompt received: ${prompt}`);
-  }
-});
-
-// New handler for getting the prompt from the renderer
-ipcMain.on('prompt-response', (event, prompt: string) => {
-  console.log('Prompt response received:', prompt);
-});
-
-app.on("window-all-closed", () => {
-  // Unregister shortcuts when all windows are closed
-  unregisterShortcuts();
-  
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
-});
-
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
-});
-
-// Clean up shortcuts when app is about to quit
-app.on('will-quit', () => {
-  unregisterShortcuts();
-});
-
-// We don't need the keyboard events from renderer anymore
-// since we're using global shortcuts instead, but keeping
-// this handler for backward compatibility in case we add
-// more keyboard shortcuts in the future
-ipcMain.on('keyboard-event', (event, data: any) => {
-  // This is now handled by global shortcuts
 });
