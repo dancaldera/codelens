@@ -2,17 +2,16 @@
   "name": "electron-overlay-example",
   "version": "1.0.0",
   "description": "Electron overlay window example",
-  "main": "src/main.js",
+  "main": "dist/src/main.js",
   "scripts": {
-    "start": "electron .",
-    "dev": "DEVTOOLS=false nodemon --watch src --exec electron .",
-    "dev:tools": "DEVTOOLS=true nodemon --watch src --exec electron ."
-  },
-  "dependencies": {
-    "electron": "^28.0.0"
+    "build": "tsc",
+    "start": "npm run build && electron .",
+    "start:tools": "DEVTOOLS=true npm run start",
+    "typescript-check": "tsc --noEmit"
   },
   "devDependencies": {
-    "electron-reload": "^2.0.0",
-    "nodemon": "^3.0.1"
+    "@types/node": "^22.15.3",
+    "electron": "^36.1.0",
+    "typescript": "^5.8.3"
   }
 }

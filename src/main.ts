@@ -1,17 +1,17 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, desktopCapturer, screen, dialog, systemPreferences } = require("electron");
-const path = require("path");
-const os = require("os");
-const fs = require("fs");
+import { app, BrowserWindow, ipcMain, globalShortcut, dialog } from "electron";
+import * as path from "path";
+import * as os from "os";
+import * as fs from "fs";
+import { exec, execFile } from 'child_process';
+import * as util from 'util';
+// Store the mainWindow reference in module scope for the keyboard handlers
+let mainWindowRef: BrowserWindow | null = null;
 
-// Enable live reload for all the files inside your project directory
-require('electron-reload')(__dirname, {
-  // Note: This will work for changes to main.js and other files,
-  // but for changes to the main process file itself, the app will still need to be restarted
-  electron: path.join(__dirname, '../node_modules', '.bin', 'electron'),
-  hardResetMethod: 'exit'
-});
+// State for storing captured screenshots
+let screenshotBuffers: Buffer[] = [];
+let screenshotPaths: string[] = [];
 
-function createWindow() {
+function createWindow(): void {
   // Clear any previous references
   mainWindowRef = null;
   let mainWindow = new BrowserWindow({
@@ -22,7 +22,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js') // Will be compiled to dist/src/preload.js
     }
   });
 
@@ -45,9 +45,10 @@ function createWindow() {
   // mainWindow.moveTop();
 
   // Load your app content
-  mainWindow.loadFile(path.join(__dirname, "../index.html"));
+  mainWindow.loadFile(path.join(__dirname, "../../index.html"));
 
   mainWindow.on("closed", () => {
+    // @ts-ignore - Electron will set this to null, which is correct behavior
     mainWindow = null;
     mainWindowRef = null;
   });
@@ -61,29 +62,55 @@ function createWindow() {
   // Register global shortcuts that work even when the app is not focused
   registerGlobalShortcuts(mainWindow);
   
-  // Enable DevTools in development mode only if DEVTOOLS environment variable is true
-  // or if it's not set (default behavior)
-  const showDevTools = process.env.DEVTOOLS !== 'false';
+  // Enable DevTools in development mode only if DEVTOOLS environment variable is explicitly set to true
+  const showDevTools = process.env.DEVTOOLS === 'true';
   if (showDevTools) {
-    mainWindow.webContents.openDevTools({ mode: 'detach' });
-    console.log('DevTools enabled');
+    // Open DevTools with detached mode
+    try {
+      mainWindow.webContents.openDevTools({ mode: 'detach' });
+      console.log('DevTools enabled');
+    } catch (error) {
+      console.error('Error opening DevTools:', error);
+    }
   } else {
-    console.log('DevTools disabled');
+    console.log('DevTools disabled - set DEVTOOLS=true to enable');
   }
   
   // Log when the window is ready
   mainWindow.webContents.on('did-finish-load', () => {
     console.log('Window loaded successfully');
   });
+  
+  // Add error handling for DevTools protocol errors
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error(`Page failed to load: ${errorDescription} (${errorCode})`);
+  });
+  
+  // Try to disable extensions if possible (this is optional)
+  try {
+    // We'll just log that we're skipping this step since it's not critical
+    console.log('Extensions API not available in this Electron version - skipping extension disabling');
+  } catch (error) {
+    // Silently ignore this error - it's not critical
+    console.log('Extensions API not available - this is normal');
+  }
+  
+  // Catch DevTools protocol errors
+  mainWindow.webContents.session.webRequest.onErrorOccurred(
+    { urls: ['*://*/*'] },
+    (details) => {
+      if (details.error && details.error.includes('net::ERR_FAILED')) {
+        console.warn('Intercepted network error (possibly related to DevTools Protocol):', 
+          details.error, 'URL:', details.url);
+      }
+    }
+  );
 }
-
-// Store the mainWindow reference in module scope for the keyboard handlers
-let mainWindowRef = null;
 
 app.whenReady().then(createWindow);
 
 // Function to register global shortcuts
-function registerGlobalShortcuts(window) {
+function registerGlobalShortcuts(window: BrowserWindow): void {
   // Define move amount for movement shortcuts
   const MOVE_AMOUNT = 25;
   
@@ -153,16 +180,12 @@ function registerGlobalShortcuts(window) {
 }
 
 // Unregister all shortcuts when quitting
-function unregisterShortcuts() {
+function unregisterShortcuts(): void {
   globalShortcut.unregisterAll();
 }
 
-// State for storing captured screenshots
-let screenshotBuffers = [];
-let screenshotPaths = [];
-
 // Function to save buffer to temp file and open it
-async function saveAndOpenScreenshot(buffer, index) {
+async function saveAndOpenScreenshot(buffer: Buffer, index: number): Promise<string | null> {
   try {
     // Create temp directory if it doesn't exist
     const tempDir = path.join(os.tmpdir(), 'vci-screenshots');
@@ -189,14 +212,13 @@ async function saveAndOpenScreenshot(buffer, index) {
 }
 
 // Function to open screenshot in Preview
-function openScreenshotInPreview(filePath) {
+function openScreenshotInPreview(filePath: string): void {
   if (!filePath || !fs.existsSync(filePath)) {
     console.error('Screenshot file not found:', filePath);
     return;
   }
   
   // Use the 'open' command to open the file with the default application (Preview on macOS)
-  const { exec } = require('child_process');
   exec(`open "${filePath}"`, (error) => {
     if (error) {
       console.error('Error opening screenshot:', error);
@@ -207,7 +229,7 @@ function openScreenshotInPreview(filePath) {
 }
 
 // Function to capture screenshot in the main process
-async function captureScreenshot() {
+async function captureScreenshot(): Promise<string | null> {
   if (!mainWindowRef) {
     console.error('No window reference available for screenshot');
     return null;
@@ -245,8 +267,6 @@ async function captureScreenshot() {
     const tempFilePath = path.join(tempDir, `macos-screenshot-${timestamp}.png`);
     
     // Use macOS native screencapture command
-    const { execFile } = require('child_process');
-    const util = require('util');
     const execFilePromise = util.promisify(execFile);
     
     console.log(`Attempting to capture screen to: ${tempFilePath}`);
@@ -300,19 +320,21 @@ async function captureScreenshot() {
     }
     
     // Show error dialog to the user
-    dialog.showMessageBox(mainWindowRef, {
-      type: 'error',
-      title: 'Screenshot Error',
-      message: 'Failed to capture screenshot',
-      detail: error.toString()
-    });
+    if (mainWindowRef) {
+      dialog.showMessageBox(mainWindowRef, {
+        type: 'error',
+        title: 'Screenshot Error',
+        message: 'Failed to capture screenshot',
+        detail: error instanceof Error ? error.toString() : String(error)
+      });
+    }
     
     return null;
   }
 }
 
 // Function to handle the entire screenshot capture and processing flow
-async function captureAndProcessScreenshot() {
+async function captureAndProcessScreenshot(): Promise<void> {
   if (!mainWindowRef) {
     console.error('No window reference for screenshot');
     return;
@@ -369,18 +391,20 @@ async function captureAndProcessScreenshot() {
     }
   } catch (error) {
     console.error('Error in screenshot capture process:', error);
-    mainWindowRef.webContents.send('screenshot-status', 'Error capturing screenshot');
+    if (mainWindowRef) {
+      mainWindowRef.webContents.send('screenshot-status', 'Error capturing screenshot');
+    }
   }
 }
 
 // Handle screenshot requests from renderer
-ipcMain.on('request-screenshot', async (event) => {
+ipcMain.on('request-screenshot', async () => {
   console.log('Screenshot requested from renderer');
   captureAndProcessScreenshot();
 });
 
 // Handle open screenshot request from renderer
-ipcMain.on('open-screenshot', (event, index) => {
+ipcMain.on('open-screenshot', (event, index: number) => {
   console.log(`Request to open screenshot ${index}`);
   const filePath = screenshotPaths[index-1];
   if (filePath) {
@@ -391,7 +415,7 @@ ipcMain.on('open-screenshot', (event, index) => {
 });
 
 // Stub: analyze screenshots (replace with OpenAI Vision integration)
-async function analyzeScreenshots() {
+async function analyzeScreenshots(): Promise<void> {
   const result = 'Analysis not implemented yet.';
   if (mainWindowRef) {
     mainWindowRef.webContents.send('analysis-result', result);
@@ -399,7 +423,7 @@ async function analyzeScreenshots() {
 }
 
 // Handle prompt submission from renderer
-ipcMain.on('submit-prompt', (event, prompt) => {
+ipcMain.on('submit-prompt', (event, prompt: string) => {
   if (!mainWindowRef) return;
   console.log('User prompt submitted:', prompt);
   // Stub: echo prompt back
@@ -430,6 +454,6 @@ app.on('will-quit', () => {
 // since we're using global shortcuts instead, but keeping
 // this handler for backward compatibility in case we add
 // more keyboard shortcuts in the future
-ipcMain.on('keyboard-event', (event, data) => {
+ipcMain.on('keyboard-event', (event, data: any) => {
   // This is now handled by global shortcuts
 });

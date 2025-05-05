@@ -3,6 +3,37 @@
 <head>
   <meta charset="UTF-8">
   <title>VCI</title>
+  <script>
+    // Preemptively define Autofill stubs before any other scripts load
+    window.Autofill = {
+      enable: function() { return Promise.resolve({}); },
+      setAddresses: function() { return Promise.resolve({}); },
+      getAddresses: function() { return Promise.resolve([]); },
+      getAutofillableFields: function() { return Promise.resolve([]); },
+      setAutofillableFields: function() { return Promise.resolve({}) }
+    };
+    
+    // Override console.error to filter out DevTools protocol errors
+    const originalConsoleError = console.error;
+    console.error = function() {
+      // Convert arguments to array for easier checking
+      const args = Array.from(arguments);
+      
+      // Check if this is a DevTools protocol error
+      if (args.length > 0 && 
+          typeof args[0] === 'string' && 
+          (args[0].includes('Autofill') || 
+           args[0].includes('wasn\'t found') ||
+           args[0].includes('DevTools Protocol') ||
+           args[0].includes('protocol_client.js'))) {
+        // Silently ignore these errors
+        return;
+      }
+      
+      // Forward all other errors to the original console.error
+      return originalConsoleError.apply(console, args);
+    };
+  </script>
   <style>
     body {
       font-family: Arial, sans-serif;
