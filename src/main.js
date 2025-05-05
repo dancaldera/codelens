@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, desktopCapturer, screen, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, globalShortcut, desktopCapturer, screen, dialog, systemPreferences } = require("electron");
 const path = require("path");
 const os = require("os");
 const fs = require("fs");
@@ -216,12 +216,6 @@ async function captureScreenshot() {
   console.log('Starting screenshot capture in main process');
   
   try {
-    // Get the primary display
-    const primaryDisplay = screen.getPrimaryDisplay();
-    const { width, height } = primaryDisplay.size;
-    
-    console.log(`Screen dimensions: ${width}x${height}`);
-    
     // Store current window position, visibility state, and always-on-top state
     const wasVisible = mainWindowRef.isVisible();
     const windowPosition = mainWindowRef.getPosition();
@@ -236,23 +230,38 @@ async function captureScreenshot() {
       mainWindowRef.hide();
     }
     
-    // Wait longer to ensure the window is fully hidden and screen is updated
+    // Wait to ensure the window is fully hidden
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Use the actual screen dimensions for the thumbnail
-    const thumbnailSize = {
-      width: width,
-      height: height
-    };
+    // Create a temporary file path for the screenshot
+    const tempDir = path.join(os.tmpdir(), 'vci-screenshots');
     
-    // First try to get just screen sources as they're more reliable
-    console.log('Getting screen sources...');
-    const screenSources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize
-    });
+    // Ensure the directory exists
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
     
-    // Restore window visibility, position and always-on-top state after capture
+    const timestamp = new Date().toISOString().replace(/:/g, '-');
+    const tempFilePath = path.join(tempDir, `macos-screenshot-${timestamp}.png`);
+    
+    // Use macOS native screencapture command
+    const { execFile } = require('child_process');
+    const util = require('util');
+    const execFilePromise = util.promisify(execFile);
+    
+    console.log(`Attempting to capture screen to: ${tempFilePath}`);
+    
+    try {
+      // Use the native macOS screencapture command to take a full screenshot
+      // -x: no sound, -T: no thumbnail dialog
+      await execFilePromise('/usr/sbin/screencapture', ['-x', '-T', '0', tempFilePath]);
+      console.log('Native macOS screen capture completed');
+    } catch (error) {
+      console.error('Error during macOS screen capture:', error);
+      throw error;
+    }
+    
+    // Restore window visibility, position and always-on-top state
     if (wasVisible) {
       if (wasAlwaysOnTop) {
         mainWindowRef.setAlwaysOnTop(true, "floating");
@@ -262,64 +271,42 @@ async function captureScreenshot() {
       mainWindowRef.focus();
     }
     
-    if (!screenSources || screenSources.length === 0) {
-      console.error('No screen sources found');
-      return null;
-    }
-    
-    console.log(`Found ${screenSources.length} screen sources`);
-    
-    // Find the primary display source
-    let source = null;
-    for (const s of screenSources) {
-      console.log(`Screen source: ${s.name}, id: ${s.id}`);
-      if (s.name.toLowerCase().includes('primary') || 
-          s.name.toLowerCase().includes('main') ||
-          s.name.toLowerCase().includes('display 1') ||
-          s.display_id === primaryDisplay.id.toString()) {
-        source = s;
-        console.log(`Selected primary screen: ${s.name}`);
-        break;
+    // Check if file exists and read it
+    if (fs.existsSync(tempFilePath)) {
+      const stats = fs.statSync(tempFilePath);
+      console.log(`Screenshot file size: ${stats.size} bytes`);
+      
+      if (stats.size < 1000) {
+        console.error('Screenshot file is suspiciously small:', stats.size, 'bytes');
+        throw new Error('Screenshot file is too small, may be corrupted');
       }
+      
+      const buffer = fs.readFileSync(tempFilePath);
+      console.log(`Read screenshot file, buffer size: ${buffer.length} bytes`);
+      
+      // Return as base64 string
+      return buffer.toString('base64');
+    } else {
+      console.error('Screenshot file was not created at expected path:', tempFilePath);
+      throw new Error('Screenshot file was not created');
     }
-    
-    // If no primary screen found, use the first one
-    if (!source && screenSources.length > 0) {
-      source = screenSources[0];
-      console.log(`Using first available screen: ${source.name}`);
-    }
-    
-    if (!source) {
-      console.error('No suitable source found for screenshot');
-      return null;
-    }
-    
-    if (!source.thumbnail) {
-      console.error('No thumbnail available in source');
-      return null;
-    }
-    
-    const thumbnailSize2 = source.thumbnail.getSize();
-    console.log('Thumbnail size:', thumbnailSize2);
-    
-    // Check if we got a valid thumbnail
-    if (thumbnailSize2.width === 0 || thumbnailSize2.height === 0) {
-      console.error('Invalid thumbnail size (0x0)');
-      return null;
-    }
-    
-    // Convert to base64 and return
-    const pngBuffer = source.thumbnail.toPNG();
-    console.log('PNG buffer size:', pngBuffer.length);
-    
-    if (pngBuffer.length === 0) {
-      console.error('Empty PNG buffer');
-      return null;
-    }
-    
-    return pngBuffer.toString('base64');
   } catch (error) {
     console.error('Error capturing screenshot:', error);
+    
+    // Make sure the window is restored even after error
+    if (mainWindowRef && !mainWindowRef.isVisible()) {
+      mainWindowRef.show();
+      mainWindowRef.focus();
+    }
+    
+    // Show error dialog to the user
+    dialog.showMessageBox(mainWindowRef, {
+      type: 'error',
+      title: 'Screenshot Error',
+      message: 'Failed to capture screenshot',
+      detail: error.toString()
+    });
+    
     return null;
   }
 }
