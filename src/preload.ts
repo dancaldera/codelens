@@ -11,6 +11,7 @@ interface ApiInterface {
   onScreenshotImage: (callback: (imageData: ScreenshotImageData) => void) => void;
   onClearScreenshots: (callback: () => void) => void;
   openScreenshot: (index: number) => void;
+  onGetPrompt: (callback: () => string) => void;
 }
 
 interface ScreenshotImageData {
@@ -46,7 +47,13 @@ contextBridge.exposeInMainWorld('api', {
   onClearScreenshots: (callback: () => void) => 
     ipcRenderer.on('clear-screenshots', () => callback()),
   // Open screenshot in Preview
-  openScreenshot: (index: number) => ipcRenderer.send('open-screenshot', index)
+  openScreenshot: (index: number) => ipcRenderer.send('open-screenshot', index),
+  // Get prompt from renderer
+  onGetPrompt: (callback: () => string) => 
+    ipcRenderer.on('get-prompt', (e: IpcRendererEvent) => {
+      const promptText = callback();
+      ipcRenderer.send('prompt-response', promptText);
+    })
 } as ApiInterface);
 
 // Handle screenshot trigger from main process

@@ -34,6 +34,11 @@
       return originalConsoleError.apply(console, args);
     };
   </script>
+  <!-- Add marked.js for Markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- Add highlight.js for code syntax highlighting -->
+  <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.7.0/build/highlight.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.7.0/build/styles/github-dark.min.css">
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -83,6 +88,10 @@
     .screenshot-thumbnail.error {
       border-color: #f44336;
     }
+    .prompt-container {
+      display: flex;
+      margin-bottom: 8px;
+    }
     textarea {
       background-color: rgba(60, 60, 60, 0.5);
       color: white;
@@ -90,11 +99,21 @@
       border-radius: 3px;
       padding: 6px;
       resize: none;
-      margin-bottom: 8px;
       font-size: 13px;
+      flex-grow: 1;
     }
     textarea::placeholder {
       color: rgba(255, 255, 255, 0.5);
+    }
+    select {
+      background-color: rgba(60, 60, 60, 0.5);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      padding: 6px;
+      margin-left: 5px;
+      font-size: 13px;
+      width: 100px;
     }
     #analysisResult {
       background-color: rgba(60, 60, 60, 0.5);
@@ -112,6 +131,24 @@
       margin-bottom: 4px;
       height: 14px;
     }
+    /* Markdown styling */
+    #analysisResult h1, #analysisResult h2 {
+      margin-top: 10px;
+      margin-bottom: 5px;
+    }
+    #analysisResult pre {
+      background-color: rgba(30, 30, 30, 0.7);
+      padding: 8px;
+      border-radius: 3px;
+      overflow-x: auto;
+    }
+    #analysisResult code {
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+    }
+    #analysisResult p {
+      margin: 5px 0;
+    }
   </style>
 </head>
 <body>
@@ -121,7 +158,24 @@
       <div id="screenshot2" class="screenshot-thumbnail">2</div>
     </div>
     
-    <textarea id="promptInput" placeholder="Enter prompt... (⌘+Enter to submit)" rows="2"></textarea>
+    <div class="prompt-container">
+      <textarea id="promptInput" placeholder="Enter prompt... (⌘+Enter to submit)" rows="2"></textarea>
+      <select id="languageSelect">
+        <option value="">Auto</option>
+        <option value="python">Python</option>
+        <option value="javascript">JavaScript</option>
+        <option value="typescript">TypeScript</option>
+        <option value="java">Java</option>
+        <option value="c">C</option>
+        <option value="cpp">C++</option>
+        <option value="csharp">C#</option>
+        <option value="go">Go</option>
+        <option value="rust">Rust</option>
+        <option value="ruby">Ruby</option>
+        <option value="php">PHP</option>
+        <option value="swift">Swift</option>
+      </select>
+    </div>
     
     <div id="analysisResult"></div>
     
@@ -132,18 +186,34 @@
   window.addEventListener('DOMContentLoaded', () => {
     const statusDiv = document.getElementById('status');
     const promptInput = document.getElementById('promptInput');
+    const languageSelect = document.getElementById('languageSelect');
     const resultDiv = document.getElementById('analysisResult');
     const screenshot1 = document.getElementById('screenshot1');
     const screenshot2 = document.getElementById('screenshot2');
+
+    // Configure marked.js to use highlight.js for code highlighting
+    marked.setOptions({
+      highlight: function(code, lang) {
+        if (lang && hljs.getLanguage(lang)) {
+          return hljs.highlight(code, { language: lang }).value;
+        }
+        return hljs.highlightAuto(code).value;
+      },
+      breaks: true
+    });
 
     // Screenshot status updates
     window.api.onScreenshotStatus((status) => {
       statusDiv.innerText = status;
     });
 
-    // Analysis results
+    // Analysis results with markdown rendering
     window.api.onAnalysisResult((result) => {
-      resultDiv.innerText = result;
+      resultDiv.innerHTML = marked.parse(result);
+      // Apply syntax highlighting to code blocks
+      document.querySelectorAll('pre code').forEach((block) => {
+        hljs.highlightBlock(block);
+      });
     });
 
     // Prompt submission feedback
@@ -155,7 +225,8 @@
     window.api.onContextReset(() => {
       statusDiv.innerText = '⌘+H: Capture • ⌘+G: Reset • ⌘+B: Toggle • ⌘+Arrow: Move';
       promptInput.value = '';
-      resultDiv.innerText = '';
+      resultDiv.innerHTML = '';
+      languageSelect.value = '';
       // Clear the screenshot thumbnails
       screenshot1.style.backgroundImage = '';
       screenshot1.innerHTML = '1';
@@ -225,6 +296,22 @@
         }
         event.preventDefault();
       }
+    });
+    
+    // Handle get-prompt requests from main process
+    window.api.onGetPrompt(() => {
+      // Get the prompt text and language selection
+      const promptText = promptInput.value.trim();
+      const language = languageSelect.value;
+      
+      // Create the combined prompt with language selection if specified
+      let fullPrompt = promptText || 'Analyze the images and solve the coding problem in them';
+      
+      if (language) {
+        fullPrompt += ` in ${language}`;
+      }
+      
+      return fullPrompt;
     });
   });
   </script>

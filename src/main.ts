@@ -4,6 +4,8 @@ import * as os from "os";
 import * as fs from "fs";
 import { exec, execFile } from 'child_process';
 import * as util from 'util';
+import { analyzeCodeFromImages, CodeAnalysisResult } from './codeAnalyzer';
+
 // Store the mainWindow reference in module scope for the keyboard handlers
 let mainWindowRef: BrowserWindow | null = null;
 
@@ -388,6 +390,77 @@ async function captureAndProcessScreenshot(): Promise<void> {
   }
 }
 
+// Stub: analyze screenshots (replace with OpenAI Vision integration)
+async function analyzeScreenshots(): Promise<void> {
+  if (!mainWindowRef) {
+    console.error('No window reference for analysis');
+    return;
+  }
+  
+  try {
+    mainWindowRef.webContents.send('screenshot-status', 'Analyzing screenshots...');
+    
+    // Check if we have screenshot paths
+    if (screenshotPaths.length < 1) {
+      mainWindowRef.webContents.send('analysis-result', 'Error: No screenshots available for analysis');
+      return;
+    }
+    
+    // Get the prompt from the renderer if available
+    const prompt = await new Promise<string>((resolve) => {
+      mainWindowRef?.webContents.send('get-prompt');
+      
+      // Set up a one-time listener for the prompt response
+      ipcMain.once('prompt-response', (event, promptText: string) => {
+        resolve(promptText || 'Analyze the images and solve the coding problem in them');
+      });
+      
+      // Set a timeout in case the renderer doesn't respond
+      setTimeout(() => resolve('Analyze the images and solve the coding problem in them'), 500);
+    });
+    
+    // Analyze the screenshots using the new codeAnalyzer module
+    const result = await analyzeCodeFromImages(screenshotPaths, prompt);
+    
+    // Format the analysis result for display
+    const formattedResult = formatAnalysisResult(result);
+    
+    // Send the result to the renderer
+    mainWindowRef.webContents.send('analysis-result', formattedResult);
+    mainWindowRef.webContents.send('screenshot-status', 'Analysis complete');
+  } catch (error) {
+    console.error('Error in screenshot analysis:', error);
+    if (mainWindowRef) {
+      mainWindowRef.webContents.send('analysis-result', `Error analyzing screenshots: ${error instanceof Error ? error.message : String(error)}`);
+      mainWindowRef.webContents.send('screenshot-status', 'Analysis failed');
+    }
+  }
+}
+
+// Format the analysis result for display
+function formatAnalysisResult(result: CodeAnalysisResult): string {
+  return `
+# Code Analysis
+
+## Language
+${result.language}
+
+## Code
+\`\`\`${result.language.toLowerCase()}
+${result.code}
+\`\`\`
+
+## Summary
+${result.summary}
+
+## Time Complexity
+${result.timeComplexity}
+
+## Space Complexity
+${result.spaceComplexity}
+`;
+}
+
 // Handle screenshot requests from renderer
 ipcMain.on('request-screenshot', async () => {
   console.log('Screenshot requested from renderer');
@@ -405,20 +478,23 @@ ipcMain.on('open-screenshot', (event, index: number) => {
   }
 });
 
-// Stub: analyze screenshots (replace with OpenAI Vision integration)
-async function analyzeScreenshots(): Promise<void> {
-  const result = 'Analysis not implemented yet.';
-  if (mainWindowRef) {
-    mainWindowRef.webContents.send('analysis-result', result);
-  }
-}
-
 // Handle prompt submission from renderer
 ipcMain.on('submit-prompt', (event, prompt: string) => {
   if (!mainWindowRef) return;
   console.log('User prompt submitted:', prompt);
-  // Stub: echo prompt back
-  mainWindowRef.webContents.send('submit-result', `Prompt received: ${prompt}`);
+  
+  // If we have screenshots, analyze them with the provided prompt
+  if (screenshotPaths.length > 0) {
+    analyzeScreenshots();
+  } else {
+    // Just echo the prompt back if no screenshots
+    mainWindowRef.webContents.send('submit-result', `Prompt received: ${prompt}`);
+  }
+});
+
+// New handler for getting the prompt from the renderer
+ipcMain.on('prompt-response', (event, prompt: string) => {
+  console.log('Prompt response received:', prompt);
 });
 
 app.on("window-all-closed", () => {
