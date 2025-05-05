@@ -319,23 +319,7 @@ async function captureAndProcessScreenshot() {
   }
   
   try {
-    // Ask for permission before capturing screenshot
-    const { response } = await dialog.showMessageBox(mainWindowRef, {
-      type: 'question',
-      buttons: ['Cancel', 'Allow'],
-      defaultId: 1,
-      title: 'Screen Capture Permission',
-      message: 'Allow this app to capture your screen?',
-      detail: 'This will take a screenshot of your current active window or screen.',
-      cancelId: 0,
-    });
-    
-    // If user cancelled, abort the screenshot
-    if (response === 0) {
-      console.log('Screenshot permission denied by user');
-      mainWindowRef.webContents.send('screenshot-status', 'Screenshot cancelled');
-      return;
-    }
+    // Permission dialog removed - screenshot will be taken without asking
     
     mainWindowRef.webContents.send('screenshot-status', 'Capturing screenshot...');
     
