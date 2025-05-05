@@ -34,13 +34,14 @@
     "productName": "Code Analyzer",
     "files": [
       "dist/**/*",
-      "node_modules/**/*",
       "index.html",
       "package.json"
     ],
     "directories": {
       "output": "release/"
     },
+    "asar": true,
+    "compression": "maximum",
     "mac": {
       "category": "public.app-category.developer-tools",
       "target": ["dmg"]
