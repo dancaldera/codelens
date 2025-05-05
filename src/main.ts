@@ -29,8 +29,11 @@ function createWindow(): void {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js') // Will be compiled to dist/src/preload.js
-    }
+    },
   });
+
+  // Set content protection to prevent screenshots
+  mainWindow.setContentProtection(true);
 
   // Make the window visible on all workspaces, including fullscreen ones
   mainWindow.setVisibleOnAllWorkspaces(true, {
@@ -48,7 +51,7 @@ function createWindow(): void {
   // app.dock.hide();
 
   // Move the window to the top Z-order (might help in some cases)
-  // mainWindow.moveTop();
+  mainWindow.moveTop();
 
   // Load your app content
   mainWindow.loadFile(path.join(__dirname, "../../index.html"));
