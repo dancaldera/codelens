@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer, desktopCapturer, screen } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -14,20 +14,27 @@ contextBridge.exposeInMainWorld('api', {
   onContextReset: (callback) => ipcRenderer.on('context-reset', () => callback()),
   // Submit result notification
   onSubmitResult: (callback) => ipcRenderer.on('submit-result', (e, result) => callback(result)),
+  // Trigger screenshot manually from renderer
+  captureScreenshot: () => ipcRenderer.send('request-screenshot'),
+  // Receive screenshot image data
+  onScreenshotImage: (callback) => ipcRenderer.on('screenshot-image', (e, imageData) => callback(imageData)),
+  // Clear screenshots
+  onClearScreenshots: (callback) => ipcRenderer.on('clear-screenshots', () => callback()),
+  // Open screenshot in Preview
+  openScreenshot: (index) => ipcRenderer.send('open-screenshot', index)
 });
 
 // Handle screenshot trigger from main process
 ipcRenderer.on('trigger-screenshot', async () => {
   try {
-    // Get screen size for full-resolution capture
-    const { width, height } = screen.getPrimaryDisplay().size;
-    const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width, height } });
-    // Use first screen source
-    const screenSource = sources[0];
-    const imageBuffer = screenSource.thumbnail.toPNG();
-    ipcRenderer.send('screenshot-captured', imageBuffer.toString('base64'));
+    console.log('Screenshot capture triggered from main process');
+    // Forward the request to the main process
+    ipcRenderer.send('request-screenshot');
   } catch (err) {
-    console.error('Error capturing screenshot:', err);
+    console.error('Error in trigger-screenshot handler:', err);
     ipcRenderer.send('screenshot-captured', null);
   }
 });
+
+// We'll move the screenshot capture to the main process since desktopCapturer
+// is having issues in the renderer process
