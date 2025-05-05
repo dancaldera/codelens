@@ -1,7 +1,7 @@
 {
-  "name": "electron-overlay-example",
+  "name": "visual-context-analyzer",
   "version": "1.0.0",
-  "description": "Electron overlay window example",
+  "description": "A code analyzer for Visual Context XT",
   "main": "dist/src/main.js",
   "scripts": {
     "build": "tsc",
@@ -30,8 +30,8 @@
     "typescript": "^5.8.3"
   },
   "build": {
-    "appId": "com.dancaldera.interview-coder-2",
-    "productName": "Code Analyzer",
+    "appId": "com.dancaldera.visualcontextxt",
+    "productName": "VCA",
     "files": [
       "dist/**/*",
       "index.html",
@@ -44,15 +44,21 @@
     "compression": "maximum",
     "mac": {
       "category": "public.app-category.developer-tools",
-      "target": ["dmg"]
+      "target": [
+        "dmg"
+      ]
     },
     "win": {
-      "target": ["nsis"]
+      "target": [
+        "nsis"
+      ]
     },
     "linux": {
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "category": "Development"
     }
   },
-  "author": "Dan Caldera"
+  "author": "Daniel Caldera"
 }
