@@ -51,7 +51,9 @@ function createWindow(): void {
   mainWindow.setFullScreenable(false);
 
   // Optional: Hide the app from the Dock if it's just an overlay
-  // app.dock.hide();
+  if (process.platform === 'darwin' && app.dock) {
+    app.dock.hide();
+  }
 
   // Move the window to the top Z-order (might help in some cases)
   mainWindow.moveTop();
