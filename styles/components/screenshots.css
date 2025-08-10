@@ -1,38 +1,38 @@
 /* Screenshot Components */
 .screenshot-container {
-  display: flex;
-  justify-content: center;
-  margin-bottom: var(--spacing-md);
-  width: 100%;
-  gap: var(--spacing-md);
+	display: flex;
+	justify-content: center;
+	margin-bottom: var(--spacing-md);
+	width: 100%;
+	gap: var(--spacing-md);
 }
 
 .screenshot-thumbnail {
-  width: 120px;
-  height: 80px;
-  background-color: #222;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--small-font-size);
-  background-size: cover;
-  background-position: center;
-  position: relative;
-  overflow: hidden;
-  cursor: pointer;
-  border: 2px solid transparent;
-  border-radius: var(--border-radius);
-  transition: border-color var(--transition-fast);
+	width: 120px;
+	height: 80px;
+	background-color: #222;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: var(--small-font-size);
+	background-size: cover;
+	background-position: center;
+	position: relative;
+	overflow: hidden;
+	cursor: pointer;
+	border: 2px solid transparent;
+	border-radius: var(--border-radius);
+	transition: border-color var(--transition-fast);
 }
 
 .screenshot-thumbnail:hover {
-  border-color: var(--border-hover);
+	border-color: var(--border-hover);
 }
 
 .screenshot-thumbnail.active {
-  border-color: var(--accent-success);
+	border-color: var(--accent-success);
 }
 
 .screenshot-thumbnail.error {
-  border-color: var(--accent-error);
+	border-color: var(--accent-error);
 }

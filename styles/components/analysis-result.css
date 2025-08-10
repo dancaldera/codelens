@@ -1,51 +1,51 @@
 /* Analysis Result Component */
 #analysisResult {
-  background-color: var(--bg-secondary);
-  border-radius: var(--border-radius);
-  padding: var(--spacing-sm);
-  font-size: var(--base-font-size);
-  flex-grow: 1;
-  height: auto;
-  min-height: 200px;
-  overflow-y: auto;
-  margin-bottom: var(--spacing-xs);
-  position: relative;
+	background-color: var(--bg-secondary);
+	border-radius: var(--border-radius);
+	padding: var(--spacing-sm);
+	font-size: var(--base-font-size);
+	flex-grow: 1;
+	height: auto;
+	min-height: 200px;
+	overflow-y: auto;
+	margin-bottom: var(--spacing-xs);
+	position: relative;
 }
 
 /* Markdown styling within analysis result */
-#analysisResult h1, 
+#analysisResult h1,
 #analysisResult h2 {
-  margin-top: var(--spacing-lg);
-  margin-bottom: var(--spacing-xs);
+	margin-top: var(--spacing-lg);
+	margin-bottom: var(--spacing-xs);
 }
 
 #analysisResult pre {
-  background-color: var(--bg-tertiary);
-  padding: var(--spacing-md);
-  border-radius: var(--border-radius);
-  overflow-x: auto;
+	background-color: var(--bg-tertiary);
+	padding: var(--spacing-md);
+	border-radius: var(--border-radius);
+	overflow-x: auto;
 }
 
 #analysisResult code {
-  font-family: 'Courier New', monospace;
-  font-size: var(--code-font-size);
+	font-family: "Courier New", monospace;
+	font-size: var(--code-font-size);
 }
 
 #analysisResult p {
-  margin: var(--spacing-xs) 0;
+	margin: var(--spacing-xs) 0;
 }
 
 #analysisResult ul,
 #analysisResult ol {
-  margin: var(--spacing-xs) 0;
-  padding-left: 20px;
+	margin: var(--spacing-xs) 0;
+	padding-left: 20px;
 }
 
 #analysisResult li {
-  margin: var(--spacing-xs) 0;
+	margin: var(--spacing-xs) 0;
 }
 
 #analysisResult strong {
-  color: var(--text-primary);
-  font-weight: bold;
+	color: var(--text-primary);
+	font-weight: bold;
 }

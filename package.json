@@ -1,69 +1,73 @@
 {
-  "name": "visual-context-analyzer",
-  "version": "1.0.0",
-  "description": "A code analyzer for Visual Context XT",
-  "main": "dist/src/main.js",
-  "scripts": {
-    "build": "tsc",
-    "start": "npm run build && electron .",
-    "typescript-check": "tsc --noEmit",
-    "dev": "concurrently \"npm run watch\" \"npm run electron-dev\"",
-    "watch": "tsc -w",
-    "electron-dev": "nodemon --watch dist --exec \"electron .\"",
-    "package": "npm run build && electron-builder build --mac",
-    "package-win": "npm run build && electron-builder build --win",
-    "package-linux": "npm run build && electron-builder build --linux",
-    "package-all": "npm run build && electron-builder build -mwl"
-  },
-  "dependencies": {
-    "dotenv": "^16.5.0",
-    "openai": "^4.97.0",
-    "winston": "^3.17.0",
-    "zod": "^3.24.4"
-  },
-  "devDependencies": {
-    "@types/json-schema": "^7.0.15",
-    "@types/node": "^22.15.3",
-    "concurrently": "^8.2.2",
-    "electron": "^36.1.0",
-    "electron-builder": "^26.0.12",
-    "nodemon": "^3.0.3",
-    "typescript": "^5.8.3"
-  },
-  "build": {
-    "appId": "com.dancaldera.visualcontextxt",
-    "productName": "VCA",
-    "files": [
-      "dist/**/*",
-      "index.html",
-      "package.json"
-    ],
-    "directories": {
-      "output": "release/"
-    },
-    "asar": true,
-    "compression": "maximum",
-    "mac": {
-      "category": "public.app-category.developer-tools",
-      "target": [
-        "dmg"
-      ],
-      "entitlements": "entitlements.mac.plist",
-      "entitlementsInherit": "entitlements.mac.plist",
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false
-    },
-    "win": {
-      "target": [
-        "nsis"
-      ]
-    },
-    "linux": {
-      "target": [
-        "AppImage"
-      ],
-      "category": "Development"
-    }
-  },
-  "author": "Daniel Caldera"
+	"name": "visual-context-analyzer",
+	"version": "1.0.0",
+	"description": "A code analyzer for Visual Context XT",
+	"main": "dist/src/main.js",
+	"scripts": {
+		"build": "tsc",
+		"start": "npm run build && electron .",
+		"typescript-check": "tsc --noEmit",
+		"dev": "concurrently \"npm run watch\" \"npm run electron-dev\"",
+		"watch": "tsc -w",
+		"format": "biome format --write",
+		"lint": "biome lint --write",
+		"check": "biome check --write",
+		"electron-dev": "nodemon --watch dist --exec \"electron .\"",
+		"package": "npm run build && electron-builder build --mac",
+		"package-win": "npm run build && electron-builder build --win",
+		"package-linux": "npm run build && electron-builder build --linux",
+		"package-all": "npm run build && electron-builder build -mwl"
+	},
+	"dependencies": {
+		"dotenv": "^16.5.0",
+		"openai": "^4.97.0",
+		"winston": "^3.17.0",
+		"zod": "^3.24.4"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.1.4",
+		"@types/json-schema": "^7.0.15",
+		"@types/node": "^22.15.3",
+		"concurrently": "^8.2.2",
+		"electron": "^36.1.0",
+		"electron-builder": "^26.0.12",
+		"nodemon": "^3.0.3",
+		"typescript": "^5.8.3"
+	},
+	"build": {
+		"appId": "com.dancaldera.visualcontextxt",
+		"productName": "VCA",
+		"files": [
+			"dist/**/*",
+			"index.html",
+			"package.json"
+		],
+		"directories": {
+			"output": "release/"
+		},
+		"asar": true,
+		"compression": "maximum",
+		"mac": {
+			"category": "public.app-category.developer-tools",
+			"target": [
+				"dmg"
+			],
+			"entitlements": "entitlements.mac.plist",
+			"entitlementsInherit": "entitlements.mac.plist",
+			"hardenedRuntime": true,
+			"gatekeeperAssess": false
+		},
+		"win": {
+			"target": [
+				"nsis"
+			]
+		},
+		"linux": {
+			"target": [
+				"AppImage"
+			],
+			"category": "Development"
+		}
+	},
+	"author": "Daniel Caldera"
 }
