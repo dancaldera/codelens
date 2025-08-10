@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, globalShortcut, dialog } from "electron";
+import { app, BrowserWindow, ipcMain, globalShortcut, dialog, systemPreferences, desktopCapturer } from "electron";
 import * as path from "path";
 import * as os from "os";
 import * as fs from "fs";
@@ -66,16 +66,16 @@ function createWindow(): void {
     mainWindow = null;
     mainWindowRef = null;
   });
-  
+
   // Store reference to mainWindow in the module scope for keyboard handlers
   mainWindowRef = mainWindow;
-  
+
   // Position the window at the left-up border with more padding
   mainWindow.setPosition(50, 50);
-  
+
   // Register global shortcuts that work even when the app is not focused
   registerGlobalShortcuts(mainWindow);
-  
+
   // Enable DevTools in development mode only if DEVTOOLS environment variable is explicitly set to true
   const showDevTools = process.env.DEVTOOLS === 'true';
   if (showDevTools) {
@@ -89,30 +89,53 @@ function createWindow(): void {
   } else {
     console.log('DevTools disabled - set DEVTOOLS=true to enable');
   }
-  
+
   // Log when the window is ready
   mainWindow.webContents.on('did-finish-load', () => {
     console.log('Window loaded successfully');
   });
-  
+
   // Add error handling for DevTools protocol errors
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
     console.error(`Page failed to load: ${errorDescription} (${errorCode})`);
   });
-  
+
   // Catch DevTools protocol errors
   mainWindow.webContents.session.webRequest.onErrorOccurred(
     { urls: ['*://*/*'] },
     (details) => {
       if (details.error && details.error.includes('net::ERR_FAILED')) {
-        console.warn('Intercepted network error (possibly related to DevTools Protocol):', 
+        console.warn('Intercepted network error (possibly related to DevTools Protocol):',
           details.error, 'URL:', details.url);
       }
     }
   );
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  // Check screen recording permission on macOS
+  if (process.platform === 'darwin') {
+    const screenStatus = systemPreferences.getMediaAccessStatus("screen");
+    console.log('Screen recording permission status:', screenStatus);
+
+    if (screenStatus !== 'granted') {
+      console.log('Screen recording permission not granted. Please grant it manually in System Preferences.');
+      console.log('Go to: System Preferences > Security & Privacy > Privacy > Screen Recording');
+      console.log('Add your app to the list and enable it.');
+    }
+
+    // Also check accessibility permissions
+    const isTrusted = systemPreferences.isTrustedAccessibilityClient(false);
+    console.log('Accessibility permissions trusted:', isTrusted);
+    
+    if (!isTrusted) {
+      console.log('Prompting for accessibility permissions...');
+      systemPreferences.isTrustedAccessibilityClient(true);
+    }
+  }
+
+  createWindow();
+});
 
 // Function to register global shortcuts
 function registerGlobalShortcuts(window: BrowserWindow): void {
@@ -120,32 +143,32 @@ function registerGlobalShortcuts(window: BrowserWindow): void {
   const MOVE_AMOUNT = 25;
   const OPACITY_STEP = 0.1;
   const SIZE_STEP = 25;
-  
+
   // Register Command+Arrow keys for window movement
   globalShortcut.register('CommandOrControl+Up', () => {
     if (!window) return;
     const [x, y] = window.getPosition();
     window.setPosition(x, y - MOVE_AMOUNT);
   });
-  
+
   globalShortcut.register('CommandOrControl+Down', () => {
     if (!window) return;
     const [x, y] = window.getPosition();
     window.setPosition(x, y + MOVE_AMOUNT);
   });
-  
+
   globalShortcut.register('CommandOrControl+Left', () => {
     if (!window) return;
     const [x, y] = window.getPosition();
     window.setPosition(x - MOVE_AMOUNT, y);
   });
-  
+
   globalShortcut.register('CommandOrControl+Right', () => {
     if (!window) return;
     const [x, y] = window.getPosition();
     window.setPosition(x + MOVE_AMOUNT, y);
   });
-  
+
   // Register Command+1 to reduce opacity by 10%
   globalShortcut.register('CommandOrControl+1', () => {
     if (!window) return;
@@ -154,7 +177,7 @@ function registerGlobalShortcuts(window: BrowserWindow): void {
     window.setOpacity(opacity);
     console.log(`Reduced opacity to: ${opacity.toFixed(1)}`);
   });
-  
+
   // Register Command+2 to increase opacity by 10%
   globalShortcut.register('CommandOrControl+2', () => {
     if (!window) return;
@@ -163,21 +186,21 @@ function registerGlobalShortcuts(window: BrowserWindow): void {
     window.setOpacity(opacity);
     console.log(`Increased opacity to: ${opacity.toFixed(1)}`);
   });
-  
+
   // Register Command+3 to reduce font size
   globalShortcut.register('CommandOrControl+3', () => {
     if (!window) return;
     window.webContents.send('change-font-size', 'decrease');
     console.log('Decreased font size');
   });
-  
+
   // Register Command+4 to increase font size
   globalShortcut.register('CommandOrControl+4', () => {
     if (!window) return;
     window.webContents.send('change-font-size', 'increase');
     console.log('Increased font size');
   });
-  
+
   // Register Command+5 to reduce window size
   globalShortcut.register('CommandOrControl+5', () => {
     if (!window) return;
@@ -185,7 +208,7 @@ function registerGlobalShortcuts(window: BrowserWindow): void {
     window.setSize(Math.max(200, width - SIZE_STEP), Math.max(150, height - SIZE_STEP)); // Min size 200x150
     console.log(`Reduced window size to: ${width - SIZE_STEP}x${height - SIZE_STEP}`);
   });
-  
+
   // Register Command+6 to increase window size
   globalShortcut.register('CommandOrControl+6', () => {
     if (!window) return;
@@ -193,7 +216,7 @@ function registerGlobalShortcuts(window: BrowserWindow): void {
     window.setSize(width + SIZE_STEP, height + SIZE_STEP);
     console.log(`Increased window size to: ${width + SIZE_STEP}x${height + SIZE_STEP}`);
   });
-  
+
   // Register Command+B for toggling visibility
   globalShortcut.register('CommandOrControl+B', () => {
     if (!window) return;
@@ -204,17 +227,17 @@ function registerGlobalShortcuts(window: BrowserWindow): void {
       window.focus();
     }
   });
-  
+
   // Register Command+Q to quit the application
   globalShortcut.register('CommandOrControl+Q', () => {
     app.quit();
   });
-  
+
   // Register Command+H to capture screenshot or reset context
   globalShortcut.register('CommandOrControl+H', () => {
     if (!window) return;
     console.log('Command+H pressed, triggering screenshot');
-    
+
     // When Command+H is pressed with existing screenshots/analysis,
     // we want to capture a new screenshot and extend the existing analysis
     if (screenshotPaths.length > 0 && previousAnalysisResult) {
@@ -225,35 +248,35 @@ function registerGlobalShortcuts(window: BrowserWindow): void {
       captureAndProcessScreenshot();
     }
   });
-  
+
   // Register Command+G to reset context
   globalShortcut.register('CommandOrControl+G', () => {
     if (!window) return;
     console.log('Command+G pressed, resetting context');
-    
+
     // Reset screenshot buffers
     screenshotBuffers = [];
     screenshotPaths = [];
     // Reset previous analysis result
     previousAnalysisResult = null;
-    
+
     // Notify renderer to reset context
     window.webContents.send('context-reset');
-    
+
     // Clear the images in the renderer
     window.webContents.send('clear-screenshots');
   });
-  
+
   // Register Command+Enter to trigger analysis
   globalShortcut.register('CommandOrControl+Enter', () => {
     if (!window) return;
     console.log('Command+Enter pressed, triggering analysis');
     console.log('Current screenshot paths:', screenshotPaths);
-    
+
     // Show loading indicator
     window.webContents.send('show-loading');
     window.webContents.send('screenshot-status', 'Analyzing screenshots...');
-    
+
     // Directly call analyzeScreenshots instead of sending a message
     // This avoids potential IPC message flow issues
     analyzeScreenshots();
@@ -273,18 +296,18 @@ async function saveAndOpenScreenshot(buffer: Buffer, index: number): Promise<str
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
-    
+
     // Generate a filename with timestamp
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filePath = path.join(tempDir, `screenshot-${index}-${timestamp}.png`);
-    
+
     // Write buffer to file
     fs.writeFileSync(filePath, buffer);
     console.log(`Screenshot saved to: ${filePath}`);
-    
+
     // Store the path for later reference
     screenshotPaths[index-1] = filePath;
-    
+
     return filePath;
   } catch (error) {
     console.error('Error saving screenshot:', error);
@@ -298,7 +321,7 @@ function openScreenshotInPreview(filePath: string): void {
     console.error('Screenshot file not found:', filePath);
     return;
   }
-  
+
   // Use the 'open' command to open the file with the default application (Preview on macOS)
   exec(`open "${filePath}"`, (error) => {
     if (error) {
@@ -309,51 +332,105 @@ function openScreenshotInPreview(filePath: string): void {
   });
 }
 
-// Function to capture screenshot in the main process
+// Function to capture screenshot with fallback methods
 async function captureScreenshot(): Promise<string | null> {
   if (!mainWindowRef) {
     console.error('No window reference available for screenshot');
     return null;
   }
-  
-  console.log('Starting screenshot capture in main process');
-  
+
+  console.log('Starting screenshot capture');
+
   try {
-    // Store current window position, visibility state, and always-on-top state
+    // Store current window visibility state
     const wasVisible = mainWindowRef.isVisible();
     const windowPosition = mainWindowRef.getPosition();
     const wasAlwaysOnTop = mainWindowRef.isAlwaysOnTop();
+
+    // Hide the overlay window temporarily
+    if (wasVisible) {
+      mainWindowRef.hide();
+    }
+
+    // Wait a bit to ensure window is fully hidden
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Try Electron's desktopCapturer first
+    try {
+      console.log('Trying desktopCapturer method...');
+      
+      const sources = await desktopCapturer.getSources({
+        types: ['window', 'screen'],
+        thumbnailSize: { width: 1920, height: 1080 }
+      });
+
+      console.log(`Found ${sources.length} capture sources:`);
+      sources.forEach((source, index) => {
+        console.log(`  ${index}: ${source.name} (${source.id})`);
+      });
+
+      // Filter out our own window and empty names
+      const filteredSources = sources.filter(source => 
+        !source.name.toLowerCase().includes('visual-context') &&
+        !source.name.toLowerCase().includes('vca') &&
+        !source.name.toLowerCase().includes('electron') &&
+        source.name !== '' &&
+        source.name !== 'Unknown'
+      );
+
+      console.log(`Filtered to ${filteredSources.length} valid sources`);
+
+      if (filteredSources.length > 0) {
+        const source = filteredSources[0];
+        console.log(`Using source: ${source.name}`);
+
+        const image = source.thumbnail;
+        const buffer = image.toPNG();
+
+        if (buffer.length > 1000) {
+          console.log(`Screenshot captured via desktopCapturer: ${buffer.length} bytes`);
+          
+          // Save for debugging
+          const tempDir = path.join(os.tmpdir(), 'vci-screenshots');
+          if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+          }
+          const timestamp = new Date().toISOString().replace(/:/g, '-');
+          const tempFilePath = path.join(tempDir, `electron-screenshot-${timestamp}.png`);
+          fs.writeFileSync(tempFilePath, buffer);
+          
+          // Restore window visibility
+          if (wasVisible) {
+            if (wasAlwaysOnTop) {
+              mainWindowRef.setAlwaysOnTop(true, "floating");
+            }
+            mainWindowRef.setPosition(windowPosition[0], windowPosition[1]);
+            mainWindowRef.show();
+            mainWindowRef.focus();
+          }
+
+          return buffer.toString('base64');
+        }
+      }
+    } catch (desktopCaptureError) {
+      console.log('desktopCapturer failed, trying fallback:', desktopCaptureError);
+    }
+
+    // Fallback to native macOS screencapture
+    console.log('Using fallback screencapture method...');
     
-    // Wait to ensure the window is fully hidden
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Create a temporary file path for the screenshot
     const tempDir = path.join(os.tmpdir(), 'vci-screenshots');
-    
-    // Ensure the directory exists
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
-    
+
     const timestamp = new Date().toISOString().replace(/:/g, '-');
     const tempFilePath = path.join(tempDir, `macos-screenshot-${timestamp}.png`);
-    
-    // Use macOS native screencapture command
+
     const execFilePromise = util.promisify(execFile);
-    
-    console.log(`Attempting to capture screen to: ${tempFilePath}`);
-    
-    try {
-      // Use the native macOS screencapture command to take a full screenshot
-      // -x: no sound, -T: no thumbnail dialog
-      await execFilePromise('/usr/sbin/screencapture', ['-x', '-T', '0', tempFilePath]);
-      console.log('Native macOS screen capture completed');
-    } catch (error) {
-      console.error('Error during macOS screen capture:', error);
-      throw error;
-    }
-    
-    // Restore window visibility, position and always-on-top state
+    await execFilePromise('/usr/sbin/screencapture', ['-x', '-T', '0', tempFilePath]);
+
+    // Restore window visibility
     if (wasVisible) {
       if (wasAlwaysOnTop) {
         mainWindowRef.setAlwaysOnTop(true, "floating");
@@ -362,45 +439,34 @@ async function captureScreenshot(): Promise<string | null> {
       mainWindowRef.show();
       mainWindowRef.focus();
     }
-    
-    // Check if file exists and read it
+
     if (fs.existsSync(tempFilePath)) {
-      const stats = fs.statSync(tempFilePath);
-      console.log(`Screenshot file size: ${stats.size} bytes`);
-      
-      if (stats.size < 1000) {
-        console.error('Screenshot file is suspiciously small:', stats.size, 'bytes');
-        throw new Error('Screenshot file is too small, may be corrupted');
-      }
-      
       const buffer = fs.readFileSync(tempFilePath);
-      console.log(`Read screenshot file, buffer size: ${buffer.length} bytes`);
-      
-      // Return as base64 string
+      console.log(`Fallback screenshot captured: ${buffer.length} bytes`);
       return buffer.toString('base64');
-    } else {
-      console.error('Screenshot file was not created at expected path:', tempFilePath);
-      throw new Error('Screenshot file was not created');
     }
+
+    throw new Error('Both capture methods failed');
+
   } catch (error) {
-    console.error('Error capturing screenshot:', error);
-    
+    console.error('All screenshot capture methods failed:', error);
+
     // Make sure the window is restored even after error
     if (mainWindowRef && !mainWindowRef.isVisible()) {
       mainWindowRef.show();
       mainWindowRef.focus();
     }
-    
+
     // Show error dialog to the user
     if (mainWindowRef) {
       dialog.showMessageBox(mainWindowRef, {
         type: 'error',
         title: 'Screenshot Error',
-        message: 'Failed to capture screenshot',
+        message: 'Failed to capture screenshot with all methods',
         detail: error instanceof Error ? error.toString() : String(error)
       });
     }
-    
+
     return null;
   }
 }
@@ -411,29 +477,29 @@ async function captureAndProcessScreenshot(): Promise<void> {
     console.error('No window reference for screenshot');
     return;
   }
-  
+
   try {
     // Permission dialog removed - screenshot will be taken without asking
-    
+
     mainWindowRef.webContents.send('screenshot-status', 'Capturing screenshot...');
-    
+
     const base64Data = await captureScreenshot();
-    
+
     if (!base64Data) {
       mainWindowRef.webContents.send('screenshot-status', 'Error capturing screenshot');
       return;
     }
-    
+
     console.log(`Screenshot captured successfully, data length: ${base64Data.length}`);
-    
+
     // Process the screenshot data
     const buffer = Buffer.from(base64Data, 'base64');
     screenshotBuffers.push(buffer);
-    
+
     if (screenshotBuffers.length === 1) {
       // Save screenshot to temp file
       const filePath = await saveAndOpenScreenshot(buffer, 1);
-      
+
       mainWindowRef.webContents.send('screenshot-status', 'Captured screenshot 1 of 2');
       // Send the image data to the renderer for display
       mainWindowRef.webContents.send('screenshot-image', {
@@ -444,7 +510,7 @@ async function captureAndProcessScreenshot(): Promise<void> {
     } else if (screenshotBuffers.length === 2) {
       // Save screenshot to temp file
       const filePath = await saveAndOpenScreenshot(buffer, 2);
-      
+
       mainWindowRef.webContents.send('screenshot-status', 'Captured screenshot 2 of 2. Analyzing...');
       // Send the image data to the renderer for display
       mainWindowRef.webContents.send('screenshot-image', {
@@ -475,43 +541,43 @@ async function captureAndProcessAdditionalScreenshot(): Promise<void> {
     console.error('No window reference for capturing screenshot');
     return;
   }
-  
+
   try {
     mainWindowRef.webContents.send('screenshot-status', 'Capturing additional screenshot...');
-    
+
     // Temporarily hide the mainWindow while capturing
     const wasVisible = mainWindowRef.isVisible();
     if (wasVisible) {
       mainWindowRef.hide();
     }
-    
+
     // Capture the screenshot
     const screenshotPath = await captureScreenshot();
-    
+
     // Show the window again if it was visible before
     if (wasVisible) {
       mainWindowRef.show();
     }
-    
+
     // If screenshot capture failed
     if (!screenshotPath) {
       console.error('Failed to capture additional screenshot');
       mainWindowRef.webContents.send('screenshot-status', 'Failed to capture additional screenshot');
       return;
     }
-    
+
     // Add the new screenshot path to our array
     screenshotPaths.push(screenshotPath);
-    
+
     // Notify the renderer about the new screenshot
     const screenshotCount = screenshotPaths.length;
-    mainWindowRef.webContents.send('screenshot-captured', { 
+    mainWindowRef.webContents.send('screenshot-captured', {
       count: screenshotCount,
-      path: screenshotPath 
+      path: screenshotPath
     });
-    
+
     mainWindowRef.webContents.send('screenshot-status', 'Additional screenshot captured, extending analysis...');
-    
+
     // Analyze the screenshots with the extended context
     analyzeWithExtendedContext();
   } catch (error) {
@@ -528,13 +594,13 @@ async function analyzeWithExtendedContext(): Promise<void> {
     console.error('No window reference or previous analysis for extended analysis');
     return;
   }
-  
+
   try {
     mainWindowRef.webContents.send('screenshot-status', 'Extending analysis with new image...');
-    
+
     // Get only the most recent screenshot path for extension
     const newImagePath = screenshotPaths[screenshotPaths.length - 1];
-    
+
     // Verify the image exists and is readable before proceeding
     try {
       await fs.promises.access(newImagePath, fs.constants.R_OK);
@@ -549,41 +615,41 @@ async function analyzeWithExtendedContext(): Promise<void> {
       mainWindowRef.webContents.send('analysis-result', 'Error: The new screenshot could not be read. Please try capturing another screenshot.');
       return;
     }
-    
+
     // Get the prompt from the renderer if available
     const prompt = await new Promise<string>((resolve) => {
       mainWindowRef?.webContents.send('get-prompt');
-      
+
       // Set up a one-time listener for the prompt response
       ipcMain.once('prompt-response', (event, promptText: string) => {
         console.log('Received prompt response for extended analysis:', promptText);
         resolve(promptText || 'Update the previous analysis with this additional image');
       });
-      
+
       // Set a timeout in case the renderer doesn't respond
       setTimeout(() => {
         console.log('Prompt response timeout for extended analysis, using default prompt');
         resolve('Update the previous analysis with this additional image');
       }, 500);
     });
-    
+
     console.log('About to call extendAnalysisWithImage with new path:', newImagePath);
-    
+
     // Extend the previous analysis with the new image
     const result = await extendAnalysisWithImage(
-      previousAnalysisResult, 
-      [newImagePath], 
+      previousAnalysisResult,
+      [newImagePath],
       prompt
     );
-    
+
     // Update the previous analysis result with the new extended result
     previousAnalysisResult = result;
-    
+
     console.log('Extended analysis complete, result:', result);
-    
+
     // Format the analysis result for display
     const formattedResult = formatAnalysisResult(result);
-    
+
     // Send the result to the renderer
     mainWindowRef.webContents.send('analysis-result', formattedResult);
     mainWindowRef.webContents.send('screenshot-status', 'Extended analysis complete');
@@ -602,49 +668,49 @@ async function analyzeScreenshots(): Promise<void> {
     console.error('No window reference for analysis');
     return;
   }
-  
+
   try {
     mainWindowRef.webContents.send('screenshot-status', 'Analyzing screenshots...');
-    
+
     // Check if we have screenshot paths
     if (screenshotPaths.length < 1) {
       console.error('No screenshot paths available for analysis');
       mainWindowRef.webContents.send('analysis-result', 'Error: No screenshots available for analysis');
       return;
     }
-    
+
     console.log('Screenshot paths available for analysis:', screenshotPaths);
-    
+
     // Get the prompt from the renderer if available
     const prompt = await new Promise<string>((resolve) => {
       mainWindowRef?.webContents.send('get-prompt');
-      
+
       // Set up a one-time listener for the prompt response
       ipcMain.once('prompt-response', (event, promptText: string) => {
         console.log('Received prompt response:', promptText);
         resolve(promptText || 'Analyze the images and solve the coding problem in them');
       });
-      
+
       // Set a timeout in case the renderer doesn't respond
       setTimeout(() => {
         console.log('Prompt response timeout, using default prompt');
         resolve('Analyze the images and solve the coding problem in them');
       }, 500);
     });
-    
+
     console.log('About to call analyzeCodeFromImages with paths:', screenshotPaths);
-    
+
     // Analyze the screenshots using the new codeAnalyzer module
     const result = await analyzeCodeFromImages(screenshotPaths, prompt);
-    
+
     // Store the result for potential future extension
     previousAnalysisResult = result;
-    
+
     console.log('Analysis complete, result:', result);
-    
+
     // Format the analysis result for display
     const formattedResult = formatAnalysisResult(result);
-    
+
     // Send the result to the renderer
     mainWindowRef.webContents.send('analysis-result', formattedResult);
     mainWindowRef.webContents.send('screenshot-status', 'Analysis complete');
@@ -662,7 +728,7 @@ ipcMain.on('submit-prompt', (event, prompt: string) => {
   if (!mainWindowRef) return;
   console.log('User prompt submitted:', prompt);
   console.log('Current screenshot paths:', screenshotPaths);
-  
+
   // If we have screenshots, analyze them with the provided prompt
   if (screenshotPaths.length > 0) {
     console.log('Screenshots available, triggering analysis');
@@ -678,26 +744,26 @@ ipcMain.on('submit-prompt', (event, prompt: string) => {
 // Handle API key saving
 ipcMain.on('save-api-key', (event, apiKey: string) => {
   if (!apiKey) return;
-  
+
   // Save the API key to the environment variables
   process.env.OPENAI_API_KEY = apiKey;
-  
+
   // Also save to .env file
   try {
     const envPath = path.resolve(process.cwd(), '.env');
-    const envContent = fs.existsSync(envPath) 
-      ? fs.readFileSync(envPath, 'utf8') 
+    const envContent = fs.existsSync(envPath)
+      ? fs.readFileSync(envPath, 'utf8')
       : '';
-    
+
     // Parse existing content to preserve other variables
     const envLines = envContent.split('\n').filter(line => !line.startsWith('OPENAI_API_KEY='));
-    
+
     // Add the updated API key
     envLines.push(`OPENAI_API_KEY=${apiKey}`);
-    
+
     // Write back to .env file
     fs.writeFileSync(envPath, envLines.join('\n'));
-    
+
     console.log('API key saved successfully');
     if (mainWindowRef) {
       mainWindowRef.webContents.send('screenshot-status', 'API key saved successfully');
@@ -723,7 +789,7 @@ ipcMain.on('prompt-response', (event, prompt: string) => {
 app.on("window-all-closed", () => {
   // Unregister shortcuts when all windows are closed
   unregisterShortcuts();
-  
+
   if (process.platform !== "darwin") {
     app.quit();
   }
