@@ -29,8 +29,7 @@ function createWindow(): void {
 		transparent: true,
 		resizable: true,
 		movable: true,
-		// Disable bounds checking to allow unlimited movement
-		useContentSize: false,
+		enableLargerThanScreen: true,
 		webPreferences: {
 			nodeIntegration: false,
 			contextIsolation: true,
