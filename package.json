@@ -39,7 +39,9 @@
 		"files": [
 			"dist/**/*",
 			"index.html",
-			"package.json"
+			"package.json",
+			"styles/**/*",
+			"src/renderer.js"
 		],
 		"directories": {
 			"output": "release/"
