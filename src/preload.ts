@@ -17,6 +17,7 @@ interface ApiInterface {
 	saveApiKey: (apiKey: string) => void
 	getApiKey: () => Promise<string>
 	onLanguageDetected: (callback: (language: string) => void) => void
+	resizeWindow: (width: number, height: number) => void
 }
 
 interface ScreenshotImageData {
@@ -68,6 +69,8 @@ contextBridge.exposeInMainWorld('api', {
 	// Language detection
 	onLanguageDetected: (callback: (language: string) => void) =>
 		ipcRenderer.on('language-detected', (_e: IpcRendererEvent, language: string) => callback(language)),
+	// Window resizing
+	resizeWindow: (width: number, height: number) => ipcRenderer.send('resize-window', { width, height }),
 } as ApiInterface)
 
 // Handle screenshot trigger from main process

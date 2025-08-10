@@ -35,6 +35,15 @@ window.addEventListener('DOMContentLoaded', () => {
 		document.querySelectorAll('pre code').forEach((block) => {
 			hljs.highlightBlock(block)
 		})
+
+		// Auto-resize window to fit content (horizontal layout)
+		setTimeout(() => {
+			const contentHeight = document.body.scrollHeight
+			const analysisWidth = resultDiv.scrollWidth
+			// Calculate width needed: screenshots (120px) + gap (8px) + analysis + padding
+			const totalWidth = Math.max(500, Math.min(1000, 120 + 8 + analysisWidth + 40))
+			window.api.resizeWindow(totalWidth, Math.max(200, contentHeight + 20))
+		}, 100)
 	})
 
 	// Language detection updates (internal only)
@@ -54,7 +63,7 @@ window.addEventListener('DOMContentLoaded', () => {
 	window.api.onContextReset(() => {
 		if (statusDiv) {
 			statusDiv.innerText =
-				'⌘+H: Capture • ⌘+G: Reset • ⌘+B: Toggle • ⌘+Arrow: Move • ⌘+1-2: Opacity • ⌘+3-4: Font • ⌘+5-6: Size'
+				'⌘+H: Capture • ⌘+G: Reset • ⌘+B: Toggle • ⌘+T: Click-through • ⌘+Arrow: Move • ⌘+1-2: Opacity • ⌘+3-4: Font • ⌘+5-6: Size'
 		}
 		resultDiv.innerHTML = ''
 		// Clear the screenshot thumbnails
@@ -64,6 +73,9 @@ window.addEventListener('DOMContentLoaded', () => {
 		screenshot2.innerHTML = '2'
 		screenshot1.classList.remove('active', 'error')
 		screenshot2.classList.remove('active', 'error')
+		
+		// Reset window size to default (horizontal layout)
+		window.api.resizeWindow(500, 200)
 	})
 
 	// Handle screenshot images
@@ -187,9 +199,4 @@ window.addEventListener('DOMContentLoaded', () => {
 		}
 	})
 
-	// Initial status text
-	if (statusDiv) {
-		statusDiv.innerText =
-			'⌘+H: Capture • ⌘+G: Reset • ⌘+B: Toggle • ⌘+Arrow: Move • ⌘+1-2: Opacity • ⌘+3-4: Font • ⌘+5-6: Size'
-	}
 })

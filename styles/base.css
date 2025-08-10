@@ -9,7 +9,6 @@ body {
 	padding: 0;
 	background-color: var(--bg-primary);
 	color: var(--text-primary);
-	overflow: hidden;
 	user-select: none;
 	font-size: var(--base-font-size);
 }
@@ -18,9 +17,17 @@ body {
 #container {
 	display: flex;
 	flex-direction: column;
-	height: 100vh;
 	padding: var(--spacing-md);
 	width: auto;
+	min-height: min-content;
+}
+
+/* Main content area - side by side layout */
+.main-content {
+	display: flex;
+	flex-direction: row;
+	gap: var(--spacing-md);
+	align-items: flex-start;
 }
 
 /* Animations */

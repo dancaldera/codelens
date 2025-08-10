@@ -4,12 +4,9 @@
 	border-radius: var(--border-radius);
 	padding: var(--spacing-sm);
 	font-size: var(--base-font-size);
-	flex-grow: 1;
-	height: auto;
-	min-height: 200px;
-	overflow-y: auto;
-	margin-bottom: var(--spacing-xs);
-	position: relative;
+	flex: 1;
+	min-width: 300px;
+	max-width: 600px;
 }
 
 /* Markdown styling within analysis result */
@@ -24,6 +21,10 @@
 	padding: var(--spacing-md);
 	border-radius: var(--border-radius);
 	overflow-x: auto;
+	width: 100%;
+	box-sizing: border-box;
+	white-space: pre-wrap;
+	word-wrap: break-word;
 }
 
 #analysisResult code {

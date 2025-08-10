@@ -15,15 +15,19 @@ suppressElectronErrors()
 let mainWindow: BrowserWindow | null = null
 let screenshotCount = 0
 let screenshotPaths: string[] = []
+let isClickThrough = true // Track click-through state
 
 function createWindow(): void {
 	mainWindow = new BrowserWindow({
-		width: 400,
-		height: 300,
+		width: 500,
+		height: 200,
+		minWidth: 450,
+		minHeight: 180,
 		frame: false,
 		opacity: 0.7,
 		alwaysOnTop: true,
 		transparent: true,
+		resizable: true,
 		webPreferences: {
 			nodeIntegration: false,
 			contextIsolation: true,
@@ -44,6 +48,9 @@ function createWindow(): void {
 
 	// Move to top Z-order
 	mainWindow.moveTop()
+
+	// Make window click-through (ignores mouse events)
+	mainWindow.setIgnoreMouseEvents(true)
 
 	mainWindow.loadFile(path.join(__dirname, '../../index.html'))
 	mainWindow.setPosition(50, 50)
@@ -71,6 +78,7 @@ function registerShortcuts(): void {
 		screenshotCount = 0
 		screenshotPaths = []
 		mainWindow.webContents.send('clear-screenshots')
+		mainWindow.webContents.send('context-reset')
 		mainWindow.webContents.send('screenshot-status', 'Screenshots cleared')
 		logger.info('Screenshots reset')
 	})
@@ -86,6 +94,16 @@ function registerShortcuts(): void {
 		} else {
 			mainWindow.show()
 		}
+	})
+
+	// Toggle click-through mode
+	globalShortcut.register('CommandOrControl+T', () => {
+		if (!mainWindow) return
+		isClickThrough = !isClickThrough
+		mainWindow.setIgnoreMouseEvents(isClickThrough)
+		mainWindow.webContents.send('screenshot-status', 
+			isClickThrough ? 'Click-through enabled' : 'Click-through disabled')
+		logger.info('Click-through toggled', { isClickThrough })
 	})
 }
 
@@ -225,6 +243,13 @@ async function saveScreenshot(buffer: Buffer, method: string): Promise<void> {
 // Handle missing IPC handlers to prevent errors
 ipcMain.handle('get-api-key', () => {
 	return process.env.OPENAI_API_KEY || ''
+})
+
+// Handle window resizing
+ipcMain.on('resize-window', (_event, { width, height }) => {
+	if (!mainWindow) return
+	mainWindow.setSize(Math.round(width), Math.round(height))
+	logger.info('Window resized', { width, height })
 })
 
 // Handle prompt submission for analysis
