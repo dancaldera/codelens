@@ -17,6 +17,7 @@ let screenshotCount = 0
 let screenshotPaths: string[] = []
 let previousAnalysis: string | null = null
 const MAX_SCREENSHOTS = 2
+let currentOpacity = 0.8
 
 function createWindow(): void {
 	mainWindow = new BrowserWindow({
@@ -79,6 +80,25 @@ function createWindow(): void {
 	mainWindow.on('closed', () => {
 		mainWindow = null
 	})
+}
+
+function increaseOpacity(): void {
+	if (!mainWindow) return
+	currentOpacity = Math.min(currentOpacity + 0.1, 1.0)
+	updateOpacity()
+}
+
+function decreaseOpacity(): void {
+	if (!mainWindow) return
+	currentOpacity = Math.max(currentOpacity - 0.1, 0.1)
+	updateOpacity()
+}
+
+function updateOpacity(): void {
+	if (!mainWindow) return
+	// Send opacity change to renderer to update CSS variable
+	mainWindow.webContents.send('opacity-change', currentOpacity)
+	logger.info('Opacity changed', { opacity: currentOpacity })
 }
 
 function registerShortcuts(): void {
@@ -180,6 +200,37 @@ function registerShortcuts(): void {
 		const newX = x + fastMoveDistance
 		mainWindow.setPosition(newX, y, false)
 		logger.debug('Window moved right fast', { x: newX, y })
+	})
+
+	// Opacity control shortcuts
+	globalShortcut.register('CommandOrControl+Plus', () => {
+		if (!mainWindow) return
+		increaseOpacity()
+	})
+
+	globalShortcut.register('CommandOrControl+Shift+Plus', () => {
+		if (!mainWindow) return
+		increaseOpacity()
+	})
+
+	globalShortcut.register('CommandOrControl+=', () => {
+		if (!mainWindow) return
+		increaseOpacity()
+	})
+
+	globalShortcut.register('CommandOrControl+Minus', () => {
+		if (!mainWindow) return
+		decreaseOpacity()
+	})
+
+	globalShortcut.register('CommandOrControl+Shift+Minus', () => {
+		if (!mainWindow) return
+		decreaseOpacity()
+	})
+
+	globalShortcut.register('CommandOrControl+-', () => {
+		if (!mainWindow) return
+		decreaseOpacity()
 	})
 }
 

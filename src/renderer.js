@@ -211,6 +211,12 @@ window.addEventListener('DOMContentLoaded', () => {
 		document.documentElement.style.setProperty('--header-font-size', `${Math.round(14 * fontSizeFactor)}px`)
 	})
 
+	// Handle opacity changes
+	window.api.onOpacityChange((opacity) => {
+		// Update the CSS variable for background opacity
+		document.documentElement.style.setProperty('--bg-opacity', opacity.toString())
+	})
+
 	// API Key handling
 	apiKeySaveBtn.addEventListener('click', () => {
 		const apiKey = apiKeyInput.value.trim()

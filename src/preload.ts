@@ -18,6 +18,7 @@ interface ApiInterface {
 	getApiKey: () => Promise<string>
 	onLanguageDetected: (callback: (language: string) => void) => void
 	resizeWindow: (width: number, height: number) => void
+	onOpacityChange: (callback: (opacity: number) => void) => void
 }
 
 interface ScreenshotImageData {
@@ -71,6 +72,9 @@ contextBridge.exposeInMainWorld('api', {
 		ipcRenderer.on('language-detected', (_e: IpcRendererEvent, language: string) => callback(language)),
 	// Window resizing
 	resizeWindow: (width: number, height: number) => ipcRenderer.send('resize-window', { width, height }),
+	// Opacity change handler
+	onOpacityChange: (callback: (opacity: number) => void) =>
+		ipcRenderer.on('opacity-change', (_e: IpcRendererEvent, opacity: number) => callback(opacity)),
 } as ApiInterface)
 
 // Handle screenshot trigger from main process
