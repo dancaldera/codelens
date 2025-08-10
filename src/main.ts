@@ -318,7 +318,7 @@ async function saveScreenshot(buffer: Buffer, method: string): Promise<void> {
 
 		// Send status update
 		mainWindow.webContents.send('screenshot-status', `Screenshot ${screenshotCount} captured`)
-		
+
 		// Auto-trigger analysis when we have 2 screenshots or when adding to existing analysis
 		if (screenshotCount === 2 || (screenshotCount === 1 && previousAnalysis)) {
 			setTimeout(() => {
@@ -333,9 +333,9 @@ async function saveScreenshot(buffer: Buffer, method: string): Promise<void> {
 
 async function triggerAnalysis(): Promise<void> {
 	if (!mainWindow || screenshotPaths.length === 0) return
-	
+
 	const prompt = 'You are an expert software developer. Analyze the code in these images, extract it accurately, solve any problems shown, and provide the best practices solution.'
-	
+
 	try {
 		logger.info('Starting code analysis', {
 			prompt: prompt.substring(0, 100),
@@ -409,7 +409,7 @@ ipcMain.on('resize-window', (_event, { width, height }) => {
 })
 
 // Handle manual analysis trigger (kept for compatibility)
-ipcMain.on('submit-prompt', async (_event, prompt: string) => {
+ipcMain.on('submit-prompt', async (_event, _prompt: string) => {
 	if (!mainWindow) return
 
 	if (screenshotPaths.length === 0) {

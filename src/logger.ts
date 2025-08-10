@@ -51,7 +51,7 @@ const electronErrorFilter = winston.format((info) => {
 // Create the main logger
 const logger = winston.createLogger({
 	level: process.env.LOG_LEVEL || 'info',
-	defaultMeta: { service: 'visual-context-analyzer' },
+	defaultMeta: { service: 'codelens' },
 	format: electronErrorFilter(),
 	transports: [
 		// Console transport
