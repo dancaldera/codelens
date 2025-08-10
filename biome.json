@@ -26,7 +26,8 @@
 			"trailingCommas": "all",
 			"arrowParentheses": "always",
 			"indentStyle": "tab",
-			"lineWidth": 120
+			"lineWidth": 120,
+			"semicolons": "asNeeded"
 		}
 	},
 	"assist": {
