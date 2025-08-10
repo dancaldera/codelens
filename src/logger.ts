@@ -1,9 +1,12 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import winston from 'winston'
+import { app } from 'electron'
 
 // Ensure logs directory exists
-const logsDir = path.join(process.cwd(), 'logs')
+const logsDir = app.isPackaged 
+	? path.join(app.getPath('userData'), 'logs')
+	: path.join(process.cwd(), 'logs')
 if (!fs.existsSync(logsDir)) {
 	fs.mkdirSync(logsDir, { recursive: true })
 }
