@@ -19,9 +19,7 @@ window.addEventListener('DOMContentLoaded', () => {
 		
 		// Add click handler
 		thumbnail.addEventListener('click', () => {
-			if (screenshots.has(index)) {
-				window.api.openScreenshot(index)
-			}
+			// Screenshot click handler - currently disabled
 		})
 		
 		return thumbnail
@@ -107,12 +105,6 @@ window.addEventListener('DOMContentLoaded', () => {
 		console.log('Language detected:', language)
 	})
 
-	// Prompt submission feedback
-	window.api.onSubmitResult((result) => {
-		if (statusDiv) {
-			statusDiv.innerText = result
-		}
-	})
 
 	// Context reset
 	window.api.onContextReset(() => {
@@ -153,7 +145,6 @@ window.addEventListener('DOMContentLoaded', () => {
 				targetElement.dataset.index = imageData.index.toString()
 				targetElement.dataset.path = imageData.path
 				
-				console.log(`Displayed screenshot ${imageData.index}`)
 			}
 		} catch (err) {
 			console.error('Error displaying screenshot:', err)
@@ -198,7 +189,6 @@ window.addEventListener('DOMContentLoaded', () => {
 		const predefinedPrompt =
 			'You are an expert software developer. Analyze the code in these images, extract it accurately, solve any problems shown, and provide the best practices solution.'
 
-		console.log(`Using predefined prompt: ${predefinedPrompt}`)
 		return predefinedPrompt
 	})
 
@@ -224,7 +214,6 @@ window.addEventListener('DOMContentLoaded', () => {
 		document.documentElement.style.setProperty('--small-font-size', `${Math.round(11 * fontSizeFactor)}px`)
 		document.documentElement.style.setProperty('--header-font-size', `${Math.round(14 * fontSizeFactor)}px`)
 
-		console.log(`Font size factor: ${fontSizeFactor.toFixed(2)}`)
 	})
 
 	// API Key handling

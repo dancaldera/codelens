@@ -18,8 +18,8 @@
 }
 
 #analysisResult pre {
-	background: rgba(30, 41, 59, 0.9);
-	border-radius: 6px;
+	background: var(--bg-tertiary);
+	border-radius: var(--border-radius);
 	padding: 16px;
 	margin: 12px 0;
 	overflow-x: auto;
@@ -30,9 +30,9 @@
 
 #analysisResult code {
 	font-family: 'SF Mono', monospace;
-	font-size: 13px;
+	font-size: var(--code-font-size);
 	line-height: 1.5;
-	color: #e2e8f0;
+	color: var(--text-primary);
 }
 
 #analysisResult p {
