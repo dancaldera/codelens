@@ -26,10 +26,33 @@ const fileFormat = winston.format.combine(
 	winston.format.json(),
 )
 
+// Electron-specific error patterns to suppress
+const ELECTRON_ERROR_PATTERNS = [
+	/Network service crashed, restarting service/,
+	/DevTools listening on/,
+	/\[.*?\] GPU process isn't usable\. Goodbye\./,
+	/\[.*?\] The GPU process has crashed/,
+	/Failed to load module "canberra-gtk-module"/,
+	/\[.*?\] Passthrough is not supported/,
+]
+
+// Custom filter to suppress known Electron errors
+const electronErrorFilter = winston.format((info) => {
+	if (info.level === 'error' && typeof info.message === 'string') {
+		for (const pattern of ELECTRON_ERROR_PATTERNS) {
+			if (pattern.test(info.message)) {
+				return false // Suppress this log entry
+			}
+		}
+	}
+	return info
+})
+
 // Create the main logger
 const logger = winston.createLogger({
 	level: process.env.LOG_LEVEL || 'info',
 	defaultMeta: { service: 'visual-context-analyzer' },
+	format: electronErrorFilter(),
 	transports: [
 		// Console transport
 		new winston.transports.Console({
@@ -112,4 +135,18 @@ export const logApiCall = (
 		duration: duration ? `${duration}ms` : undefined,
 		...meta,
 	})
+}
+
+// Electron console output suppression utility
+export const suppressElectronErrors = () => {
+	const originalConsoleError = console.error
+	console.error = (...args: unknown[]) => {
+		const message = args.join(' ')
+		for (const pattern of ELECTRON_ERROR_PATTERNS) {
+			if (pattern.test(message)) {
+				return // Suppress this console error
+			}
+		}
+		originalConsoleError.apply(console, args)
+	}
 }

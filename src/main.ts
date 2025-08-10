@@ -5,9 +5,12 @@ import * as path from 'node:path'
 import * as util from 'node:util'
 import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain } from 'electron'
 import { analyzeCodeFromImages } from './codeAnalyzer'
-import { createLogger } from './logger'
+import { createLogger, suppressElectronErrors } from './logger'
 
 const logger = createLogger('Main')
+
+// Suppress common Electron console errors
+suppressElectronErrors()
 
 let mainWindow: BrowserWindow | null = null
 let screenshotCount = 0
