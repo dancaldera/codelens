@@ -100,43 +100,15 @@
       margin-bottom: 8px;
       justify-content: center;
     }
-    #languageButton {
+    #languageDetected {
       background-color: rgba(60, 60, 60, 0.5);
-      color: white;
+      color: rgba(255, 255, 255, 0.8);
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 3px;
       padding: 6px 10px;
-      margin-left: 5px;
       font-size: var(--base-font-size);
-      cursor: pointer;
-      min-width: 100px;
       text-align: center;
-    }
-    #languageButton:hover {
-      background-color: rgba(80, 80, 80, 0.5);
-    }
-    #languageMenu {
-      position: absolute;
-      background-color: rgba(40, 40, 40, 0.95);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 3px;
-      padding: 5px 0;
-      z-index: 100;
-      display: none;
-      max-height: 300px;
-      overflow-y: auto;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-      left: 50%;
-      transform: translateX(-50%);
-    }
-    .language-option {
-      padding: 6px 15px;
-      cursor: pointer;
-      font-size: var(--base-font-size);
-      white-space: nowrap;
-    }
-    .language-option:hover {
-      background-color: rgba(80, 80, 80, 0.5);
+      min-width: 150px;
     }
     #analysisResult {
       background-color: rgba(60, 60, 60, 0.5);
@@ -254,22 +226,7 @@
     </div>
     
     <div class="prompt-container">
-      <div id="languageButton">Auto</div>
-      <div id="languageMenu">
-        <div class="language-option" data-value="">Auto</div>
-        <div class="language-option" data-value="python">Python</div>
-        <div class="language-option" data-value="javascript">JavaScript</div>
-        <div class="language-option" data-value="typescript">TypeScript</div>
-        <div class="language-option" data-value="java">Java</div>
-        <div class="language-option" data-value="c">C</div>
-        <div class="language-option" data-value="cpp">C++</div>
-        <div class="language-option" data-value="csharp">C#</div>
-        <div class="language-option" data-value="go">Go</div>
-        <div class="language-option" data-value="rust">Rust</div>
-        <div class="language-option" data-value="ruby">Ruby</div>
-        <div class="language-option" data-value="php">PHP</div>
-        <div class="language-option" data-value="swift">Swift</div>
-      </div>
+      <div id="languageDetected">Auto-detecting language...</div>
     </div>
     
     <div id="analysisResult"></div>
@@ -285,14 +242,10 @@
     const resultDiv = document.getElementById('analysisResult');
     const screenshot1 = document.getElementById('screenshot1');
     const screenshot2 = document.getElementById('screenshot2');
-    const languageButton = document.getElementById('languageButton');
-    const languageMenu = document.getElementById('languageMenu');
+    const languageDetected = document.getElementById('languageDetected');
     const loadingIndicator = document.getElementById('loadingIndicator');
     const apiKeyInput = document.getElementById('apiKeyInput');
     const apiKeySaveBtn = document.getElementById('apiKeySaveBtn');
-    
-    // Current selected language
-    let selectedLanguage = '';
 
     // Configure marked.js to use highlight.js for code highlighting
     marked.setOptions({
@@ -305,42 +258,6 @@
       breaks: true
     });
     
-    // Language menu toggle
-    languageButton.addEventListener('click', (event) => {
-      // Position the menu below the button
-      const buttonRect = languageButton.getBoundingClientRect();
-      languageMenu.style.top = `${buttonRect.bottom}px`;
-      // Menu is centered via CSS
-      
-      // Toggle menu visibility
-      if (languageMenu.style.display === 'block') {
-        languageMenu.style.display = 'none';
-      } else {
-        languageMenu.style.display = 'block';
-      }
-      
-      event.stopPropagation();
-    });
-    
-    // Close menu when clicking outside
-    document.addEventListener('click', () => {
-      languageMenu.style.display = 'none';
-    });
-    
-    // Prevent menu from closing when clicking inside it
-    languageMenu.addEventListener('click', (event) => {
-      event.stopPropagation();
-    });
-    
-    // Language option selection
-    document.querySelectorAll('.language-option').forEach(option => {
-      option.addEventListener('click', () => {
-        selectedLanguage = option.getAttribute('data-value') || '';
-        languageButton.textContent = option.textContent;
-        languageMenu.style.display = 'none';
-        console.log(`Language selected: ${selectedLanguage || 'Auto'}`);
-      });
-    });
 
     // Screenshot status updates
     window.api.onScreenshotStatus((status) => {
@@ -360,6 +277,13 @@
         hljs.highlightBlock(block);
       });
     });
+    
+    // Language detection updates
+    window.api.onLanguageDetected((language) => {
+      if (languageDetected) {
+        languageDetected.textContent = language ? `Language: ${language}` : 'Auto-detecting language...';
+      }
+    });
 
     // Prompt submission feedback
     window.api.onSubmitResult((result) => {
@@ -374,8 +298,7 @@
         statusDiv.innerText = '⌘+H: Capture • ⌘+G: Reset • ⌘+B: Toggle • ⌘+Arrow: Move • ⌘+1-2: Opacity • ⌘+3-4: Font • ⌘+5-6: Size';
       }
       resultDiv.innerHTML = '';
-      languageButton.textContent = 'Auto';
-      selectedLanguage = '';
+      languageDetected.textContent = 'Auto-detecting language...';
       // Clear the screenshot thumbnails
       screenshot1.style.backgroundImage = '';
       screenshot1.innerHTML = '1';
@@ -445,9 +368,7 @@
 
     // Handle get-prompt requests from main process
     window.api.onGetPrompt(() => {
-      // Create the predefined prompt with language selection if specified
-      const languageText = selectedLanguage ? selectedLanguage : 'code';
-      const predefinedPrompt = `You're an expert software developer, and you should resolve this ${languageText} problem with the best practices`;
+      const predefinedPrompt = 'You are an expert software developer. Analyze the code in these images, extract it accurately, solve any problems shown, and provide the best practices solution.';
       
       console.log(`Using predefined prompt: ${predefinedPrompt}`);
       return predefinedPrompt;

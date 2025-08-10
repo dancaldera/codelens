@@ -16,6 +16,7 @@ interface ApiInterface {
   onChangeFontSize: (callback: (direction: string) => void) => void;
   saveApiKey: (apiKey: string) => void;
   getApiKey: () => Promise<string>;
+  onLanguageDetected: (callback: (language: string) => void) => void;
 }
 
 interface ScreenshotImageData {
@@ -66,7 +67,10 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('change-font-size', (e: IpcRendererEvent, direction: string) => callback(direction)),
   // API Key functions
   saveApiKey: (apiKey: string) => ipcRenderer.send('save-api-key', apiKey),
-  getApiKey: () => ipcRenderer.invoke('get-api-key')
+  getApiKey: () => ipcRenderer.invoke('get-api-key'),
+  // Language detection
+  onLanguageDetected: (callback: (language: string) => void) => 
+    ipcRenderer.on('language-detected', (e: IpcRendererEvent, language: string) => callback(language))
 } as ApiInterface);
 
 // Handle screenshot trigger from main process

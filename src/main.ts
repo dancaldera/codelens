@@ -259,8 +259,13 @@ ipcMain.on('prompt-response', async (event, prompt: string) => {
       imageCount: screenshotPaths.length 
     });
     
-    // Perform analysis
-    const result = await analyzeCodeFromImages(screenshotPaths, prompt);
+    // Perform analysis with language detection callback
+    const result = await analyzeCodeFromImages(screenshotPaths, prompt, undefined, (detectedLanguage) => {
+      if (mainWindow) {
+        mainWindow.webContents.send('language-detected', detectedLanguage);
+        logger.info('Language detected', { language: detectedLanguage });
+      }
+    });
     
     // Format result as markdown
     const markdownResult = `# Code Analysis Result

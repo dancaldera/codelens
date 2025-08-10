@@ -36,7 +36,8 @@ function isOpenAIConfigured(): boolean {
 export async function analyzeCodeFromImages(
   imagePaths: string[],
   prompt: string = 'Analyze the images and solve the coding problem in them',
-  previousContext?: string
+  previousContext?: string,
+  onLanguageDetected?: (language: string) => void
 ): Promise<CodeAnalysisResult> {
   const startTime = Date.now();
   logger.info(`Starting code analysis for ${imagePaths.length} images`);
@@ -171,21 +172,25 @@ export async function analyzeCodeFromImages(
       
       // Create enhanced prompt with structured output request
       const enhancedPrompt = `
-You are an expert code analyst. Please analyze the code shown in these ${validImages.length} images.
+You are an expert code analyst and software engineer. Please analyze the code shown in these ${validImages.length} images.
 
 Task: ${prompt}
 ${previousContext ? `\nPrevious context: ${previousContext}` : ''}
 
 Please provide a detailed analysis in the following JSON format:
 {
-  "code": "The complete extracted code from the image(s)",
-  "summary": "A comprehensive summary of what the code does, its purpose, and key functionality",
-  "timeComplexity": "Detailed time complexity analysis (e.g., O(n), O(n²), etc.) with explanation",
-  "spaceComplexity": "Detailed space complexity analysis (e.g., O(1), O(n), etc.) with explanation", 
-  "language": "The programming language identified"
+  "code": "The complete extracted code from the image(s) - extract ALL visible code accurately",
+  "summary": "A comprehensive summary of what the code does, its purpose, key functionality, and any problems that need solving",
+  "timeComplexity": "Detailed time complexity analysis (e.g., O(n), O(n²), etc.) with clear explanation",
+  "spaceComplexity": "Detailed space complexity analysis (e.g., O(1), O(n), etc.) with clear explanation", 
+  "language": "The programming language identified (e.g., python, javascript, java, etc.)"
 }
 
-Focus on accuracy and provide complete code extraction. If multiple images show different parts, combine them logically.
+IMPORTANT: 
+1. First identify the programming language from visual cues in the images
+2. Extract ALL visible code accurately - don't summarize or truncate
+3. If there are coding problems or errors visible, provide solutions in your summary
+4. Focus on complete code extraction and practical analysis
       `;
       
       // Create the content array with the enhanced prompt and images
@@ -266,6 +271,11 @@ Focus on accuracy and provide complete code extraction. If multiple images show 
               spaceComplexity: parsed.spaceComplexity || 'O(?)',
               language: parsed.language || 'Unknown'
             };
+            
+            // Notify about detected language
+            if (analysis.language && analysis.language !== 'Unknown' && onLanguageDetected) {
+              onLanguageDetected(analysis.language);
+            }
           } catch (e) {
             // If JSON parsing fails, create a structured response from the text
             analysis = {
