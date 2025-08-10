@@ -15,7 +15,8 @@ suppressElectronErrors()
 let mainWindow: BrowserWindow | null = null
 let screenshotCount = 0
 let screenshotPaths: string[] = []
-const MAX_SCREENSHOTS = 8
+let previousAnalysis: string | null = null
+const MAX_SCREENSHOTS = 2
 
 function createWindow(): void {
 	mainWindow = new BrowserWindow({
@@ -89,6 +90,7 @@ function registerShortcuts(): void {
 		if (!mainWindow) return
 		screenshotCount = 0
 		screenshotPaths = []
+		previousAnalysis = null
 		mainWindow.webContents.send('clear-screenshots')
 		mainWindow.webContents.send('context-reset')
 		mainWindow.webContents.send('screenshot-status', 'Screenshots cleared')
@@ -316,66 +318,33 @@ async function saveScreenshot(buffer: Buffer, method: string): Promise<void> {
 
 		// Send status update
 		mainWindow.webContents.send('screenshot-status', `Screenshot ${screenshotCount} captured`)
+		
+		// Auto-trigger analysis when we have 2 screenshots or when adding to existing analysis
+		if (screenshotCount === 2 || (screenshotCount === 1 && previousAnalysis)) {
+			setTimeout(() => {
+				if (mainWindow) {
+					mainWindow.webContents.send('show-loading')
+					triggerAnalysis()
+				}
+			}, 500)
+		}
 	}
 }
 
-// Handle missing IPC handlers to prevent errors
-ipcMain.handle('get-api-key', () => {
-	return process.env.OPENAI_API_KEY || ''
-})
-
-// Handle window resizing
-ipcMain.on('resize-window', (_event, { width, height }) => {
-	if (!mainWindow) return
-	mainWindow.setSize(Math.round(width), Math.round(height))
-	logger.info('Window resized', { width, height })
-})
-
-// Handle prompt submission for analysis
-ipcMain.on('submit-prompt', async (_event, prompt: string) => {
-	if (!mainWindow) return
-
-	logger.info('Analysis requested', {
-		prompt,
-		screenshotCount: screenshotPaths.length,
-	})
-
-	if (screenshotPaths.length === 0) {
-		mainWindow.webContents.send(
-			'analysis-result',
-			'No screenshots available for analysis. Please take screenshots first.',
-		)
-		return
-	}
-
-	try {
-		// Show loading in UI
-		mainWindow.webContents.send('show-loading')
-
-		// Get the prompt from renderer
-		mainWindow.webContents.send('get-prompt')
-
-		// Wait for prompt response (handled below)
-	} catch (error) {
-		logger.error('Error starting analysis', {
-			error: error instanceof Error ? error.message : String(error),
-		})
-		mainWindow.webContents.send('analysis-result', 'Analysis failed to start. Please try again.')
-	}
-})
-
-// Handle prompt response from renderer
-ipcMain.on('prompt-response', async (_event, prompt: string) => {
-	if (!mainWindow) return
-
+async function triggerAnalysis(): Promise<void> {
+	if (!mainWindow || screenshotPaths.length === 0) return
+	
+	const prompt = 'You are an expert software developer. Analyze the code in these images, extract it accurately, solve any problems shown, and provide the best practices solution.'
+	
 	try {
 		logger.info('Starting code analysis', {
 			prompt: prompt.substring(0, 100),
 			imageCount: screenshotPaths.length,
+			hasPreviousAnalysis: !!previousAnalysis
 		})
 
-		// Perform analysis with language detection callback
-		const result = await analyzeCodeFromImages(screenshotPaths, prompt, undefined, (detectedLanguage) => {
+		// Perform analysis with previous context if available
+		const result = await analyzeCodeFromImages(screenshotPaths, prompt, previousAnalysis || undefined, (detectedLanguage) => {
 			if (mainWindow) {
 				mainWindow.webContents.send('language-detected', detectedLanguage)
 				logger.info('Language detected', { language: detectedLanguage })
@@ -397,6 +366,15 @@ ${result.summary}
 - **Space Complexity:** ${result.spaceComplexity}
 - **Language:** ${result.language}`
 
+		// Store this analysis as context for future screenshots
+		previousAnalysis = JSON.stringify({
+			code: result.code,
+			summary: result.summary,
+			timeComplexity: result.timeComplexity,
+			spaceComplexity: result.spaceComplexity,
+			language: result.language
+		})
+
 		// Send result to renderer
 		mainWindow.webContents.send('analysis-result', markdownResult)
 		mainWindow.webContents.send('screenshot-status', 'Analysis completed')
@@ -416,6 +394,34 @@ Please try again or check your OpenAI API key configuration.`
 		mainWindow.webContents.send('analysis-result', errorMessage)
 		mainWindow.webContents.send('screenshot-status', 'Analysis failed')
 	}
+}
+
+// Handle missing IPC handlers to prevent errors
+ipcMain.handle('get-api-key', () => {
+	return process.env.OPENAI_API_KEY || ''
+})
+
+// Handle window resizing
+ipcMain.on('resize-window', (_event, { width, height }) => {
+	if (!mainWindow) return
+	mainWindow.setSize(Math.round(width), Math.round(height))
+	logger.info('Window resized', { width, height })
+})
+
+// Handle manual analysis trigger (kept for compatibility)
+ipcMain.on('submit-prompt', async (_event, prompt: string) => {
+	if (!mainWindow) return
+
+	if (screenshotPaths.length === 0) {
+		mainWindow.webContents.send(
+			'analysis-result',
+			'No screenshots available for analysis. Please take screenshots first.',
+		)
+		return
+	}
+
+	mainWindow.webContents.send('show-loading')
+	await triggerAnalysis()
 })
 
 // App events

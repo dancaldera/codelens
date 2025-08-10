@@ -40,7 +40,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Main Process (`src/main.ts`):**
 - Creates always-on-top overlay window with keyboard shortcuts
 - Handles screenshot capture via `desktopCapturer` API with fallback to macOS `screencapture`
-- Manages two-screenshot workflow (cycles between screenshot-1 and screenshot-2)
+- Manages two-screenshot workflow with auto-analysis and contextual updates
 - Global shortcuts: `Cmd+H` (screenshot), `Cmd+G` (reset + reposition window), `Cmd+B` (hide/show), `Cmd+Q` (quit)
 
 **Code Analyzer (`src/codeAnalyzer.ts`):**
@@ -64,9 +64,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### UI and UX
 
 **Frontend (`index.html` + `src/renderer.js`):**
-- Minimal overlay UI with up to 8 screenshot thumbnails (cycles)
+- Minimal overlay UI with 2 screenshot thumbnails (cycles between them)
 - Markdown rendering with syntax highlighting (marked.js + highlight.js)
-- Auto-analysis trigger with predefined prompts
+- Auto-analysis after 2nd screenshot with contextual updates
 - API key management with masked input and secure storage
 - Simplified dark theme with opacity-based colors
 - Component-based CSS architecture with clean code boxes
@@ -78,8 +78,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 1. Hide window temporarily during capture
 2. Try `desktopCapturer` first (requires Screen Recording permission)  
 3. Fallback to macOS `screencapture` command if needed
-4. Cycle between screenshot slots 1-8 (MAX_SCREENSHOTS = 8)
-5. Auto-trigger analysis with comprehensive code analysis prompts
+4. Cycle between screenshot slots 1-2 (MAX_SCREENSHOTS = 2)
+5. Auto-trigger analysis after 2nd screenshot
+6. Use previous analysis as context for subsequent screenshots
 
 **macOS Permissions:**
 - Screen Recording permission required for individual window capture

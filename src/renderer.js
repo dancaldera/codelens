@@ -6,7 +6,7 @@ window.addEventListener('DOMContentLoaded', () => {
 	const apiKeyInput = document.getElementById('apiKeyInput')
 	const apiKeySaveBtn = document.getElementById('apiKeySaveBtn')
 	
-	const MAX_SCREENSHOTS = 8
+	const MAX_SCREENSHOTS = 2
 	const screenshots = new Map() // Store screenshot data by index
 
 	// Create screenshot thumbnail element
@@ -28,7 +28,7 @@ window.addEventListener('DOMContentLoaded', () => {
 	// Update screenshot container layout
 	function updateScreenshotContainer() {
 		const existingThumbnails = screenshotContainer.children.length
-		const neededThumbnails = Math.max(2, Math.min(MAX_SCREENSHOTS, screenshots.size + 1))
+		const neededThumbnails = MAX_SCREENSHOTS
 		
 		// Add thumbnails if needed
 		for (let i = existingThumbnails + 1; i <= neededThumbnails; i++) {
