@@ -12,7 +12,7 @@
 		"format": "biome format --write",
 		"lint": "biome lint --write",
 		"check": "biome check --write",
-		"electron-dev": "nodemon --watch dist --exec \"electron .\"",
+		"electron-dev": "nodemon --watch dist --watch index.html --watch styles --watch src/renderer.js --exec \"electron .\"",
 		"package": "npm run build && electron-builder build --mac",
 		"package-win": "npm run build && electron-builder build --win",
 		"package-linux": "npm run build && electron-builder build --linux",
