@@ -57,7 +57,7 @@ export async function analyzeCodeFromImages(
 	}
 
 	// Set a hard timeout for the entire analysis process (increased for better results)
-	const timeoutDuration = 30000 // 30 seconds for better analysis
+	const timeoutDuration = 60000 // 60 seconds for complex analysis
 	const analysisTimeout = setTimeout(() => {
 		logger.warn(`Analysis timeout triggered after ${timeoutDuration}ms`)
 		return defaultResponse
@@ -228,7 +228,7 @@ PRIORITY FOCUS:
 			// Create a direct OpenAI client for vision API
 			const openaiClient = new OpenAI({
 				apiKey: process.env.OPENAI_API_KEY,
-				timeout: 25000, // 25 second timeout for API calls
+				timeout: 50000, // 50 second timeout for API calls
 			})
 
 			const apiCallStart = Date.now()

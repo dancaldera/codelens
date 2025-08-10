@@ -92,8 +92,9 @@ function registerShortcuts(): void {
 		mainWindow.webContents.send('clear-screenshots')
 		mainWindow.webContents.send('context-reset')
 		mainWindow.webContents.send('screenshot-status', 'Screenshots cleared')
-		// Window position is preserved - no automatic repositioning
-		logger.info('Screenshots reset')
+		// Reset window position to initial coordinates
+		mainWindow.setPosition(50, 50, false)
+		logger.info('Screenshots reset and window repositioned')
 	})
 
 	// Quit shortcut
