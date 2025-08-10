@@ -26,7 +26,7 @@ function createWindow(): void {
 		minWidth: 450,
 		minHeight: 180,
 		frame: false,
-		opacity: 0.7,
+		opacity: 0.8,
 		alwaysOnTop: true,
 		transparent: true,
 		resizable: true,
@@ -77,6 +77,11 @@ function createWindow(): void {
 	// Register shortcuts
 	registerShortcuts()
 
+	// Initialize opacity after window loads
+	mainWindow.webContents.once('dom-ready', () => {
+		updateOpacity()
+	})
+
 	mainWindow.on('closed', () => {
 		mainWindow = null
 	})
@@ -89,6 +94,7 @@ function increaseOpacity(): void {
 }
 
 function decreaseOpacity(): void {
+	logger.info('Decreasing opacity')
 	if (!mainWindow) return
 	currentOpacity = Math.max(currentOpacity - 0.1, 0.1)
 	updateOpacity()
@@ -202,30 +208,15 @@ function registerShortcuts(): void {
 		logger.debug('Window moved right fast', { x: newX, y })
 	})
 
-	// Opacity control shortcuts
-	globalShortcut.register('CommandOrControl+Plus', () => {
-		if (!mainWindow) return
-		increaseOpacity()
-	})
-
-	globalShortcut.register('CommandOrControl+Shift+Plus', () => {
-		if (!mainWindow) return
-		increaseOpacity()
-	})
-
+	// Opacity control shortcuts - using valid key names
 	globalShortcut.register('CommandOrControl+=', () => {
 		if (!mainWindow) return
 		increaseOpacity()
 	})
 
-	globalShortcut.register('CommandOrControl+Minus', () => {
+	globalShortcut.register('CommandOrControl+Shift+=', () => {
 		if (!mainWindow) return
-		decreaseOpacity()
-	})
-
-	globalShortcut.register('CommandOrControl+Shift+Minus', () => {
-		if (!mainWindow) return
-		decreaseOpacity()
+		increaseOpacity()
 	})
 
 	globalShortcut.register('CommandOrControl+-', () => {

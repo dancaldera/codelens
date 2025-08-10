@@ -8,8 +8,7 @@
 
 	/* Colors */
 	--bg-primary: transparent;
-	--bg-opacity: 0.8;
-	--bg-secondary: rgba(20, 20, 20, var(--bg-opacity));
+	--bg-secondary: rgba(20, 20, 20, 1);
 
 	--text-primary: #ffffff;
 	--text-secondary: rgba(255, 255, 255, 0.8);
