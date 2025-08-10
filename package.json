@@ -1,7 +1,7 @@
 {
-	"name": "visual-context-analyzer",
+	"name": "codelens",
 	"version": "1.0.0",
-	"description": "A code analyzer for Visual Context XT",
+	"description": "AI-powered code analysis from screenshots - CodeLens visual code analyzer",
 	"main": "dist/src/main.js",
 	"scripts": {
 		"build": "tsc",
@@ -35,8 +35,8 @@
 		"typescript": "^5.8.3"
 	},
 	"build": {
-		"appId": "com.dancaldera.visualcontextxt",
-		"productName": "VCA",
+		"appId": "com.dancaldera.codelens",
+		"productName": "CodeLens",
 		"files": [
 			"dist/**/*",
 			"index.html",
