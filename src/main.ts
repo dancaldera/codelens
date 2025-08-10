@@ -94,7 +94,6 @@ function increaseOpacity(): void {
 }
 
 function decreaseOpacity(): void {
-	logger.info('Decreasing opacity')
 	if (!mainWindow) return
 	currentOpacity = Math.max(currentOpacity - 0.1, 0.1)
 	updateOpacity()
@@ -102,8 +101,7 @@ function decreaseOpacity(): void {
 
 function updateOpacity(): void {
 	if (!mainWindow) return
-	// Send opacity change to renderer to update CSS variable
-	mainWindow.webContents.send('opacity-change', currentOpacity)
+	mainWindow.setOpacity(currentOpacity)
 	logger.info('Opacity changed', { opacity: currentOpacity })
 }
 
@@ -208,20 +206,15 @@ function registerShortcuts(): void {
 		logger.debug('Window moved right fast', { x: newX, y })
 	})
 
-	// Opacity control shortcuts - using valid key names
-	globalShortcut.register('CommandOrControl+=', () => {
-		if (!mainWindow) return
-		increaseOpacity()
-	})
-
-	globalShortcut.register('CommandOrControl+Shift+=', () => {
-		if (!mainWindow) return
-		increaseOpacity()
-	})
-
-	globalShortcut.register('CommandOrControl+-', () => {
+	// Opacity control shortcuts
+	globalShortcut.register('CommandOrControl+1', () => {
 		if (!mainWindow) return
 		decreaseOpacity()
+	})
+
+	globalShortcut.register('CommandOrControl+2', () => {
+		if (!mainWindow) return
+		increaseOpacity()
 	})
 }
 

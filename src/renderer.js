@@ -106,10 +106,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
 	// Context reset
 	window.api.onContextReset(() => {
-		if (statusDiv) {
-			statusDiv.innerText =
-				'⌘+H: Capture • ⌘+G: Reset • ⌘+B: Toggle • ⌘+T: Click-through • ⌘+Arrow: Move • ⌘+1-2: Opacity • ⌘+3-4: Font • ⌘+5-6: Size'
-		}
 		resultDiv.innerHTML = ''
 		// Hide the result div when there's no content
 		resultDiv.style.display = 'none'
@@ -211,11 +207,6 @@ window.addEventListener('DOMContentLoaded', () => {
 		document.documentElement.style.setProperty('--header-font-size', `${Math.round(14 * fontSizeFactor)}px`)
 	})
 
-	// Handle opacity changes
-	window.api.onOpacityChange((opacity) => {
-		// Update the CSS variable for background opacity
-		document.documentElement.style.setProperty('--bg-opacity', opacity.toString())
-	})
 
 	// API Key handling
 	apiKeySaveBtn.addEventListener('click', () => {
