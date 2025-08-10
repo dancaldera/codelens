@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import { z } from 'zod';
 import { OpenAI } from 'openai';
+import { createLogger, logPerformance, logApiCall } from './logger';
 
 // Define the schema for code analysis results
 const codeAnalysisSchema = z.object({
@@ -16,20 +17,35 @@ const codeAnalysisSchema = z.object({
 // Type definition for the analysis result
 export type CodeAnalysisResult = z.infer<typeof codeAnalysisSchema>['analysis'];
 
+// Create logger for code analyzer
+const logger = createLogger('CodeAnalyzer');
+
 // Check if OpenAI API key is configured
 function isOpenAIConfigured(): boolean {
-  return !!process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.startsWith('sk-');
+  const hasKey = !!process.env.OPENAI_API_KEY;
+  const isValidFormat = process.env.OPENAI_API_KEY?.startsWith('sk-') ?? false;
+  
+  logger.debug('API Key configuration check', { hasKey, isValidFormat });
+  return hasKey && isValidFormat;
 }
 
 /**
  * Analyzes code from screenshot images
- * Implements a simplified approach with hard timeouts to ensure completion
+ * Enhanced with better logging, improved model, and performance optimizations
  */
 export async function analyzeCodeFromImages(
   imagePaths: string[],
   prompt: string = 'Analyze the images and solve the coding problem in them',
   previousContext?: string
 ): Promise<CodeAnalysisResult> {
+  const startTime = Date.now();
+  logger.info(`Starting code analysis for ${imagePaths.length} images`);
+  logger.debug('Analysis request details', { 
+    imagePaths, 
+    promptLength: prompt.length,
+    hasPreviousContext: !!previousContext 
+  });
+
   // Default response in case of errors or timeouts
   const defaultResponse: CodeAnalysisResult = {
     code: 'Analysis in progress or timed out',
@@ -39,16 +55,17 @@ export async function analyzeCodeFromImages(
     language: 'Unknown'
   };
   
-  // Set a hard timeout for the entire analysis process
+  // Set a hard timeout for the entire analysis process (increased for better results)
+  const timeoutDuration = 30000; // 30 seconds for better analysis
   const analysisTimeout = setTimeout(() => {
-    console.log('Analysis hard timeout triggered');
+    logger.warn(`Analysis timeout triggered after ${timeoutDuration}ms`);
     return defaultResponse;
-  }, 15000); // 15 seconds max
+  }, timeoutDuration);
   
   try {
     // Check if we have valid image paths
     if (!imagePaths || !imagePaths.length) {
-      console.log('No valid image paths provided');
+      logger.error('No valid image paths provided');
       clearTimeout(analysisTimeout);
       return {
         code: 'No images provided for analysis',
@@ -59,12 +76,12 @@ export async function analyzeCodeFromImages(
       };
     }
     
-    console.log('Images to analyze:', imagePaths);
+    logger.info(`Processing ${imagePaths.length} images`, { imagePaths });
     
     try {
       // Check if OpenAI API key is configured properly
       if (!isOpenAIConfigured()) {
-        console.error('OpenAI API key is not configured');
+        logger.error('OpenAI API key is not configured');
         return {
           code: 'OpenAI API key not configured',
           summary: 'Please add your OPENAI_API_KEY to the .env file or environment variables',
@@ -75,13 +92,34 @@ export async function analyzeCodeFromImages(
       }
       
       // Read the image files and convert them to base64 format
+      logger.debug('Starting image file processing');
+      const imageProcessingStart = Date.now();
+      
       const imageContents = await Promise.all(
-        imagePaths.map(async (path) => {
+        imagePaths.map(async (path, index) => {
           try {
+            logger.debug(`Processing image ${index + 1}/${imagePaths.length}`, { path });
+            
+            // Check file exists and get stats
+            const stats = await fs.promises.stat(path);
+            logger.debug('Image file processed', { path, size: stats.size });
+            
+            if (stats.size === 0) {
+              logger.error(`Image file is empty`, { path });
+              return null;
+            }
+            
+            if (stats.size > 20 * 1024 * 1024) { // 20MB limit
+              logger.warn(`Image file too large`, { path, size: stats.size });
+              return null;
+            }
+            
             // Read the image file as a buffer
             const imageBuffer = await fs.promises.readFile(path);
             // Convert the buffer to a base64 string
             const base64Image = imageBuffer.toString('base64');
+            logger.debug('Image converted to base64', { path, base64Length: base64Image.length });
+            
             // Get the file extension to determine the MIME type
             const fileExtension = path.split('.').pop()?.toLowerCase();
             let mimeType = 'image/png'; // Default to png
@@ -102,17 +140,25 @@ export async function analyzeCodeFromImages(
               }
             };
           } catch (err) {
-            console.error(`Failed to read image: ${path}`, err);
+            logger.error('Failed to read image', { path, error: err instanceof Error ? err.message : String(err) });
             return null;
           }
         })
       );
       
+      const imageProcessingTime = Date.now() - imageProcessingStart;
+      logPerformance('Image processing', imageProcessingStart);
+      
       // Filter out any null values from failed image loads
       const validImages = imageContents.filter((img): img is { type: 'image_url', image_url: { url: string } } => img !== null);
       
+      logger.info('Image processing summary', { 
+        validImages: validImages.length, 
+        totalImages: imagePaths.length 
+      });
+      
       if (validImages.length === 0) {
-        console.error('None of the images could be read');
+        logger.error('None of the images could be read');
         clearTimeout(analysisTimeout);
         return {
           code: 'Failed to read image files',
@@ -123,35 +169,77 @@ export async function analyzeCodeFromImages(
         };
       }
       
-      // Create the content array with the prompt text and images
+      // Create enhanced prompt with structured output request
+      const enhancedPrompt = `
+You are an expert code analyst. Please analyze the code shown in these ${validImages.length} images.
+
+Task: ${prompt}
+${previousContext ? `\nPrevious context: ${previousContext}` : ''}
+
+Please provide a detailed analysis in the following JSON format:
+{
+  "code": "The complete extracted code from the image(s)",
+  "summary": "A comprehensive summary of what the code does, its purpose, and key functionality",
+  "timeComplexity": "Detailed time complexity analysis (e.g., O(n), O(n²), etc.) with explanation",
+  "spaceComplexity": "Detailed space complexity analysis (e.g., O(1), O(n), etc.) with explanation", 
+  "language": "The programming language identified"
+}
+
+Focus on accuracy and provide complete code extraction. If multiple images show different parts, combine them logically.
+      `;
+      
+      // Create the content array with the enhanced prompt and images
       const content = [
         {
           type: 'text' as const,
-          text: `Please analyze the code shown in these ${validImages.length} images. ${prompt}${previousContext ? `\nPrevious context: ${previousContext}` : ''} Extract the code and provide detailed analysis including the time complexity and space complexity.`
+          text: enhancedPrompt
         },
         ...validImages
       ];
       
+      logger.debug('Preparing OpenAI API call', { 
+        imageCount: validImages.length, 
+        promptLength: enhancedPrompt.length 
+      });
+      
       // Create a direct OpenAI client for vision API
       const openaiClient = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY,
+        timeout: 25000, // 25 second timeout for API calls
       });
       
-      // Call the OpenAI API with the images
+      const apiCallStart = Date.now();
+      logger.info('Calling OpenAI API...');
+      
+      // Call the OpenAI API with the images using the latest model
       const response = await openaiClient.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4o-2024-08-06", // Latest GPT-4o model
         messages: [
+          {
+            role: "system",
+            content: "You are an expert software engineer and code analyst. Always respond with accurate, detailed code analysis in the requested JSON format."
+          },
           {
             role: "user",
             content: content
           }
         ],
-        max_tokens: 1000,
-        temperature: 0.2,
+        max_tokens: 2000, // Increased for more detailed analysis
+        temperature: 0.1, // Lower temperature for more consistent results
+        response_format: { type: "json_object" } // Request JSON format
+      });
+      
+      const apiCallTime = Date.now() - apiCallStart;
+      logApiCall('POST', '/chat/completions', 200, apiCallTime, { 
+        model: 'gpt-4o-2024-08-06',
+        imageCount: validImages.length 
       });
       
       const responseText = response.choices[0]?.message.content || '';
-      console.log('OpenAI raw response:', responseText);
+      logger.debug('OpenAI response received', { 
+        responseLength: responseText.length,
+        hasContent: !!responseText 
+      });
       
       // Try to parse the response as JSON
       try {
@@ -202,7 +290,9 @@ export async function analyzeCodeFromImages(
         clearTimeout(analysisTimeout);
         return analysis;
       } catch (error) {
-        console.error('Error processing OpenAI response:', error);
+        logger.error('Error processing OpenAI response', { 
+          error: error instanceof Error ? error.message : String(error) 
+        });
         clearTimeout(analysisTimeout);
         
         // Try to extract useful information from the text response
@@ -215,7 +305,9 @@ export async function analyzeCodeFromImages(
         };
       }
     } catch (error) {
-      console.error('AI analysis error:', error instanceof Error ? error.message : 'Unknown error');
+      logger.error('AI analysis error', { 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
       
       // Provide a more helpful fallback response
       clearTimeout(analysisTimeout);
@@ -228,7 +320,9 @@ export async function analyzeCodeFromImages(
       };
     }
   } catch (error) {
-    console.error('Error in analysis workflow:', error instanceof Error ? error.message : 'Unknown error');
+    logger.error('Error in analysis workflow', { 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
     clearTimeout(analysisTimeout);
     return defaultResponse;
   }
@@ -244,7 +338,7 @@ export async function extendAnalysisWithImage(
   prompt: string = 'Update the previous analysis with this additional image'
 ): Promise<CodeAnalysisResult> {
   if (!newImagePaths || newImagePaths.length === 0) {
-    console.error('No image paths provided for extended analysis');
+    logger.error('No image paths provided for extended analysis');
     return previousAnalysis; // Return previous analysis if no new images
   }
   
@@ -253,13 +347,15 @@ export async function extendAnalysisWithImage(
     for (const path of newImagePaths) {
       await fs.promises.access(path, fs.constants.R_OK);
       const stats = await fs.promises.stat(path);
-      console.log(`Verified image file: ${path}, size: ${stats.size} bytes`);
+      logger.debug('Verified image file', { path, size: stats.size });
       if (stats.size === 0) {
         throw new Error(`Image file is empty: ${path}`);
       }
     }
   } catch (error) {
-    console.error('Error verifying image files:', error);
+    logger.error('Error verifying image files', { 
+      error: error instanceof Error ? error.message : String(error) 
+    });
     // Return previous analysis with a warning added to the summary
     return {
       ...previousAnalysis,
@@ -281,13 +377,18 @@ export async function extendAnalysisWithImage(
   If the new image provides additional context or corrects previous assumptions, please update 
   the analysis accordingly while maintaining relevant information from the previous analysis.`;
 
-  console.log(`Extending analysis with ${newImagePaths.length} new image(s), previous context length: ${contextString.length}`);
+  logger.info('Extending analysis with new images', { 
+    newImageCount: newImagePaths.length, 
+    contextLength: contextString.length 
+  });
   
   try {
     // Call the main analysis function with the new image and context
     return await analyzeCodeFromImages(newImagePaths, contextPrompt, contextString);
   } catch (error) {
-    console.error('Error in extended analysis:', error);
+    logger.error('Error in extended analysis', { 
+      error: error instanceof Error ? error.message : String(error) 
+    });
     // If analysis fails, return the previous analysis with error indication
     return {
       ...previousAnalysis,

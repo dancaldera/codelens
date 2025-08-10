@@ -1,13 +1,13 @@
-# Electron Overlay Window Example
+# Visual Context Analyzer (VCA)
 
-This is a simple Electron application demonstrating how to create an overlay window that stays on top of other applications, including fullscreen ones.
+A simple Electron application for capturing screenshots with an always-on-top overlay window that works across all screens and workspaces.
 
 ## Features
 
-- Frameless window design
-- Always-on-top functionality
-- Visible on all workspaces including fullscreen applications
-- Draggable interface
+- **Screenshot Capture**: Press `Cmd+H` to capture screenshots
+- **Always-on-top overlay**: Stays visible on all workspaces and fullscreen apps
+- **Multi-screen support**: Window appears on all displays
+- **Simple shortcuts**: Only 3 keyboard shortcuts to remember
 
 ## Installation
 
@@ -15,10 +15,46 @@ This is a simple Electron application demonstrating how to create an overlay win
 2. Install dependencies: `npm install`
 3. Start the application: `npm start`
 
-## Key Implementation Details
+## Keyboard Shortcuts
 
-- `setVisibleOnAllWorkspaces(true)` - Makes the window visible across all virtual desktops
-- `setAlwaysOnTop(true, "floating")` - Sets the window to stay on top of other windows
-- `setFullScreenable(false)` - Prevents the window from being made fullscreen
-- Frameless window design with custom close button
-- CSS `-webkit-app-region: drag` for window dragging functionality
+- `Cmd+H` - Take screenshot
+- `Cmd+B` - Hide/show window
+- `Cmd+Q` - Quit application
+
+## macOS Permissions Setup
+
+### For Individual Window Capture (Recommended)
+
+To capture individual application windows instead of just desktop screenshots:
+
+1. **Go to System Preferences > Security & Privacy > Privacy > Screen Recording**
+2. **Find your app** in the list (may appear as "Electron" or "VCA")
+3. **Check the checkbox** to enable screen recording permission
+4. **Completely quit and restart** the application
+
+After granting permission, the app will capture individual windows instead of the entire desktop.
+
+### Troubleshooting Screenshot Issues
+
+If screenshots fail completely:
+
+- **Check Screen Recording permission** (see above)
+- **Try running the app from terminal** to see error messages
+- **Restart the app** after granting permissions
+
+The app has a fallback mechanism:
+- **Primary method**: Individual window capture (requires screen recording permission)
+- **Fallback method**: Full desktop screenshot (works without special permissions)
+
+## Development
+
+- Build: `npm run build`
+- Development mode: `npm run dev`
+- Package for distribution: `npm run package`
+
+## Technical Details
+
+- Uses Electron's `desktopCapturer` API for window capture
+- Falls back to macOS native `screencapture` command
+- Window stays on top across all workspaces and screens
+- Screenshots saved to system temp directory

@@ -72,6 +72,7 @@ contextBridge.exposeInMainWorld('api', {
 // Handle screenshot trigger from main process
 ipcRenderer.on('trigger-screenshot', async () => {
   try {
+    // Note: Basic console logging in preload, full winston logging in main process
     console.log('Screenshot capture triggered from main process');
     // Forward the request to the main process
     ipcRenderer.send('request-screenshot');
