@@ -41,13 +41,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Creates always-on-top overlay window with keyboard shortcuts
 - Handles screenshot capture via `desktopCapturer` API with fallback to macOS `screencapture`
 - Manages two-screenshot workflow (cycles between screenshot-1 and screenshot-2)
-- Global shortcuts: `Cmd+H` (screenshot), `Cmd+G` (reset), `Cmd+B` (hide/show), `Cmd+Q` (quit)
+- Global shortcuts: `Cmd+H` (screenshot), `Cmd+G` (reset + reposition window), `Cmd+B` (hide/show), `Cmd+Q` (quit)
 
 **Code Analyzer (`src/codeAnalyzer.ts`):**
 - OpenAI GPT-4o integration for vision-based code analysis
 - Structured output with code extraction, complexity analysis, and language detection
 - Context-aware analysis that can extend previous results with new screenshots
-- Comprehensive error handling and logging
+- Comprehensive error handling and logging with extended timeouts (60s total, 50s API)
 
 **Preload Script (`src/preload.ts`):**
 - Context bridge for secure renderer-main communication
@@ -64,13 +64,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### UI and UX
 
 **Frontend (`index.html` + `src/renderer.js`):**
-- Minimal overlay UI with two screenshot thumbnails
+- Minimal overlay UI with up to 8 screenshot thumbnails (cycles)
 - Markdown rendering with syntax highlighting (marked.js + highlight.js)
-- Language selection dropdown for targeted analysis
-- Auto-analysis trigger after second screenshot
-- API key management with masked input
-- Modular CSS architecture with component-based styling
-- Extracted renderer logic for better maintainability
+- Auto-analysis trigger with predefined prompts
+- API key management with masked input and secure storage
+- Simplified dark theme with opacity-based colors
+- Component-based CSS architecture with clean code boxes
+- Optimized renderer logic with removed unused functions
 
 ### Key Technical Details
 
@@ -78,8 +78,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 1. Hide window temporarily during capture
 2. Try `desktopCapturer` first (requires Screen Recording permission)  
 3. Fallback to macOS `screencapture` command if needed
-4. Cycle between screenshot slots 1 and 2
-5. Auto-trigger analysis after screenshot 2
+4. Cycle between screenshot slots 1-8 (MAX_SCREENSHOTS = 8)
+5. Auto-trigger analysis with comprehensive code analysis prompts
 
 **macOS Permissions:**
 - Screen Recording permission required for individual window capture

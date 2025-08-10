@@ -5,7 +5,7 @@ AI-powered code analysis from screenshots. An Electron application that captures
 ## Features
 
 - **AI Code Analysis**: GPT-4o vision model analyzes code from screenshots
-- **Screenshot Capture**: Press `Cmd+H` to capture code screenshots
+- **Screenshot Capture**: Press `Cmd+H` to capture code screenshots (cycles through 8 slots)
 - **Code Extraction**: Extracts and formats code with syntax highlighting
 - **Complexity Analysis**: Provides time/space complexity analysis
 - **Language Detection**: Automatically detects programming languages
@@ -51,8 +51,8 @@ export OPENAI_API_KEY="sk-your-openai-api-key-here"
 
 ## Keyboard Shortcuts
 
-- `Cmd+H` - Take screenshot (cycles between screenshot 1 and 2)
-- `Cmd+G` - Reset screenshots and clear analysis
+- `Cmd+H` - Take screenshot (cycles between screenshots 1-8)
+- `Cmd+G` - Reset screenshots, clear analysis, and reposition window to (50,50)
 - `Cmd+B` - Hide/show window
 - `Cmd+Q` - Quit application
 
@@ -111,17 +111,19 @@ The app has a fallback mechanism:
 **Screenshot Workflow:**
 - Uses Electron's `desktopCapturer` API for individual window capture
 - Falls back to macOS native `screencapture` command
-- Two-screenshot workflow for context comparison
-- Auto-triggers analysis after second screenshot
+- Multi-screenshot workflow (cycles through 8 slots)
+- Enhanced prompts for comprehensive code analysis and problem solving
 
 **AI Analysis:**
-- GPT-4o vision model processes screenshots
-- Extracts code with language detection
-- Provides complexity analysis (time/space)
-- Structured output with markdown formatting
+- GPT-4o vision model processes screenshots with extended timeouts (60s)
+- Extracts code with language detection and problem solving
+- Provides complexity analysis (time/space) and best practices
+- Structured output with markdown formatting and syntax highlighting
 
 **Development Stack:**
 - TypeScript with strict mode and ES2020 target
-- Biome for formatting and linting
-- Winston for structured logging
+- Biome for formatting and linting with consistent code style
+- Winston for structured logging with Electron error suppression
+- Simplified dark theme with opacity-based colors
+- Component-based CSS architecture
 - Concurrent development workflow with hot reload
