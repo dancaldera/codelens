@@ -7,7 +7,7 @@
 	--header-font-size: 14px;
 
 	/* Colors */
-	--bg-primary: rgba(0, 0, 0, 1);
+	--bg-primary: transparent;
 	--bg-secondary: rgba(60, 60, 60, 0.5);
 	--bg-tertiary: rgba(30, 30, 30, 0.7);
 	--bg-overlay: rgba(0, 0, 0, 0.7);

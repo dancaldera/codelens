@@ -23,6 +23,7 @@ function createWindow(): void {
 		frame: false,
 		opacity: 0.7,
 		alwaysOnTop: true,
+		transparent: true,
 		webPreferences: {
 			nodeIntegration: false,
 			contextIsolation: true,
