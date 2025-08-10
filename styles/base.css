@@ -19,7 +19,7 @@ body {
 	flex-direction: column;
 	padding: var(--spacing-md);
 	width: auto;
-	min-height: min-content;
+	height: auto;
 }
 
 /* Main content area - always side-by-side layout */

@@ -88,7 +88,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
 		// Auto-resize window to fit content
 		setTimeout(() => {
-			const contentHeight = Math.max(200, document.body.scrollHeight)
+			// Get the full content height including scrollable content
+			const containerHeight = document.getElementById('container').scrollHeight
+			const bodyHeight = document.body.scrollHeight
+			const documentHeight = document.documentElement.scrollHeight
+			const contentHeight = Math.max(200, containerHeight, bodyHeight, documentHeight)
+			
 			const analysisWidth = Math.min(800, resultDiv.scrollWidth)
 			const screenshotWidth = document.querySelector('.screenshot-section').scrollWidth
 			const totalWidth = Math.max(600, Math.min(1400, screenshotWidth + analysisWidth + 80))
