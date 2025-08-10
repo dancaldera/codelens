@@ -18,7 +18,7 @@
 }
 
 #analysisResult pre {
-	background: var(--bg-tertiary);
+	background: transparent;
 	border-radius: var(--border-radius);
 	padding: 16px;
 	margin: 12px 0;

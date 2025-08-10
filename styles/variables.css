@@ -8,9 +8,7 @@
 
 	/* Colors */
 	--bg-primary: transparent;
-	--bg-secondary: rgba(60, 60, 60, 0.5);
-	--bg-tertiary: rgba(30, 30, 30, 0.7);
-	--bg-overlay: rgba(0, 0, 0, 0.7);
+	--bg-secondary: rgba(40, 40, 40, 0.6);
 
 	--text-primary: #ffffff;
 	--text-secondary: rgba(255, 255, 255, 0.8);

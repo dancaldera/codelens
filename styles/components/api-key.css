@@ -40,5 +40,6 @@
 }
 
 #apiKeySaveBtn:hover {
-	background-color: rgba(80, 80, 80, 0.5);
+	background-color: var(--bg-secondary);
+	opacity: 0.8;
 }
