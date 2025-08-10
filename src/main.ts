@@ -81,7 +81,8 @@ function registerShortcuts(): void {
 		mainWindow.webContents.send('clear-screenshots')
 		mainWindow.webContents.send('context-reset')
 		mainWindow.webContents.send('screenshot-status', 'Screenshots cleared')
-		logger.info('Screenshots reset')
+		mainWindow.setPosition(50, 50)
+		logger.info('Screenshots reset and window position restored')
 	})
 
 	// Quit shortcut
@@ -105,6 +106,37 @@ function registerShortcuts(): void {
 		mainWindow.webContents.send('screenshot-status', 
 			isClickThrough ? 'Click-through enabled' : 'Click-through disabled')
 		logger.info('Click-through toggled', { isClickThrough })
+	})
+
+	// Move window with command+arrow keys
+	const moveDistance = 50
+	
+	globalShortcut.register('CommandOrControl+Up', () => {
+		if (!mainWindow) return
+		const [x, y] = mainWindow.getPosition()
+		mainWindow.setPosition(x, y - moveDistance)
+		logger.debug('Window moved up', { x, y: y - moveDistance })
+	})
+
+	globalShortcut.register('CommandOrControl+Down', () => {
+		if (!mainWindow) return
+		const [x, y] = mainWindow.getPosition()
+		mainWindow.setPosition(x, y + moveDistance)
+		logger.debug('Window moved down', { x, y: y + moveDistance })
+	})
+
+	globalShortcut.register('CommandOrControl+Left', () => {
+		if (!mainWindow) return
+		const [x, y] = mainWindow.getPosition()
+		mainWindow.setPosition(x - moveDistance, y)
+		logger.debug('Window moved left', { x: x - moveDistance, y })
+	})
+
+	globalShortcut.register('CommandOrControl+Right', () => {
+		if (!mainWindow) return
+		const [x, y] = mainWindow.getPosition()
+		mainWindow.setPosition(x + moveDistance, y)
+		logger.debug('Window moved right', { x: x + moveDistance, y })
 	})
 }
 
