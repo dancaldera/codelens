@@ -18,11 +18,11 @@ AI-powered code analysis from screenshots. An Electron application that captures
 2. Install dependencies: `npm install`
 3. **Set up OpenAI API Key** (required for AI analysis):
    ```bash
-   export OPENAI_API_KEY="your-api-key-here"
+   export OPENAI_API_KEY="sk-your-openai-api-key-here"
    ```
    Or create a `.env` file in the project root:
    ```
-   OPENAI_API_KEY=your-api-key-here
+   OPENAI_API_KEY=sk-your-openai-api-key-here
    ```
 4. Start the application: `npm start`
 
@@ -30,11 +30,28 @@ AI-powered code analysis from screenshots. An Electron application that captures
 
 ### OpenAI API Key Setup
 
-CodeLens requires an OpenAI API key to perform AI-powered code analysis. You can configure it just one way:
+CodeLens requires an OpenAI API key to perform AI-powered code analysis. You can configure it in several ways:
 
-**Environment Variable**
+**Method 1: Environment Variable (Recommended for development)**
 ```bash
 export OPENAI_API_KEY="sk-your-openai-api-key-here"
+```
+
+**Method 2: .env File (Works in both development and production)**
+
+For **development**, create `.env` in the project root:
+```
+OPENAI_API_KEY=sk-your-openai-api-key-here
+```
+
+For **packaged applications**, create `.env` in one of these locations:
+- **Next to the app executable** (e.g., next to `CodeLens.app` on macOS)
+- **In your home directory** (`~/.env`)
+- **In the current working directory** where you launch the app
+
+**Method 3: Home Directory .env (Easiest for packaged apps)**
+```bash
+echo "OPENAI_API_KEY=sk-your-openai-api-key-here" > ~/.env
 ```
 
 **Getting an API Key:**

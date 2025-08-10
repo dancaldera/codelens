@@ -19,6 +19,7 @@
 		"package-all": "npm run build && electron-builder build -mwl"
 	},
 	"dependencies": {
+		"dotenv": "^16.4.5",
 		"openai": "^4.97.0",
 		"winston": "^3.17.0",
 		"zod": "^3.24.4"

@@ -7,6 +7,39 @@ import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain } from 'el
 import { analyzeCodeFromImages } from './codeAnalyzer'
 import { createLogger, suppressElectronErrors } from './logger'
 
+// Load environment variables from .env file
+try {
+	const dotenv = require('dotenv')
+	// In packaged app, look for .env in the app's directory and user's home
+	const appPath = app.isPackaged ? path.dirname(process.execPath) : process.cwd()
+	const homePath = os.homedir()
+	
+	// Try multiple locations for .env file
+	const envPaths = [
+		path.join(appPath, '.env'),
+		path.join(homePath, '.env'),
+		path.join(process.cwd(), '.env'),
+		path.join(__dirname, '..', '..', '.env')
+	]
+	
+	let envLoaded = false
+	for (const envPath of envPaths) {
+		if (fs.existsSync(envPath)) {
+			dotenv.config({ path: envPath })
+			console.log(`Loaded environment variables from: ${envPath}`)
+			envLoaded = true
+			break
+		}
+	}
+	
+	if (!envLoaded) {
+		console.log('No .env file found, using system environment variables only')
+		console.log(`Searched paths: ${envPaths.join(', ')}`)
+	}
+} catch (error) {
+	console.warn('dotenv loading failed:', error)
+}
+
 const logger = createLogger('Main')
 
 // Suppress common Electron console errors
