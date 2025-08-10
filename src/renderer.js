@@ -5,7 +5,7 @@ window.addEventListener('DOMContentLoaded', () => {
 	const loadingIndicator = document.getElementById('loadingIndicator')
 	const apiKeyInput = document.getElementById('apiKeyInput')
 	const apiKeySaveBtn = document.getElementById('apiKeySaveBtn')
-	
+
 	const MAX_SCREENSHOTS = 2
 	const screenshots = new Map() // Store screenshot data by index
 
@@ -16,12 +16,12 @@ window.addEventListener('DOMContentLoaded', () => {
 		thumbnail.className = 'screenshot-thumbnail'
 		thumbnail.textContent = index.toString()
 		thumbnail.dataset.index = index.toString()
-		
+
 		// Add click handler
 		thumbnail.addEventListener('click', () => {
 			// Screenshot click handler - currently disabled
 		})
-		
+
 		return thumbnail
 	}
 
@@ -29,16 +29,16 @@ window.addEventListener('DOMContentLoaded', () => {
 	function updateScreenshotContainer() {
 		const existingThumbnails = screenshotContainer.children.length
 		const neededThumbnails = MAX_SCREENSHOTS
-		
+
 		// Add thumbnails if needed
 		for (let i = existingThumbnails + 1; i <= neededThumbnails; i++) {
 			const thumbnail = createScreenshotThumbnail(i)
 			screenshotContainer.appendChild(thumbnail)
 		}
-		
+
 		// Set container class for vertical layout
 		screenshotContainer.className = 'screenshot-container'
-		
+
 		// Auto-resize window based on content
 		setTimeout(() => {
 			const contentHeight = Math.max(200, document.body.scrollHeight)
@@ -83,7 +83,6 @@ window.addEventListener('DOMContentLoaded', () => {
 			hljs.highlightBlock(block)
 		})
 
-
 		// Auto-resize window to fit content
 		setTimeout(() => {
 			// Get the full content height including scrollable content
@@ -91,7 +90,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			const bodyHeight = document.body.scrollHeight
 			const documentHeight = document.documentElement.scrollHeight
 			const contentHeight = Math.max(200, containerHeight, bodyHeight, documentHeight)
-			
+
 			const analysisWidth = Math.min(800, resultDiv.scrollWidth)
 			const screenshotWidth = document.querySelector('.screenshot-section').scrollWidth
 			const totalWidth = Math.max(600, Math.min(1400, screenshotWidth + analysisWidth + 80))
@@ -105,7 +104,6 @@ window.addEventListener('DOMContentLoaded', () => {
 		console.log('Language detected:', language)
 	})
 
-
 	// Context reset
 	window.api.onContextReset(() => {
 		if (statusDiv) {
@@ -116,8 +114,7 @@ window.addEventListener('DOMContentLoaded', () => {
 		// Hide the result div when there's no content
 		resultDiv.style.display = 'none'
 		clearAllScreenshots()
-		
-		
+
 		// Reset window size to default
 		window.api.resizeWindow(500, 200)
 	})
@@ -127,24 +124,23 @@ window.addEventListener('DOMContentLoaded', () => {
 		try {
 			// Store screenshot data
 			screenshots.set(imageData.index, imageData)
-			
+
 			// Update container if needed
 			updateScreenshotContainer()
-			
+
 			// Get or create the target element
 			const targetElement = document.getElementById(`screenshot${imageData.index}`)
-			
+
 			if (targetElement) {
 				// Display the image
 				targetElement.style.backgroundImage = `url(data:image/png;base64,${imageData.data})`
 				targetElement.innerHTML = '' // Clear the text
 				targetElement.classList.add('active')
 				targetElement.classList.remove('error')
-				
+
 				// Store the screenshot data
 				targetElement.dataset.index = imageData.index.toString()
 				targetElement.dataset.path = imageData.path
-				
 			}
 		} catch (err) {
 			console.error('Error displaying screenshot:', err)
@@ -161,14 +157,14 @@ window.addEventListener('DOMContentLoaded', () => {
 	window.api.onClearScreenshots(() => {
 		clearAllScreenshots()
 	})
-	
+
 	// Clear all screenshots function
 	function clearAllScreenshots() {
 		screenshots.clear()
 		screenshotContainer.innerHTML = ''
 		updateScreenshotContainer()
 	}
-	
+
 	// Keyboard shortcut handlers
 	document.addEventListener('keydown', (event) => {
 		if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
@@ -213,7 +209,6 @@ window.addEventListener('DOMContentLoaded', () => {
 		document.documentElement.style.setProperty('--code-font-size', `${Math.round(12 * fontSizeFactor)}px`)
 		document.documentElement.style.setProperty('--small-font-size', `${Math.round(11 * fontSizeFactor)}px`)
 		document.documentElement.style.setProperty('--header-font-size', `${Math.round(14 * fontSizeFactor)}px`)
-
 	})
 
 	// API Key handling
@@ -244,5 +239,4 @@ window.addEventListener('DOMContentLoaded', () => {
 			document.querySelector('.api-key-container').style.display = 'none'
 		}
 	})
-
 })

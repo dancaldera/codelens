@@ -112,7 +112,6 @@ function registerShortcuts(): void {
 		}
 	})
 
-
 	// Move window with command+arrow keys - unlimited movement across screens
 	const moveDistance = 50
 
@@ -182,7 +181,6 @@ function registerShortcuts(): void {
 		mainWindow.setPosition(newX, y, false)
 		logger.debug('Window moved right fast', { x: newX, y })
 	})
-
 }
 
 async function takeScreenshot(): Promise<void> {
@@ -334,22 +332,28 @@ async function saveScreenshot(buffer: Buffer, method: string): Promise<void> {
 async function triggerAnalysis(): Promise<void> {
 	if (!mainWindow || screenshotPaths.length === 0) return
 
-	const prompt = 'You are an expert software developer. Analyze the code in these images, extract it accurately, solve any problems shown, and provide the best practices solution.'
+	const prompt =
+		'You are an expert software developer. Analyze the code in these images, extract it accurately, solve any problems shown, and provide the best practices solution.'
 
 	try {
 		logger.info('Starting code analysis', {
 			prompt: prompt.substring(0, 100),
 			imageCount: screenshotPaths.length,
-			hasPreviousAnalysis: !!previousAnalysis
+			hasPreviousAnalysis: !!previousAnalysis,
 		})
 
 		// Perform analysis with previous context if available
-		const result = await analyzeCodeFromImages(screenshotPaths, prompt, previousAnalysis || undefined, (detectedLanguage) => {
-			if (mainWindow) {
-				mainWindow.webContents.send('language-detected', detectedLanguage)
-				logger.info('Language detected', { language: detectedLanguage })
-			}
-		})
+		const result = await analyzeCodeFromImages(
+			screenshotPaths,
+			prompt,
+			previousAnalysis || undefined,
+			(detectedLanguage) => {
+				if (mainWindow) {
+					mainWindow.webContents.send('language-detected', detectedLanguage)
+					logger.info('Language detected', { language: detectedLanguage })
+				}
+			},
+		)
 
 		// Format result as markdown
 		const markdownResult = `
@@ -372,7 +376,7 @@ ${result.summary}
 			summary: result.summary,
 			timeComplexity: result.timeComplexity,
 			spaceComplexity: result.spaceComplexity,
-			language: result.language
+			language: result.language,
 		})
 
 		// Send result to renderer
