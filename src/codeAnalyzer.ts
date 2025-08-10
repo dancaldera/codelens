@@ -170,27 +170,34 @@ export async function analyzeCodeFromImages(
         };
       }
       
-      // Create enhanced prompt with structured output request
+      // Create enhanced prompt with structured output request focused on code results
       const enhancedPrompt = `
-You are an expert code analyst and software engineer. Please analyze the code shown in these ${validImages.length} images.
+You are an expert software engineer and problem solver. Your primary goal is to extract, analyze, and SOLVE coding problems from screenshots.
 
 Task: ${prompt}
 ${previousContext ? `\nPrevious context: ${previousContext}` : ''}
 
-Please provide a detailed analysis in the following JSON format:
+CRITICAL INSTRUCTIONS - Follow this order:
+1. EXTRACT: Transcribe ALL visible code exactly as shown, including comments, variable names, and syntax
+2. IDENTIFY: Determine the programming language and any visible problems/requirements
+3. SOLVE: If there's a coding problem, interview question, or bug - provide the COMPLETE WORKING SOLUTION
+4. ANALYZE: Explain complexity and functionality
+
+Provide your response in this exact JSON format:
 {
-  "code": "The complete extracted code from the image(s) - extract ALL visible code accurately",
-  "summary": "A comprehensive summary of what the code does, its purpose, key functionality, and any problems that need solving",
-  "timeComplexity": "Detailed time complexity analysis (e.g., O(n), O(n²), etc.) with clear explanation",
-  "spaceComplexity": "Detailed space complexity analysis (e.g., O(1), O(n), etc.) with clear explanation", 
-  "language": "The programming language identified (e.g., python, javascript, java, etc.)"
+  "code": "COMPLETE extracted code from image(s) + WORKING SOLUTION if problem exists. Include full implementation, not just snippets. If solving a problem, provide the entire corrected/completed code.",
+  "summary": "What the code does + Problem identified + Solution approach + Key insights for implementation",
+  "timeComplexity": "Big O analysis with explanation (e.g., O(n log n) due to sorting algorithm)",
+  "spaceComplexity": "Memory usage analysis with explanation (e.g., O(n) for auxiliary array)",
+  "language": "Programming language (python, javascript, java, cpp, etc.)"
 }
 
-IMPORTANT: 
-1. First identify the programming language from visual cues in the images
-2. Extract ALL visible code accurately - don't summarize or truncate
-3. If there are coding problems or errors visible, provide solutions in your summary
-4. Focus on complete code extraction and practical analysis
+PRIORITY FOCUS:
+- If you see a coding interview question → Provide complete working solution
+- If you see buggy code → Provide fixed version with explanation
+- If you see incomplete code → Provide completed implementation
+- If you see algorithm challenge → Provide optimized solution with edge cases handled
+- Always include FULL working code, not pseudocode or partial solutions
       `;
       
       // Create the content array with the enhanced prompt and images
