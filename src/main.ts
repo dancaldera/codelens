@@ -3,7 +3,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import * as util from 'node:util'
-import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, screen } from 'electron'
+import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain } from 'electron'
 import { analyzeCodeFromImages } from './codeAnalyzer'
 import { createLogger, suppressElectronErrors } from './logger'
 
@@ -16,7 +16,6 @@ let mainWindow: BrowserWindow | null = null
 let screenshotCount = 0
 let screenshotPaths: string[] = []
 const MAX_SCREENSHOTS = 8
-let isClickThrough = true // Track click-through state
 
 function createWindow(): void {
 	mainWindow = new BrowserWindow({
@@ -30,13 +29,23 @@ function createWindow(): void {
 		transparent: true,
 		resizable: true,
 		movable: true,
-		// Allow window to move beyond screen boundaries
+		// Disable bounds checking to allow unlimited movement
+		useContentSize: false,
 		webPreferences: {
 			nodeIntegration: false,
 			contextIsolation: true,
 			preload: path.join(__dirname, 'preload.js'),
 		},
 	})
+
+	// Disable automatic bounds adjustment - critical for unlimited movement
+	if (mainWindow.setBounds) {
+		const originalSetBounds = mainWindow.setBounds.bind(mainWindow)
+		mainWindow.setBounds = (bounds, _animate) => {
+			// Call original setBounds without any bounds checking
+			return originalSetBounds(bounds, false)
+		}
+	}
 
 	// Make the window visible on all workspaces and screens
 	mainWindow.setVisibleOnAllWorkspaces(true, {
@@ -57,7 +66,7 @@ function createWindow(): void {
 
 	mainWindow.loadFile(path.join(__dirname, '../../index.html'))
 	// Set initial position without bounds checking
-	mainWindow.setPosition(50, 50, true)
+	mainWindow.setPosition(50, 50, false)
 
 	// Hide from dock on macOS
 	if (process.platform === 'darwin' && app.dock) {
@@ -101,15 +110,6 @@ function registerShortcuts(): void {
 		}
 	})
 
-	// Toggle click-through mode
-	globalShortcut.register('CommandOrControl+T', () => {
-		if (!mainWindow) return
-		isClickThrough = !isClickThrough
-		mainWindow.setIgnoreMouseEvents(isClickThrough)
-		mainWindow.webContents.send('screenshot-status',
-			isClickThrough ? 'Click-through enabled' : 'Click-through disabled')
-		logger.info('Click-through toggled', { isClickThrough })
-	})
 
 	// Move window with command+arrow keys - unlimited movement across screens
 	const moveDistance = 50
@@ -181,34 +181,6 @@ function registerShortcuts(): void {
 		logger.debug('Window moved right fast', { x: newX, y })
 	})
 
-	// Position shortcuts for quick screen positioning
-	globalShortcut.register('CommandOrControl+1', () => {
-		if (!mainWindow) return
-		// Top-left corner
-		mainWindow.setPosition(0, 0, false)
-		logger.debug('Window positioned at top-left')
-	})
-
-	globalShortcut.register('CommandOrControl+2', () => {
-		if (!mainWindow) return
-		// Center of primary screen
-		const primaryDisplay = screen.getPrimaryDisplay()
-		const { width, height } = primaryDisplay.workAreaSize
-		const [winWidth, winHeight] = mainWindow.getSize()
-		mainWindow.setPosition(
-			Math.floor((width - winWidth) / 2),
-			Math.floor((height - winHeight) / 2),
-			false
-		)
-		logger.debug('Window centered on primary display')
-	})
-
-	globalShortcut.register('CommandOrControl+3', () => {
-		if (!mainWindow) return
-		// Beyond screen bounds (negative coordinates)
-		mainWindow.setPosition(-100, -100, false)
-		logger.debug('Window positioned beyond screen bounds')
-	})
 }
 
 async function takeScreenshot(): Promise<void> {
