@@ -22,12 +22,16 @@ body {
 	min-height: min-content;
 }
 
-/* Main content area - side by side layout */
+/* Main content area - always side-by-side layout */
 .main-content {
 	display: flex;
 	flex-direction: row;
 	gap: var(--spacing-md);
 	align-items: flex-start;
+}
+
+.screenshot-section {
+	flex-shrink: 0;
 }
 
 /* Animations */

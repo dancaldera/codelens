@@ -1,11 +1,58 @@
 window.addEventListener('DOMContentLoaded', () => {
 	const statusDiv = document.getElementById('status')
 	const resultDiv = document.getElementById('analysisResult')
-	const screenshot1 = document.getElementById('screenshot1')
-	const screenshot2 = document.getElementById('screenshot2')
+	const screenshotContainer = document.getElementById('screenshotContainer')
 	const loadingIndicator = document.getElementById('loadingIndicator')
 	const apiKeyInput = document.getElementById('apiKeyInput')
 	const apiKeySaveBtn = document.getElementById('apiKeySaveBtn')
+	
+	const MAX_SCREENSHOTS = 8
+	const screenshots = new Map() // Store screenshot data by index
+
+	// Create screenshot thumbnail element
+	function createScreenshotThumbnail(index) {
+		const thumbnail = document.createElement('div')
+		thumbnail.id = `screenshot${index}`
+		thumbnail.className = 'screenshot-thumbnail'
+		thumbnail.textContent = index.toString()
+		thumbnail.dataset.index = index.toString()
+		
+		// Add click handler
+		thumbnail.addEventListener('click', () => {
+			if (screenshots.has(index)) {
+				window.api.openScreenshot(index)
+			}
+		})
+		
+		return thumbnail
+	}
+
+	// Update screenshot container layout
+	function updateScreenshotContainer() {
+		const existingThumbnails = screenshotContainer.children.length
+		const neededThumbnails = Math.max(2, Math.min(MAX_SCREENSHOTS, screenshots.size + 1))
+		
+		// Add thumbnails if needed
+		for (let i = existingThumbnails + 1; i <= neededThumbnails; i++) {
+			const thumbnail = createScreenshotThumbnail(i)
+			screenshotContainer.appendChild(thumbnail)
+		}
+		
+		// Set container class for vertical layout
+		screenshotContainer.className = 'screenshot-container'
+		
+		// Auto-resize window based on content
+		setTimeout(() => {
+			const contentHeight = Math.max(200, document.body.scrollHeight)
+			const analysisWidth = resultDiv.scrollWidth
+			const screenshotWidth = screenshotContainer.scrollWidth
+			const totalWidth = Math.max(500, Math.min(1200, screenshotWidth + analysisWidth + 60))
+			window.api.resizeWindow(totalWidth, contentHeight + 20)
+		}, 100)
+	}
+
+	// Initialize with 2 empty thumbnails
+	updateScreenshotContainer()
 
 	// Configure marked.js to use highlight.js for code highlighting
 	marked.setOptions({
@@ -36,13 +83,14 @@ window.addEventListener('DOMContentLoaded', () => {
 			hljs.highlightBlock(block)
 		})
 
-		// Auto-resize window to fit content (horizontal layout)
+
+		// Auto-resize window to fit content
 		setTimeout(() => {
-			const contentHeight = document.body.scrollHeight
-			const analysisWidth = resultDiv.scrollWidth
-			// Calculate width needed: screenshots (120px) + gap (8px) + analysis + padding
-			const totalWidth = Math.max(500, Math.min(1000, 120 + 8 + analysisWidth + 40))
-			window.api.resizeWindow(totalWidth, Math.max(200, contentHeight + 20))
+			const contentHeight = Math.max(200, document.body.scrollHeight)
+			const analysisWidth = Math.min(800, resultDiv.scrollWidth)
+			const screenshotWidth = document.querySelector('.screenshot-section').scrollWidth
+			const totalWidth = Math.max(600, Math.min(1400, screenshotWidth + analysisWidth + 80))
+			window.api.resizeWindow(totalWidth, contentHeight + 40)
 		}, 100)
 	})
 
@@ -66,73 +114,73 @@ window.addEventListener('DOMContentLoaded', () => {
 				'⌘+H: Capture • ⌘+G: Reset • ⌘+B: Toggle • ⌘+T: Click-through • ⌘+Arrow: Move • ⌘+1-2: Opacity • ⌘+3-4: Font • ⌘+5-6: Size'
 		}
 		resultDiv.innerHTML = ''
-		// Clear the screenshot thumbnails
-		screenshot1.style.backgroundImage = ''
-		screenshot1.innerHTML = '1'
-		screenshot2.style.backgroundImage = ''
-		screenshot2.innerHTML = '2'
-		screenshot1.classList.remove('active', 'error')
-		screenshot2.classList.remove('active', 'error')
+		clearAllScreenshots()
 		
-		// Reset window size to default (horizontal layout)
+		
+		// Reset window size to default
 		window.api.resizeWindow(500, 200)
 	})
 
 	// Handle screenshot images
 	window.api.onScreenshotImage((imageData) => {
-		const targetElement = imageData.index === 1 ? screenshot1 : screenshot2
-
 		try {
-			// Display the image
-			targetElement.style.backgroundImage = `url(data:image/png;base64,${imageData.data})`
-			targetElement.innerHTML = '' // Clear the text
-			targetElement.classList.add('active')
-			targetElement.classList.remove('error')
-
-			// Store the screenshot index as a data attribute
-			targetElement.dataset.index = imageData.index
-			targetElement.dataset.path = imageData.path
-
-			console.log(`Displayed screenshot ${imageData.index}`)
-
-			// Auto-submit analysis after second screenshot
-			if (imageData.index === 2) {
-				window.api.submitPrompt('analyze')
-				// Show loading indicator
-				loadingIndicator.style.display = 'flex'
+			// Store screenshot data
+			screenshots.set(imageData.index, imageData)
+			
+			// Update container if needed
+			updateScreenshotContainer()
+			
+			// Get or create the target element
+			const targetElement = document.getElementById(`screenshot${imageData.index}`)
+			
+			if (targetElement) {
+				// Display the image
+				targetElement.style.backgroundImage = `url(data:image/png;base64,${imageData.data})`
+				targetElement.innerHTML = '' // Clear the text
+				targetElement.classList.add('active')
+				targetElement.classList.remove('error')
+				
+				// Store the screenshot data
+				targetElement.dataset.index = imageData.index.toString()
+				targetElement.dataset.path = imageData.path
+				
+				console.log(`Displayed screenshot ${imageData.index}`)
 			}
 		} catch (err) {
 			console.error('Error displaying screenshot:', err)
-			targetElement.innerHTML = 'Error'
-			targetElement.classList.add('error')
-			targetElement.classList.remove('active')
+			const targetElement = document.getElementById(`screenshot${imageData.index}`)
+			if (targetElement) {
+				targetElement.innerHTML = 'Error'
+				targetElement.classList.add('error')
+				targetElement.classList.remove('active')
+			}
 		}
 	})
 
 	// Clear screenshots
 	window.api.onClearScreenshots(() => {
-		screenshot1.style.backgroundImage = ''
-		screenshot1.innerHTML = '1'
-		screenshot2.style.backgroundImage = ''
-		screenshot2.innerHTML = '2'
-		screenshot1.classList.remove('active', 'error')
-		screenshot2.classList.remove('active', 'error')
-		delete screenshot1.dataset.index
-		delete screenshot1.dataset.path
-		delete screenshot2.dataset.index
-		delete screenshot2.dataset.path
+		clearAllScreenshots()
 	})
-
-	// Add click handlers for screenshots
-	screenshot1.addEventListener('click', () => {
-		if (screenshot1.dataset.index) {
-			window.api.openScreenshot(parseInt(screenshot1.dataset.index))
-		}
-	})
-
-	screenshot2.addEventListener('click', () => {
-		if (screenshot2.dataset.index) {
-			window.api.openScreenshot(parseInt(screenshot2.dataset.index))
+	
+	// Clear all screenshots function
+	function clearAllScreenshots() {
+		screenshots.clear()
+		screenshotContainer.innerHTML = ''
+		updateScreenshotContainer()
+	}
+	
+	// Keyboard shortcut handlers
+	document.addEventListener('keydown', (event) => {
+		if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+			event.preventDefault()
+			if (screenshots.size > 0) {
+				window.api.submitPrompt('analyze')
+				loadingIndicator.style.display = 'flex'
+			} else {
+				if (statusDiv) {
+					statusDiv.innerText = 'No screenshots to analyze'
+				}
+			}
 		}
 	})
 

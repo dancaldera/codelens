@@ -15,6 +15,7 @@ suppressElectronErrors()
 let mainWindow: BrowserWindow | null = null
 let screenshotCount = 0
 let screenshotPaths: string[] = []
+const MAX_SCREENSHOTS = 8
 let isClickThrough = true // Track click-through state
 
 function createWindow(): void {
@@ -207,16 +208,16 @@ async function saveScreenshot(buffer: Buffer, method: string): Promise<void> {
 		fs.mkdirSync(tempDir, { recursive: true })
 	}
 
-	// Increment screenshot count and reset after 2
-	screenshotCount = screenshotCount >= 2 ? 1 : screenshotCount + 1
+	// Increment screenshot count and cycle through 1-8
+	screenshotCount = screenshotCount >= MAX_SCREENSHOTS ? 1 : screenshotCount + 1
 
 	const timestamp = Date.now()
 	const filePath = path.join(tempDir, `screenshot-${screenshotCount}-${timestamp}.png`)
 	fs.writeFileSync(filePath, buffer)
 
-	// Store screenshot path for analysis
-	if (screenshotPaths.length >= 2) {
-		screenshotPaths = []
+	// Store screenshot path for analysis - maintain up to MAX_SCREENSHOTS
+	if (screenshotPaths.length >= MAX_SCREENSHOTS) {
+		screenshotPaths.shift() // Remove oldest screenshot
 	}
 	screenshotPaths.push(filePath)
 

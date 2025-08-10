@@ -1,9 +1,15 @@
 /* Screenshot Components */
 .screenshot-container {
-	display: flex;
-	flex-direction: column;
-	gap: var(--spacing-md);
+	display: grid;
+	gap: var(--spacing-sm);
 	flex-shrink: 0;
+	width: fit-content;
+}
+
+/* Grid layout - single vertical column */
+.screenshot-container {
+	grid-template-columns: 1fr;
+	grid-template-rows: repeat(auto-fit, minmax(80px, auto));
 }
 
 .screenshot-thumbnail {
@@ -34,4 +40,44 @@
 
 .screenshot-thumbnail.error {
 	border-color: var(--accent-error);
+}
+
+/* Control Buttons */
+.controls-container {
+	display: flex;
+	gap: var(--spacing-sm);
+	justify-content: center;
+	margin: var(--spacing-md) 0;
+	flex-wrap: wrap;
+}
+
+.analyze-btn,
+.clear-btn {
+	background-color: var(--bg-secondary);
+	color: var(--text-primary);
+	border: 1px solid var(--border-primary);
+	border-radius: var(--border-radius);
+	padding: var(--spacing-xs) var(--spacing-md);
+	font-size: var(--small-font-size);
+	cursor: pointer;
+	transition: all var(--transition-fast);
+	min-width: 80px;
+}
+
+.analyze-btn:hover {
+	background-color: var(--accent-success);
+	border-color: var(--accent-success);
+	color: var(--bg-primary);
+}
+
+.clear-btn:hover {
+	background-color: var(--accent-error);
+	border-color: var(--accent-error);
+	color: var(--bg-primary);
+}
+
+.analyze-btn:disabled,
+.clear-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
 }
