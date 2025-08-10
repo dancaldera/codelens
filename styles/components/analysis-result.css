@@ -33,6 +33,7 @@
 	font-size: var(--code-font-size);
 	line-height: 1.5;
 	color: var(--text-primary);
+	background-color: transparent;
 }
 
 #analysisResult p {
