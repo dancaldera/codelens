@@ -247,11 +247,14 @@ async function saveScreenshot(buffer: Buffer, method: string): Promise<void> {
 	const filePath = path.join(tempDir, `screenshot-${screenshotCount}-${timestamp}.png`)
 	fs.writeFileSync(filePath, buffer)
 
-	// Store screenshot path for analysis - maintain up to MAX_SCREENSHOTS
-	if (screenshotPaths.length >= MAX_SCREENSHOTS) {
-		screenshotPaths.shift() // Remove oldest screenshot
+	// Store screenshot path for analysis - replace at the current index for cycling
+	if (screenshotPaths.length < MAX_SCREENSHOTS) {
+		// Still filling up the array
+		screenshotPaths.push(filePath)
+	} else {
+		// Array is full, replace at the current index (screenshotCount - 1)
+		screenshotPaths[screenshotCount - 1] = filePath
 	}
-	screenshotPaths.push(filePath)
 
 	logger.info('Screenshot saved', {
 		screenshotCount,

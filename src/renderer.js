@@ -78,6 +78,8 @@ window.addEventListener('DOMContentLoaded', () => {
 		loadingIndicator.style.display = 'none'
 
 		resultDiv.innerHTML = marked.parse(result)
+		// Show the result div when there's content
+		resultDiv.style.display = 'block'
 		// Apply syntax highlighting to code blocks
 		document.querySelectorAll('pre code').forEach((block) => {
 			hljs.highlightBlock(block)
@@ -114,6 +116,8 @@ window.addEventListener('DOMContentLoaded', () => {
 				'⌘+H: Capture • ⌘+G: Reset • ⌘+B: Toggle • ⌘+T: Click-through • ⌘+Arrow: Move • ⌘+1-2: Opacity • ⌘+3-4: Font • ⌘+5-6: Size'
 		}
 		resultDiv.innerHTML = ''
+		// Hide the result div when there's no content
+		resultDiv.style.display = 'none'
 		clearAllScreenshots()
 		
 		
