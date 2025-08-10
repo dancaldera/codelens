@@ -4,3 +4,4 @@ dist
 .env
 release
 .DS_Store
+logs

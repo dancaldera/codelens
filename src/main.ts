@@ -5,11 +5,13 @@ import * as os from "os";
 import { execFile } from 'child_process';
 import * as util from 'util';
 import { createLogger, logPerformance } from './logger';
+import { analyzeCodeFromImages } from './codeAnalyzer';
 
 const logger = createLogger('Main');
 
 let mainWindow: BrowserWindow | null = null;
 let screenshotCount = 0;
+let screenshotPaths: string[] = [];
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -63,6 +65,7 @@ function registerShortcuts(): void {
   globalShortcut.register('CommandOrControl+G', () => {
     if (!mainWindow) return;
     screenshotCount = 0;
+    screenshotPaths = [];
     mainWindow.webContents.send('clear-screenshots');
     mainWindow.webContents.send('screenshot-status', 'Screenshots cleared');
     logger.info('Screenshots reset');
@@ -188,6 +191,12 @@ async function saveScreenshot(buffer: Buffer, method: string): Promise<void> {
   const filePath = path.join(tempDir, `screenshot-${screenshotCount}-${timestamp}.png`);
   fs.writeFileSync(filePath, buffer);
   
+  // Store screenshot path for analysis
+  if (screenshotPaths.length >= 2) {
+    screenshotPaths = [];
+  }
+  screenshotPaths.push(filePath);
+  
   logger.info('Screenshot saved', { 
     screenshotCount, 
     method, 
@@ -211,6 +220,84 @@ async function saveScreenshot(buffer: Buffer, method: string): Promise<void> {
 // Handle missing IPC handlers to prevent errors
 ipcMain.handle('get-api-key', () => {
   return process.env.OPENAI_API_KEY || '';
+});
+
+// Handle prompt submission for analysis
+ipcMain.on('submit-prompt', async (event, prompt: string) => {
+  if (!mainWindow) return;
+  
+  logger.info('Analysis requested', { prompt, screenshotCount: screenshotPaths.length });
+  
+  if (screenshotPaths.length === 0) {
+    mainWindow.webContents.send('analysis-result', 'No screenshots available for analysis. Please take screenshots first.');
+    return;
+  }
+  
+  try {
+    // Show loading in UI
+    mainWindow.webContents.send('show-loading');
+    
+    // Get the prompt from renderer
+    mainWindow.webContents.send('get-prompt');
+    
+    // Wait for prompt response (handled below)
+  } catch (error) {
+    logger.error('Error starting analysis', { 
+      error: error instanceof Error ? error.message : String(error) 
+    });
+    mainWindow.webContents.send('analysis-result', 'Analysis failed to start. Please try again.');
+  }
+});
+
+// Handle prompt response from renderer
+ipcMain.on('prompt-response', async (event, prompt: string) => {
+  if (!mainWindow) return;
+  
+  try {
+    logger.info('Starting code analysis', { 
+      prompt: prompt.substring(0, 100), 
+      imageCount: screenshotPaths.length 
+    });
+    
+    // Perform analysis
+    const result = await analyzeCodeFromImages(screenshotPaths, prompt);
+    
+    // Format result as markdown
+    const markdownResult = `# Code Analysis Result
+
+## Code
+\`\`\`${result.language.toLowerCase()}
+${result.code}
+\`\`\`
+
+## Summary
+${result.summary}
+
+## Complexity Analysis
+- **Time Complexity:** ${result.timeComplexity}
+- **Space Complexity:** ${result.spaceComplexity}
+- **Language:** ${result.language}`;
+    
+    // Send result to renderer
+    mainWindow.webContents.send('analysis-result', markdownResult);
+    mainWindow.webContents.send('screenshot-status', 'Analysis completed');
+    
+    logger.info('Analysis completed successfully');
+    
+  } catch (error) {
+    logger.error('Analysis failed', { 
+      error: error instanceof Error ? error.message : String(error) 
+    });
+    
+    const errorMessage = `# Analysis Failed
+
+An error occurred during code analysis: ${error instanceof Error ? error.message : 'Unknown error'}
+
+Please try again or check your OpenAI API key configuration.`;
+    
+    mainWindow.webContents.send('analysis-result', errorMessage);
+    mainWindow.webContents.send('screenshot-status', 'Analysis failed');
+  }
 });
 
 // App events
