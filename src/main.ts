@@ -3,7 +3,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import * as util from 'node:util'
-import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain } from 'electron'
+import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, screen } from 'electron'
 import { analyzeCodeFromImages } from './codeAnalyzer'
 import { createLogger, suppressElectronErrors } from './logger'
 
@@ -29,6 +29,8 @@ function createWindow(): void {
 		alwaysOnTop: true,
 		transparent: true,
 		resizable: true,
+		movable: true,
+		// Allow window to move beyond screen boundaries
 		webPreferences: {
 			nodeIntegration: false,
 			contextIsolation: true,
@@ -54,7 +56,8 @@ function createWindow(): void {
 	mainWindow.setIgnoreMouseEvents(true)
 
 	mainWindow.loadFile(path.join(__dirname, '../../index.html'))
-	mainWindow.setPosition(50, 50)
+	// Set initial position without bounds checking
+	mainWindow.setPosition(50, 50, true)
 
 	// Hide from dock on macOS
 	if (process.platform === 'darwin' && app.dock) {
@@ -81,8 +84,8 @@ function registerShortcuts(): void {
 		mainWindow.webContents.send('clear-screenshots')
 		mainWindow.webContents.send('context-reset')
 		mainWindow.webContents.send('screenshot-status', 'Screenshots cleared')
-		mainWindow.setPosition(50, 50)
-		logger.info('Screenshots reset and window position restored')
+		// Window position is preserved - no automatic repositioning
+		logger.info('Screenshots reset')
 	})
 
 	// Quit shortcut
@@ -103,40 +106,108 @@ function registerShortcuts(): void {
 		if (!mainWindow) return
 		isClickThrough = !isClickThrough
 		mainWindow.setIgnoreMouseEvents(isClickThrough)
-		mainWindow.webContents.send('screenshot-status', 
+		mainWindow.webContents.send('screenshot-status',
 			isClickThrough ? 'Click-through enabled' : 'Click-through disabled')
 		logger.info('Click-through toggled', { isClickThrough })
 	})
 
-	// Move window with command+arrow keys
+	// Move window with command+arrow keys - unlimited movement across screens
 	const moveDistance = 50
-	
+
 	globalShortcut.register('CommandOrControl+Up', () => {
 		if (!mainWindow) return
 		const [x, y] = mainWindow.getPosition()
-		mainWindow.setPosition(x, y - moveDistance)
-		logger.debug('Window moved up', { x, y: y - moveDistance })
+		const newY = y - moveDistance
+		mainWindow.setPosition(x, newY, false) // false = don't animate, allows negative coordinates
+		logger.debug('Window moved up', { x, y: newY })
 	})
 
 	globalShortcut.register('CommandOrControl+Down', () => {
 		if (!mainWindow) return
 		const [x, y] = mainWindow.getPosition()
-		mainWindow.setPosition(x, y + moveDistance)
-		logger.debug('Window moved down', { x, y: y + moveDistance })
+		const newY = y + moveDistance
+		mainWindow.setPosition(x, newY, false) // false = don't animate, allows beyond screen bounds
+		logger.debug('Window moved down', { x, y: newY })
 	})
 
 	globalShortcut.register('CommandOrControl+Left', () => {
 		if (!mainWindow) return
 		const [x, y] = mainWindow.getPosition()
-		mainWindow.setPosition(x - moveDistance, y)
-		logger.debug('Window moved left', { x: x - moveDistance, y })
+		const newX = x - moveDistance
+		mainWindow.setPosition(newX, y, false) // false = don't animate, allows negative coordinates
+		logger.debug('Window moved left', { x: newX, y })
 	})
 
 	globalShortcut.register('CommandOrControl+Right', () => {
 		if (!mainWindow) return
 		const [x, y] = mainWindow.getPosition()
-		mainWindow.setPosition(x + moveDistance, y)
-		logger.debug('Window moved right', { x: x + moveDistance, y })
+		const newX = x + moveDistance
+		mainWindow.setPosition(newX, y, false) // false = don't animate, allows beyond screen bounds
+		logger.debug('Window moved right', { x: newX, y })
+	})
+
+	// Fast movement shortcuts (Shift+Cmd+Arrow for larger steps)
+	const fastMoveDistance = 200
+
+	globalShortcut.register('Shift+CommandOrControl+Up', () => {
+		if (!mainWindow) return
+		const [x, y] = mainWindow.getPosition()
+		const newY = y - fastMoveDistance
+		mainWindow.setPosition(x, newY, false)
+		logger.debug('Window moved up fast', { x, y: newY })
+	})
+
+	globalShortcut.register('Shift+CommandOrControl+Down', () => {
+		if (!mainWindow) return
+		const [x, y] = mainWindow.getPosition()
+		const newY = y + fastMoveDistance
+		mainWindow.setPosition(x, newY, false)
+		logger.debug('Window moved down fast', { x, y: newY })
+	})
+
+	globalShortcut.register('Shift+CommandOrControl+Left', () => {
+		if (!mainWindow) return
+		const [x, y] = mainWindow.getPosition()
+		const newX = x - fastMoveDistance
+		mainWindow.setPosition(newX, y, false)
+		logger.debug('Window moved left fast', { x: newX, y })
+	})
+
+	globalShortcut.register('Shift+CommandOrControl+Right', () => {
+		if (!mainWindow) return
+		const [x, y] = mainWindow.getPosition()
+		const newX = x + fastMoveDistance
+		mainWindow.setPosition(newX, y, false)
+		logger.debug('Window moved right fast', { x: newX, y })
+	})
+
+	// Position shortcuts for quick screen positioning
+	globalShortcut.register('CommandOrControl+1', () => {
+		if (!mainWindow) return
+		// Top-left corner
+		mainWindow.setPosition(0, 0, false)
+		logger.debug('Window positioned at top-left')
+	})
+
+	globalShortcut.register('CommandOrControl+2', () => {
+		if (!mainWindow) return
+		// Center of primary screen
+		const primaryDisplay = screen.getPrimaryDisplay()
+		const { width, height } = primaryDisplay.workAreaSize
+		const [winWidth, winHeight] = mainWindow.getSize()
+		mainWindow.setPosition(
+			Math.floor((width - winWidth) / 2),
+			Math.floor((height - winHeight) / 2),
+			false
+		)
+		logger.debug('Window centered on primary display')
+	})
+
+	globalShortcut.register('CommandOrControl+3', () => {
+		if (!mainWindow) return
+		// Beyond screen bounds (negative coordinates)
+		mainWindow.setPosition(-100, -100, false)
+		logger.debug('Window positioned beyond screen bounds')
 	})
 }
 
