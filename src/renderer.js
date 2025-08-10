@@ -3,8 +3,6 @@ window.addEventListener('DOMContentLoaded', () => {
 	const resultDiv = document.getElementById('analysisResult')
 	const screenshotContainer = document.getElementById('screenshotContainer')
 	const loadingIndicator = document.getElementById('loadingIndicator')
-	const apiKeyInput = document.getElementById('apiKeyInput')
-	const apiKeySaveBtn = document.getElementById('apiKeySaveBtn')
 
 	const MAX_SCREENSHOTS = 2
 	const screenshots = new Map() // Store screenshot data by index
@@ -187,53 +185,5 @@ window.addEventListener('DOMContentLoaded', () => {
 	// Listen for show-loading event from main process
 	window.api.onShowLoading(() => {
 		loadingIndicator.style.display = 'flex'
-	})
-
-	// Handle font size changes
-	let fontSizeFactor = 1.0 // Default size factor
-	const fontSizeStep = 0.15 // 15% increase/decrease per step
-
-	window.api.onChangeFontSize((direction) => {
-		if (direction === 'increase') {
-			fontSizeFactor = Math.min(2.0, fontSizeFactor + fontSizeStep) // Max 2x size
-		} else if (direction === 'decrease') {
-			fontSizeFactor = Math.max(0.7, fontSizeFactor - fontSizeStep) // Min 0.7x size
-		}
-
-		// Update CSS variables based on the new font size factor
-		document.documentElement.style.setProperty('--base-font-size', `${Math.round(13 * fontSizeFactor)}px`)
-		document.documentElement.style.setProperty('--code-font-size', `${Math.round(12 * fontSizeFactor)}px`)
-		document.documentElement.style.setProperty('--small-font-size', `${Math.round(11 * fontSizeFactor)}px`)
-		document.documentElement.style.setProperty('--header-font-size', `${Math.round(14 * fontSizeFactor)}px`)
-	})
-
-
-	// API Key handling
-	apiKeySaveBtn.addEventListener('click', () => {
-		const apiKey = apiKeyInput.value.trim()
-		if (apiKey) {
-			window.api.saveApiKey(apiKey)
-			// Mask the API key for security
-			apiKeyInput.value = '••••••••••••••••••••••••••'
-			// Hide the API key container when API key is saved
-			document.querySelector('.api-key-container').style.display = 'none'
-			if (statusDiv) {
-				statusDiv.innerText = 'API key saved successfully'
-			}
-		} else {
-			if (statusDiv) {
-				statusDiv.innerText = 'Please enter a valid API key'
-			}
-		}
-	})
-
-	// Load saved API key on startup
-	window.api.getApiKey().then((apiKey) => {
-		if (apiKey) {
-			// Show masked characters instead of the actual key
-			apiKeyInput.value = '••••••••••••••••••••••••••'
-			// Hide the API key container when API key is already saved
-			document.querySelector('.api-key-container').style.display = 'none'
-		}
 	})
 })

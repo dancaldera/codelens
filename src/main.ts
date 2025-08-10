@@ -435,11 +435,6 @@ Please try again or check your OpenAI API key configuration.`
 	}
 }
 
-// Handle missing IPC handlers to prevent errors
-ipcMain.handle('get-api-key', () => {
-	return process.env.OPENAI_API_KEY || ''
-})
-
 // Handle window resizing
 ipcMain.on('resize-window', (_event, { width, height }) => {
 	if (!mainWindow) return

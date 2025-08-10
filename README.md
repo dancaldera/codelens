@@ -30,16 +30,12 @@ AI-powered code analysis from screenshots. An Electron application that captures
 
 ### OpenAI API Key Setup
 
-CodeLens requires an OpenAI API key to perform AI-powered code analysis. You can configure it in two ways:
+CodeLens requires an OpenAI API key to perform AI-powered code analysis. You can configure it just one way:
 
-**Option 1: Environment Variable (Recommended)**
+**Environment Variable**
 ```bash
 export OPENAI_API_KEY="sk-your-openai-api-key-here"
 ```
-
-**Option 2: Application UI**
-- Enter your API key directly in the application's input field
-- The key will be stored temporarily for the session
 
 **Getting an API Key:**
 1. Visit [OpenAI Platform](https://platform.openai.com/api-keys)

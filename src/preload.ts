@@ -13,9 +13,6 @@ interface ApiInterface {
 	openScreenshot: (index: number) => void
 	onGetPrompt: (callback: () => string) => void
 	onShowLoading: (callback: () => void) => void
-	onChangeFontSize: (callback: (direction: string) => void) => void
-	saveApiKey: (apiKey: string) => void
-	getApiKey: () => Promise<string>
 	onLanguageDetected: (callback: (language: string) => void) => void
 	resizeWindow: (width: number, height: number) => void
 }
@@ -60,12 +57,6 @@ contextBridge.exposeInMainWorld('api', {
 		}),
 	// Show loading indicator
 	onShowLoading: (callback: () => void) => ipcRenderer.on('show-loading', () => callback()),
-	// Font size change handler
-	onChangeFontSize: (callback: (direction: string) => void) =>
-		ipcRenderer.on('change-font-size', (_e: IpcRendererEvent, direction: string) => callback(direction)),
-	// API Key functions
-	saveApiKey: (apiKey: string) => ipcRenderer.send('save-api-key', apiKey),
-	getApiKey: () => ipcRenderer.invoke('get-api-key'),
 	// Language detection
 	onLanguageDetected: (callback: (language: string) => void) =>
 		ipcRenderer.on('language-detected', (_e: IpcRendererEvent, language: string) => callback(language)),
