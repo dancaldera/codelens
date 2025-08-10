@@ -3,7 +3,6 @@ window.addEventListener('DOMContentLoaded', () => {
 	const resultDiv = document.getElementById('analysisResult')
 	const screenshot1 = document.getElementById('screenshot1')
 	const screenshot2 = document.getElementById('screenshot2')
-	const languageDetected = document.getElementById('languageDetected')
 	const loadingIndicator = document.getElementById('loadingIndicator')
 	const apiKeyInput = document.getElementById('apiKeyInput')
 	const apiKeySaveBtn = document.getElementById('apiKeySaveBtn')
@@ -38,11 +37,10 @@ window.addEventListener('DOMContentLoaded', () => {
 		})
 	})
 
-	// Language detection updates
+	// Language detection updates (internal only)
 	window.api.onLanguageDetected((language) => {
-		if (languageDetected) {
-			languageDetected.textContent = language ? `Language: ${language}` : 'Auto-detecting language...'
-		}
+		// Language detection still happens internally but no UI display
+		console.log('Language detected:', language)
 	})
 
 	// Prompt submission feedback
@@ -59,7 +57,6 @@ window.addEventListener('DOMContentLoaded', () => {
 				'⌘+H: Capture • ⌘+G: Reset • ⌘+B: Toggle • ⌘+Arrow: Move • ⌘+1-2: Opacity • ⌘+3-4: Font • ⌘+5-6: Size'
 		}
 		resultDiv.innerHTML = ''
-		languageDetected.textContent = 'Auto-detecting language...'
 		// Clear the screenshot thumbnails
 		screenshot1.style.backgroundImage = ''
 		screenshot1.innerHTML = '1'

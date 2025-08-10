@@ -278,8 +278,7 @@ ipcMain.on('prompt-response', async (_event, prompt: string) => {
 		})
 
 		// Format result as markdown
-		const markdownResult = `# Code Analysis Result
-
+		const markdownResult = `
 ## Code
 \`\`\`${result.language.toLowerCase()}
 ${result.code}
