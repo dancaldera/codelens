@@ -1,0 +1,31 @@
+/* Base Styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  overflow: hidden;
+  user-select: none;
+  font-size: var(--base-font-size);
+}
+
+/* Container */
+#container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: var(--spacing-md);
+  width: auto;
+}
+
+/* Animations */
+@keyframes spin {
+  to { 
+    transform: rotate(360deg); 
+  }
+}

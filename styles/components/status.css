@@ -1,0 +1,8 @@
+/* Status Component */
+#status {
+  font-size: var(--small-font-size);
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: var(--spacing-xs);
+  height: 14px;
+}

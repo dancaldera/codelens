@@ -1,0 +1,45 @@
+/* CSS Variables */
+:root {
+  /* Font Sizes */
+  --base-font-size: 13px;
+  --code-font-size: 12px;
+  --small-font-size: 11px;
+  --header-font-size: 14px;
+  
+  /* Colors */
+  --bg-primary: rgba(0, 0, 0, 1);
+  --bg-secondary: rgba(60, 60, 60, 0.5);
+  --bg-tertiary: rgba(30, 30, 30, 0.7);
+  --bg-overlay: rgba(0, 0, 0, 0.7);
+  
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.8);
+  --text-muted: rgba(255, 255, 255, 0.6);
+  --text-placeholder: rgba(255, 255, 255, 0.4);
+  
+  --border-primary: rgba(255, 255, 255, 0.1);
+  --border-hover: rgba(255, 255, 255, 0.5);
+  
+  --accent-success: #4CAF50;
+  --accent-error: #f44336;
+  
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 6px;
+  --spacing-md: 8px;
+  --spacing-lg: 10px;
+  
+  /* Border Radius */
+  --border-radius: 3px;
+  
+  /* Shadows */
+  --shadow-modal: 0 4px 8px rgba(0, 0, 0, 0.3);
+  
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  
+  /* Z-Index */
+  --z-overlay: 10;
+  --z-modal: 100;
+}
