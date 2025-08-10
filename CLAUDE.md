@@ -9,17 +9,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run build` - Compile TypeScript to JavaScript in dist/ folder
 - `npm start` - Build and run the Electron application
 - `npm run typescript-check` - Type check without compilation
+- `npm run watch` - Watch TypeScript files for changes and recompile
+- `npm run electron-dev` - Run Electron with nodemon for auto-restart
+
+**Code Quality:**
+- `npm run format` - Format code using Biome formatter
+- `npm run lint` - Lint and auto-fix code using Biome linter
+- `npm run check` - Run both formatting and linting with Biome
 
 **Packaging:**
 - `npm run package` - Build macOS .dmg package
-- `npm run package-win` - Build Windows installer  
+- `npm run package-win` - Build Windows installer (NSIS)
 - `npm run package-linux` - Build Linux AppImage
-- `npm run package-all` - Build for all platforms
+- `npm run package-all` - Build for all platforms (macOS, Windows, Linux)
 
 **File Structure:**
 - Source files in `src/` compile to `dist/`
 - Logs written to `logs/` directory (app.log, error.log, exceptions.log, rejections.log)
 - Screenshots saved to system temp directory with pattern `screenshot-{1|2}-{timestamp}.png`
+- Styles organized in `styles/` with component-based CSS architecture
+- Renderer script extracted to `src/renderer.js` for better organization
+- Build artifacts output to `release/` directory
 
 ## Architecture Overview
 
@@ -48,15 +58,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Winston-based logging with file rotation (5MB max, 5 files)
 - Separate error and exception logging
 - Performance and API call tracking utilities
+- Electron-specific error suppression for common development warnings
+- Console error filtering for network service crashes and GPU process issues
 
 ### UI and UX
 
-**Frontend (`index.html`):**
+**Frontend (`index.html` + `src/renderer.js`):**
 - Minimal overlay UI with two screenshot thumbnails
 - Markdown rendering with syntax highlighting (marked.js + highlight.js)
 - Language selection dropdown for targeted analysis
 - Auto-analysis trigger after second screenshot
 - API key management with masked input
+- Modular CSS architecture with component-based styling
+- Extracted renderer logic for better maintainability
 
 ### Key Technical Details
 
@@ -84,15 +98,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Requires OpenAI API key in environment variables or UI input
 - Development uses nodemon for auto-restart on file changes
 - TypeScript strict mode enabled with source maps
+- Biome for code formatting and linting with tab indentation
+- Concurrently runs TypeScript compiler and Electron in development
+
+**Code Quality Tools:**
+- **Biome Integration:** Unified formatter and linter with consistent config
+- **TypeScript:** Strict mode with ES2020 target and CommonJS modules
+- **Auto-formatting:** Tab indentation, single quotes, trailing commas
+- **Import Organization:** Automatic import sorting and cleanup
 
 **Logging Strategy:**
 - All components use structured logging with Winston
 - Main process operations logged with performance metrics
 - API calls tracked with duration and response codes
-- DevTools protocol errors automatically suppressed in renderer
+- Electron-specific error suppression (network service crashes, GPU issues)
+- Console error filtering to reduce development noise
 
 **Error Handling:**
 - Graceful fallbacks for screenshot capture methods  
 - Timeout protection for AI analysis (30s)
 - Default responses for failed operations
 - Comprehensive error logging without exposing sensitive data
+- Pattern-based filtering for common Electron development warnings
+
+**Architecture Improvements:**
+- Extracted renderer script from inline HTML for better organization
+- Component-based CSS architecture in `styles/` directory
+- Modular logging with specialized error suppression
+- Enhanced development workflow with concurrent build processes
