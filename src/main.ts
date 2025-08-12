@@ -77,6 +77,7 @@ function createWindow(): void {
 		resizable: true,
 		movable: true,
 		enableLargerThanScreen: true,
+		skipTaskbar: true,
 		webPreferences: {
 			nodeIntegration: false,
 			contextIsolation: true,
@@ -109,6 +110,18 @@ function createWindow(): void {
 
 	// Make window click-through (ignores mouse events)
 	mainWindow.setIgnoreMouseEvents(true)
+
+	// Additional security: exclude from screen capture and sharing
+	if (process.platform === 'darwin') {
+		// On macOS, set the window level to prevent screen capture
+		mainWindow.setWindowButtonVisibility(false)
+		// Set content protection to exclude from screen recordings
+		try {
+			mainWindow.setContentProtection(true)
+		} catch (error) {
+			logger.warn('Failed to set content protection', { error })
+		}
+	}
 
 	mainWindow.loadFile(path.join(__dirname, '../../index.html'))
 	// Set initial position without bounds checking
