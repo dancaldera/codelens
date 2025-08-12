@@ -4,8 +4,8 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import * as util from 'node:util'
 import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain } from 'electron'
-import { analyzeCodeFromImages } from './codeAnalyzer'
-import { createLogger, suppressElectronErrors } from './logger'
+import { createLogger, suppressElectronErrors } from './lib'
+import { analyzeCodeFromImages } from './services'
 
 // Load environment variables from .env file
 try {
@@ -13,15 +13,15 @@ try {
 	// In packaged app, look for .env in the app's directory and user's home
 	const appPath = app.isPackaged ? path.dirname(process.execPath) : process.cwd()
 	const homePath = os.homedir()
-	
+
 	// Try multiple locations for .env file
 	const envPaths = [
 		path.join(appPath, '.env'),
 		path.join(homePath, '.env'),
 		path.join(process.cwd(), '.env'),
-		path.join(__dirname, '..', '..', '.env')
+		path.join(__dirname, '..', '..', '.env'),
 	]
-	
+
 	let envLoaded = false
 	for (const envPath of envPaths) {
 		if (fs.existsSync(envPath)) {
@@ -31,7 +31,7 @@ try {
 			break
 		}
 	}
-	
+
 	if (!envLoaded) {
 		console.log('No .env file found, using system environment variables only')
 		console.log(`Searched paths: ${envPaths.join(', ')}`)
