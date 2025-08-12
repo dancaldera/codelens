@@ -96,12 +96,8 @@
 	transition: all var(--transition-fast);
 }
 
-.model-indicator.gpt-4o {
-	border-color: var(--accent-success);
-	color: var(--accent-success);
-}
-
-.model-indicator.gpt-4o-mini {
-	border-color: var(--accent-warning);
-	color: var(--accent-warning);
+.model-indicator.no-key {
+	border-color: var(--text-muted);
+	color: var(--text-muted);
+	font-style: italic;
 }

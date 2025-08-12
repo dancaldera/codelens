@@ -6,6 +6,15 @@ import * as util from 'node:util'
 import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain } from 'electron'
 import { createLogger, suppressElectronErrors } from './lib'
 import { analyzeCodeFromImages } from './services'
+import {
+	getAvailableModels,
+	getConfiguredProviders,
+	getCurrentProvider,
+	getNextProvider,
+	getProviderInfo,
+	isAnyProviderConfigured,
+	type Provider,
+} from './services/providers'
 
 // Load environment variables from .env file
 try {
@@ -51,7 +60,9 @@ let screenshotPaths: string[] = []
 let previousAnalysis: string | null = null
 const MAX_SCREENSHOTS = 2
 let currentOpacity = 0.8
-let currentModel = 'gpt-4o' // Current OpenAI model
+let currentModelIndex = 0 // Current model index for cycling
+let availableModels: string[] = []
+let currentProvider: Provider = 'openai'
 
 function createWindow(): void {
 	mainWindow = new BrowserWindow({
@@ -114,8 +125,11 @@ function createWindow(): void {
 	// Initialize opacity and model after window loads
 	mainWindow.webContents.once('dom-ready', () => {
 		updateOpacity()
-		// Send initial model to renderer
-		mainWindow?.webContents.send('model-changed', currentModel)
+		// Initialize provider and models
+		initializeProvider()
+		// Send initial model state to renderer
+		const initialState = getInitialModelState()
+		mainWindow?.webContents.send('model-changed', initialState)
 	})
 
 	mainWindow.on('closed', () => {
@@ -141,15 +155,106 @@ function updateOpacity(): void {
 	logger.info('Opacity changed', { opacity: currentOpacity })
 }
 
+function initializeProvider(): void {
+	currentProvider = getCurrentProvider()
+	availableModels = getAvailableModels(currentProvider)
+	currentModelIndex = 0
+
+	logger.info('Provider initialized', {
+		provider: currentProvider,
+		models: availableModels,
+		defaultModel: availableModels[0],
+	})
+}
+
 function switchModel(): void {
-	// Toggle between gpt-4o and gpt-4o-mini
-	currentModel = currentModel === 'gpt-4o' ? 'gpt-4o-mini' : 'gpt-4o'
-	logger.info('Model switched', { model: currentModel })
+	// Check if any provider is configured
+	if (!isAnyProviderConfigured()) {
+		logger.warn('Attempted to switch model without any provider configured')
+		if (mainWindow) {
+			mainWindow.webContents.send('screenshot-status', 'No API key configured')
+		}
+		return
+	}
+
+	// Cycle through available models
+	currentModelIndex = (currentModelIndex + 1) % availableModels.length
+	const currentModel = availableModels[currentModelIndex]
+
+	logger.info('Model switched', {
+		provider: currentProvider,
+		model: currentModel,
+		index: currentModelIndex,
+	})
 
 	if (mainWindow) {
-		// Send model change to renderer
-		mainWindow.webContents.send('model-changed', currentModel)
-		mainWindow.webContents.send('screenshot-status', `Model: ${currentModel}`)
+		// Send model change to renderer with provider info
+		const modelInfo = {
+			provider: currentProvider,
+			model: currentModel,
+		}
+		mainWindow.webContents.send('model-changed', modelInfo)
+		mainWindow.webContents.send('screenshot-status', `Model: ${currentProvider}:${currentModel}`)
+	}
+}
+
+function switchProvider(): void {
+	const configuredProviders = getConfiguredProviders()
+
+	// Check if we have any providers configured
+	if (configuredProviders.length === 0) {
+		logger.warn('Attempted to switch provider without any provider configured')
+		if (mainWindow) {
+			mainWindow.webContents.send('screenshot-status', 'No API key configured')
+		}
+		return
+	}
+
+	// If only one provider is configured, show message
+	if (configuredProviders.length === 1) {
+		logger.info('Only one provider configured', { provider: configuredProviders[0] })
+		if (mainWindow) {
+			mainWindow.webContents.send('screenshot-status', `Only ${configuredProviders[0]} configured`)
+		}
+		return
+	}
+
+	// Switch to next provider
+	const nextProvider = getNextProvider(currentProvider)
+	currentProvider = nextProvider
+
+	// Reset to first model of the new provider
+	availableModels = getAvailableModels(currentProvider)
+	currentModelIndex = 0
+	const currentModel = availableModels[currentModelIndex]
+
+	logger.info('Provider switched', {
+		provider: currentProvider,
+		model: currentModel,
+		availableModels,
+	})
+
+	if (mainWindow) {
+		// Send provider change to renderer
+		const modelInfo = {
+			provider: currentProvider,
+			model: currentModel,
+		}
+		mainWindow.webContents.send('model-changed', modelInfo)
+		mainWindow.webContents.send('screenshot-status', `Provider: ${currentProvider}:${currentModel}`)
+	}
+}
+
+function getInitialModelState(): string | { provider: Provider; model: string } {
+	// Return appropriate initial state based on provider configuration
+	if (!isAnyProviderConfigured()) {
+		return 'no-key'
+	}
+
+	const providerInfo = getProviderInfo(currentProvider)
+	return {
+		provider: providerInfo.provider,
+		model: availableModels[currentModelIndex],
 	}
 }
 
@@ -268,6 +373,11 @@ function registerShortcuts(): void {
 	// Model switching shortcut
 	globalShortcut.register('CommandOrControl+M', () => {
 		switchModel()
+	})
+
+	// Provider switching shortcut
+	globalShortcut.register('CommandOrControl+P', () => {
+		switchProvider()
 	})
 }
 
@@ -430,6 +540,9 @@ async function triggerAnalysis(): Promise<void> {
 			hasPreviousAnalysis: !!previousAnalysis,
 		})
 
+		// Get current model
+		const currentModel = availableModels[currentModelIndex]
+
 		// Perform analysis with previous context if available
 		const result = await analyzeCodeFromImages(
 			screenshotPaths,
@@ -442,6 +555,7 @@ async function triggerAnalysis(): Promise<void> {
 				}
 			},
 			currentModel, // Pass the current model
+			currentProvider, // Pass the current provider
 		)
 
 		// Format result as markdown

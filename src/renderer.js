@@ -104,11 +104,18 @@ window.addEventListener('DOMContentLoaded', () => {
 	})
 
 	// Model change updates
-	window.api.onModelChanged((model) => {
+	window.api.onModelChanged((modelInfo) => {
 		if (modelIndicator) {
-			modelIndicator.textContent = `${model}`
-			// Update the CSS class for styling
-			modelIndicator.className = `model-indicator ${model}`
+			if (modelInfo === 'no-key') {
+				modelIndicator.textContent = 'No key provided'
+				modelIndicator.className = 'model-indicator no-key'
+			} else {
+				const { provider, model } = modelInfo
+				modelIndicator.textContent = `${provider}: ${model}`
+				// Use base model name for CSS class (remove provider prefix)
+				const baseModel = model.includes('/') ? model.split('/').pop() : model
+				modelIndicator.className = `model-indicator ${baseModel}`
+			}
 		}
 	})
 

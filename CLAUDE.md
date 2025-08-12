@@ -41,12 +41,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Creates always-on-top overlay window with keyboard shortcuts
 - Handles screenshot capture via `desktopCapturer` API with fallback to macOS `screencapture`
 - Manages two-screenshot workflow with auto-analysis and contextual updates
-- Global shortcuts: `Cmd+H` (screenshot), `Cmd+G` (reset + reposition window), `Cmd+B` (hide/show), `Cmd+M` (switch AI model), `Cmd+Q` (quit)
+- Global shortcuts: `Cmd+H` (screenshot), `Cmd+G` (reset + reposition window), `Cmd+B` (hide/show), `Cmd+M` (switch AI model), `Cmd+P` (switch AI provider), `Cmd+Q` (quit)
 
 **Code Analyzer (`src/codeAnalyzer.ts`):**
-- OpenAI GPT-4o/GPT-4o-mini integration for vision-based code analysis
-- Model switching via `Cmd+M` toggles between `gpt-4o` (default) and `gpt-4o-mini` 
-- Current model displayed below screenshot thumbnails with visual indicators
+- **Multi-Provider Support**: OpenAI and OpenRouter integration for vision-based code analysis
+- **Provider Selection**: Automatic provider detection based on environment variables or availability
+- **Model Switching**: `Cmd+M` cycles through available models for the current provider
+- **Provider Switching**: `Cmd+P` cycles through configured providers (OpenAI ↔ OpenRouter)
+- **Smart API Key Detection**: Shows "No key provided" when no provider keys are configured
+- **Provider Display**: Current provider and model displayed below screenshot thumbnails with visual indicators
+- **OpenAI Models**: `gpt-4o`, `gpt-4o-mini`
+- **OpenRouter Models**: `openai/gpt-4o`, `openai/gpt-4o-mini` (access OpenAI models via OpenRouter)
 - Structured output with code extraction, complexity analysis, and language detection
 - Context-aware analysis that can extend previous results with new screenshots
 - Comprehensive error handling and logging with extended timeouts (60s total, 50s API)
@@ -98,7 +103,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Notes
 
 **Environment Setup:**
-- Requires OpenAI API key in environment variables or UI input
+- **Provider Configuration**: Set environment variables for AI providers:
+  - `OPENAI_API_KEY`: OpenAI API key (format: `sk-...`)
+  - `OPENROUTER_API_KEY`: OpenRouter API key (format: `sk-...`)
+  - `AI_PROVIDER`: Force specific provider (`openai` or `openrouter`)
+  - `OPENROUTER_SITE_URL`: Optional site URL for OpenRouter rankings
+  - `OPENROUTER_SITE_NAME`: Optional site name for OpenRouter rankings
+- **Provider Priority**: OpenAI → OpenRouter → Default (OpenAI with "no key" state)
 - Development uses nodemon for auto-restart on file changes
 - TypeScript strict mode enabled with source maps
 - Biome for code formatting and linting with tab indentation

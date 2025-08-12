@@ -2,7 +2,8 @@ import * as fs from 'node:fs'
 import { z } from 'zod'
 import { createLogger, logPerformance } from '../lib/logger'
 import { getMimeType, validateImageFile } from '../lib/utils'
-import { type AnalysisRequest, type ImageContent, OpenAIService } from './openai/service'
+import type { AnalysisRequest, ImageContent } from './openai/service'
+import { analyzeCodeWithProvider, type Provider } from './providers'
 
 // Define the schema for code analysis results
 const codeAnalysisSchema = z.object({
@@ -31,6 +32,7 @@ export async function analyzeCodeFromImages(
 	previousContext?: string,
 	onLanguageDetected?: (language: string) => void,
 	model: string = 'gpt-4o',
+	providerOverride?: Provider,
 ): Promise<CodeAnalysisResult> {
 	const startTime = Date.now()
 	logger.info(`Starting code analysis for ${imagePaths.length} images`)
@@ -94,12 +96,9 @@ export async function analyzeCodeFromImages(
 			previousContext,
 		}
 
-		// Create service instance with the specified model
-		const serviceInstance = new OpenAIService({ model })
-		
-		// Call service layer for OpenAI communication
-		logger.info('Delegating to OpenAI service...', { model })
-		const result = await serviceInstance.analyzeCode(analysisRequest)
+		// Call provider service for analysis
+		logger.info('Delegating to provider service...', { model, provider: providerOverride })
+		const result = await analyzeCodeWithProvider(analysisRequest, model, providerOverride)
 
 		// Notify about detected language
 		if (result.language && result.language !== 'Unknown' && onLanguageDetected) {
@@ -203,6 +202,7 @@ export async function extendAnalysisWithImage(
 	newImagePaths: string[],
 	prompt: string = 'Update the previous analysis with this additional image',
 	model: string = 'gpt-4o',
+	providerOverride?: Provider,
 ): Promise<CodeAnalysisResult> {
 	if (!newImagePaths || newImagePaths.length === 0) {
 		logger.error('No image paths provided for extended analysis')
@@ -253,7 +253,7 @@ export async function extendAnalysisWithImage(
 
 	try {
 		// Call the main analysis function with the new image and context
-		return await analyzeCodeFromImages(newImagePaths, contextPrompt, contextString, undefined, model)
+		return await analyzeCodeFromImages(newImagePaths, contextPrompt, contextString, undefined, model, providerOverride)
 	} catch (error) {
 		logger.error('Error in extended analysis', {
 			error: error instanceof Error ? error.message : String(error),
