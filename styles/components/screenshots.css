@@ -94,10 +94,25 @@
 	font-family: var(--font-mono);
 	letter-spacing: 0.5px;
 	transition: all var(--transition-fast);
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
 }
 
 .model-indicator.no-key {
 	border-color: var(--text-muted);
 	color: var(--text-muted);
 	font-style: italic;
+}
+
+.provider-name {
+    font-size: calc(var(--small-font-size) * 0.9);
+	font-weight: 500;
+	opacity: 0.9;
+}
+
+.model-name {
+	font-size: calc(var(--tiny-font-size) * 0.9);
+	font-weight: 400;
+	opacity: 0.7;
 }
