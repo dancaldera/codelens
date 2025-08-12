@@ -15,7 +15,7 @@ AI-powered code analysis from screenshots. An Electron application that captures
 ## Installation
 
 1. Clone this repository
-2. Install dependencies: `npm install`
+2. Install dependencies: `bun install`
 3. **Set up OpenAI API Key** (required for AI analysis):
    ```bash
    export OPENAI_API_KEY="sk-your-openai-api-key-here"
@@ -24,7 +24,7 @@ AI-powered code analysis from screenshots. An Electron application that captures
    ```
    OPENAI_API_KEY=sk-your-openai-api-key-here
    ```
-4. Start the application: `npm start`
+4. Start the application: `bun start`
 
 ## Configuration
 
@@ -97,21 +97,21 @@ The app has a fallback mechanism:
 ## Development
 
 **Development:**
-- `npm run dev` - Start development with hot reload
-- `npm run build` - Compile TypeScript to JavaScript
-- `npm start` - Build and run the application
-- `npm run typescript-check` - Type check without compilation
+- `bun run dev` - Start development with hot reload
+- `bun run build` - Compile TypeScript to JavaScript
+- `bun start` - Build and run the application
+- `bun run typescript-check` - Type check without compilation
 
 **Code Quality:**
-- `npm run format` - Format code with Biome
-- `npm run lint` - Lint and auto-fix with Biome
-- `npm run check` - Run both formatting and linting
+- `bun run format` - Format code with Biome
+- `bun run lint` - Lint and auto-fix with Biome
+- `bun run check` - Run both formatting and linting
 
 **Packaging:**
-- `npm run package` - Build macOS .dmg
-- `npm run package-win` - Build Windows installer
-- `npm run package-linux` - Build Linux AppImage
-- `npm run package-all` - Build for all platforms
+- `bun run package` - Build macOS .dmg
+- `bun run package-win` - Build Windows installer
+- `bun run package-linux` - Build Linux AppImage
+- `bun run package-all` - Build for all platforms
 
 ## Technical Details
 

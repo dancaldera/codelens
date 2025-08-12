@@ -5,23 +5,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Common Commands
 
 **Development:**
-- `npm run dev` - Start development mode with hot reload (TypeScript watch + Electron restart)
-- `npm run build` - Compile TypeScript to JavaScript in dist/ folder
-- `npm start` - Build and run the Electron application
-- `npm run typescript-check` - Type check without compilation
-- `npm run watch` - Watch TypeScript files for changes and recompile
-- `npm run electron-dev` - Run Electron with nodemon for auto-restart
+- `bun run dev` - Start development mode with hot reload (TypeScript watch + Electron restart)
+- `bun run build` - Compile TypeScript to JavaScript in dist/ folder
+- `bun start` - Build and run the Electron application
+- `bun run typescript-check` - Type check without compilation
+- `bun run watch` - Watch TypeScript files for changes and recompile
+- `bun run electron-dev` - Run Electron with nodemon for auto-restart
 
 **Code Quality:**
-- `npm run format` - Format code using Biome formatter
-- `npm run lint` - Lint and auto-fix code using Biome linter
-- `npm run check` - Run both formatting and linting with Biome
+- `bun run format` - Format code using Biome formatter
+- `bun run lint` - Lint and auto-fix code using Biome linter
+- `bun run check` - Run both formatting and linting with Biome
 
 **Packaging:**
-- `npm run package` - Build macOS .dmg package
-- `npm run package-win` - Build Windows installer (NSIS)
-- `npm run package-linux` - Build Linux AppImage
-- `npm run package-all` - Build for all platforms (macOS, Windows, Linux)
+- `bun run package` - Build macOS .dmg package
+- `bun run package-win` - Build Windows installer (NSIS)
+- `bun run package-linux` - Build Linux AppImage
+- `bun run package-all` - Build for all platforms (macOS, Windows, Linux)
 
 **File Structure:**
 - Source files in `src/` compile to `dist/`
