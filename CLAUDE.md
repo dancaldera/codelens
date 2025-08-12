@@ -41,10 +41,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Creates always-on-top overlay window with keyboard shortcuts
 - Handles screenshot capture via `desktopCapturer` API with fallback to macOS `screencapture`
 - Manages two-screenshot workflow with auto-analysis and contextual updates
-- Global shortcuts: `Cmd+H` (screenshot), `Cmd+G` (reset + reposition window), `Cmd+B` (hide/show), `Cmd+Q` (quit)
+- Global shortcuts: `Cmd+H` (screenshot), `Cmd+G` (reset + reposition window), `Cmd+B` (hide/show), `Cmd+M` (switch AI model), `Cmd+Q` (quit)
 
 **Code Analyzer (`src/codeAnalyzer.ts`):**
-- OpenAI GPT-4o integration for vision-based code analysis
+- OpenAI GPT-4o/GPT-4o-mini integration for vision-based code analysis
+- Model switching via `Cmd+M` toggles between `gpt-4o` (default) and `gpt-4o-mini` 
+- Current model displayed below screenshot thumbnails with visual indicators
 - Structured output with code extraction, complexity analysis, and language detection
 - Context-aware analysis that can extend previous results with new screenshots
 - Comprehensive error handling and logging with extended timeouts (60s total, 50s API)

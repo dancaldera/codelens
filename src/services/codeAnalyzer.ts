@@ -2,7 +2,7 @@ import * as fs from 'node:fs'
 import { z } from 'zod'
 import { createLogger, logPerformance } from '../lib/logger'
 import { getMimeType, validateImageFile } from '../lib/utils'
-import { type AnalysisRequest, type ImageContent, openaiService } from './openai/service'
+import { type AnalysisRequest, type ImageContent, OpenAIService } from './openai/service'
 
 // Define the schema for code analysis results
 const codeAnalysisSchema = z.object({
@@ -30,6 +30,7 @@ export async function analyzeCodeFromImages(
 	prompt: string = 'Analyze the images and solve the coding problem in them',
 	previousContext?: string,
 	onLanguageDetected?: (language: string) => void,
+	model: string = 'gpt-4o',
 ): Promise<CodeAnalysisResult> {
 	const startTime = Date.now()
 	logger.info(`Starting code analysis for ${imagePaths.length} images`)
@@ -93,9 +94,12 @@ export async function analyzeCodeFromImages(
 			previousContext,
 		}
 
+		// Create service instance with the specified model
+		const serviceInstance = new OpenAIService({ model })
+		
 		// Call service layer for OpenAI communication
-		logger.info('Delegating to OpenAI service...')
-		const result = await openaiService.analyzeCode(analysisRequest)
+		logger.info('Delegating to OpenAI service...', { model })
+		const result = await serviceInstance.analyzeCode(analysisRequest)
 
 		// Notify about detected language
 		if (result.language && result.language !== 'Unknown' && onLanguageDetected) {
@@ -198,6 +202,7 @@ export async function extendAnalysisWithImage(
 	previousAnalysis: CodeAnalysisResult,
 	newImagePaths: string[],
 	prompt: string = 'Update the previous analysis with this additional image',
+	model: string = 'gpt-4o',
 ): Promise<CodeAnalysisResult> {
 	if (!newImagePaths || newImagePaths.length === 0) {
 		logger.error('No image paths provided for extended analysis')
@@ -248,7 +253,7 @@ export async function extendAnalysisWithImage(
 
 	try {
 		// Call the main analysis function with the new image and context
-		return await analyzeCodeFromImages(newImagePaths, contextPrompt, contextString)
+		return await analyzeCodeFromImages(newImagePaths, contextPrompt, contextString, undefined, model)
 	} catch (error) {
 		logger.error('Error in extended analysis', {
 			error: error instanceof Error ? error.message : String(error),

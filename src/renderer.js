@@ -3,6 +3,7 @@ window.addEventListener('DOMContentLoaded', () => {
 	const resultDiv = document.getElementById('analysisResult')
 	const screenshotContainer = document.getElementById('screenshotContainer')
 	const loadingIndicator = document.getElementById('loadingIndicator')
+	const modelIndicator = document.getElementById('modelIndicator')
 
 	const MAX_SCREENSHOTS = 2
 	const screenshots = new Map() // Store screenshot data by index
@@ -100,6 +101,15 @@ window.addEventListener('DOMContentLoaded', () => {
 	window.api.onLanguageDetected((language) => {
 		// Language detection still happens internally but no UI display
 		console.log('Language detected:', language)
+	})
+
+	// Model change updates
+	window.api.onModelChanged((model) => {
+		if (modelIndicator) {
+			modelIndicator.textContent = `${model}`
+			// Update the CSS class for styling
+			modelIndicator.className = `model-indicator ${model}`
+		}
 	})
 
 	// Context reset

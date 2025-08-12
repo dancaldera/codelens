@@ -81,3 +81,27 @@
 	opacity: 0.5;
 	cursor: not-allowed;
 }
+
+/* Model Indicator */
+.model-indicator {
+	margin-top: var(--spacing-xs);
+	font-size: var(--small-font-size);
+	color: var(--text-secondary);
+	text-align: center;
+	padding: var(--spacing-xs);
+	background-color: var(--bg-primary);
+	border-radius: var(--border-radius);
+	font-family: var(--font-mono);
+	letter-spacing: 0.5px;
+	transition: all var(--transition-fast);
+}
+
+.model-indicator.gpt-4o {
+	border-color: var(--accent-success);
+	color: var(--accent-success);
+}
+
+.model-indicator.gpt-4o-mini {
+	border-color: var(--accent-warning);
+	color: var(--accent-warning);
+}

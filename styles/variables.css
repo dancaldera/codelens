@@ -6,6 +6,9 @@
 	--small-font-size: 11px;
 	--header-font-size: 14px;
 
+	/* Fonts */
+	--font-mono: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+
 	/* Colors */
 	--bg-primary: transparent;
 	--bg-secondary: rgba(20, 20, 20, 1);
@@ -19,6 +22,7 @@
 	--border-hover: rgba(255, 255, 255, 0.5);
 
 	--accent-success: #4caf50;
+	--accent-warning: #ff9800;
 	--accent-error: #f44336;
 
 	/* Spacing */

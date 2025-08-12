@@ -51,6 +51,7 @@ let screenshotPaths: string[] = []
 let previousAnalysis: string | null = null
 const MAX_SCREENSHOTS = 2
 let currentOpacity = 0.8
+let currentModel = 'gpt-4o' // Current OpenAI model
 
 function createWindow(): void {
 	mainWindow = new BrowserWindow({
@@ -110,9 +111,11 @@ function createWindow(): void {
 	// Register shortcuts
 	registerShortcuts()
 
-	// Initialize opacity after window loads
+	// Initialize opacity and model after window loads
 	mainWindow.webContents.once('dom-ready', () => {
 		updateOpacity()
+		// Send initial model to renderer
+		mainWindow?.webContents.send('model-changed', currentModel)
 	})
 
 	mainWindow.on('closed', () => {
@@ -136,6 +139,18 @@ function updateOpacity(): void {
 	if (!mainWindow) return
 	mainWindow.setOpacity(currentOpacity)
 	logger.info('Opacity changed', { opacity: currentOpacity })
+}
+
+function switchModel(): void {
+	// Toggle between gpt-4o and gpt-4o-mini
+	currentModel = currentModel === 'gpt-4o' ? 'gpt-4o-mini' : 'gpt-4o'
+	logger.info('Model switched', { model: currentModel })
+
+	if (mainWindow) {
+		// Send model change to renderer
+		mainWindow.webContents.send('model-changed', currentModel)
+		mainWindow.webContents.send('screenshot-status', `Model: ${currentModel}`)
+	}
 }
 
 function registerShortcuts(): void {
@@ -248,6 +263,11 @@ function registerShortcuts(): void {
 	globalShortcut.register('CommandOrControl+2', () => {
 		if (!mainWindow) return
 		increaseOpacity()
+	})
+
+	// Model switching shortcut
+	globalShortcut.register('CommandOrControl+M', () => {
+		switchModel()
 	})
 }
 
@@ -421,6 +441,7 @@ async function triggerAnalysis(): Promise<void> {
 					logger.info('Language detected', { language: detectedLanguage })
 				}
 			},
+			currentModel, // Pass the current model
 		)
 
 		// Format result as markdown
