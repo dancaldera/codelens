@@ -40,7 +40,7 @@ export class OpenAIService {
 
 	constructor(options: OpenAIServiceOptions = {}) {
 		this.options = {
-			model: options.model || 'gpt-4o-2024-08-06',
+			model: options.model || 'gpt-4o',
 			maxTokens: options.maxTokens || 2000,
 			temperature: options.temperature || 0.1,
 			timeout: options.timeout || 50000,
