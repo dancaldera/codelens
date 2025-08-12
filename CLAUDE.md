@@ -38,10 +38,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Core Components
 
 **Main Process (`src/main.ts`):**
-- Creates always-on-top overlay window with keyboard shortcuts
+- Creates always-on-top overlay window with keyboard shortcuts and enhanced privacy settings
 - Handles screenshot capture via `desktopCapturer` API with fallback to macOS `screencapture`
 - Manages two-screenshot workflow with auto-analysis and contextual updates
 - Global shortcuts: `Cmd+H` (screenshot), `Cmd+G` (reset + reposition window), `Cmd+B` (hide/show), `Cmd+M` (switch AI model), `Cmd+P` (switch AI provider), `Cmd+Q` (quit)
+- Enhanced security: excludes window from taskbar, macOS content protection against screen capture, hidden window buttons
 
 **Code Analyzer (`src/codeAnalyzer.ts`):**
 - **Multi-Provider Support**: OpenAI and OpenRouter integration for vision-based code analysis
