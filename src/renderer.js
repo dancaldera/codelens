@@ -4,6 +4,7 @@ window.addEventListener('DOMContentLoaded', () => {
 	const screenshotContainer = document.getElementById('screenshotContainer')
 	const loadingIndicator = document.getElementById('loadingIndicator')
 	const modelIndicator = document.getElementById('modelIndicator')
+	const modeIndicator = document.getElementById('modeIndicator')
 
 	const MAX_SCREENSHOTS = 2
 	const screenshots = new Map() // Store screenshot data by index
@@ -121,6 +122,17 @@ window.addEventListener('DOMContentLoaded', () => {
 				const baseModel = model.includes('/') ? model.split('/').pop() : model
 				modelIndicator.className = `model-indicator ${baseModel}`
 			}
+		}
+	})
+
+	// Mode change updates
+	window.api.onModeChanged((mode) => {
+		if (modeIndicator) {
+			const modeNameElement = modeIndicator.querySelector('.mode-name')
+			if (modeNameElement) {
+				modeNameElement.textContent = mode === 'code' ? 'Code Mode' : 'General Mode'
+			}
+			modeIndicator.className = `mode-indicator ${mode}`
 		}
 	})
 

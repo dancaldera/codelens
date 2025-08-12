@@ -5,7 +5,7 @@ import * as path from 'node:path'
 import * as util from 'node:util'
 import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain } from 'electron'
 import { createLogger, suppressElectronErrors } from './lib'
-import { analyzeCodeFromImages } from './services'
+import { analyzeContentFromImages, type AnalysisMode } from './services'
 import {
 	getAvailableModels,
 	getConfiguredProviders,
@@ -63,6 +63,7 @@ let currentOpacity = 0.8
 let currentModelIndex = 0 // Current model index for cycling
 let availableModels: string[] = []
 let currentProvider: Provider = 'openai'
+let currentMode: AnalysisMode = 'code' // Current analysis mode
 
 function createWindow(): void {
 	mainWindow = new BrowserWindow({
@@ -143,6 +144,8 @@ function createWindow(): void {
 		// Send initial model state to renderer
 		const initialState = getInitialModelState()
 		mainWindow?.webContents.send('model-changed', initialState)
+		// Send initial mode state to renderer
+		mainWindow?.webContents.send('mode-changed', currentMode)
 	})
 
 	mainWindow.on('closed', () => {
@@ -271,6 +274,19 @@ function getInitialModelState(): string | { provider: Provider; model: string } 
 	}
 }
 
+function switchMode(): void {
+	// Toggle between code and general modes
+	currentMode = currentMode === 'code' ? 'general' : 'code'
+	
+	logger.info('Mode switched', { mode: currentMode })
+
+	if (mainWindow) {
+		// Send mode change to renderer
+		mainWindow.webContents.send('mode-changed', currentMode)
+		mainWindow.webContents.send('screenshot-status', `Mode: ${currentMode}`)
+	}
+}
+
 function registerShortcuts(): void {
 	// Screenshot shortcut
 	globalShortcut.register('CommandOrControl+H', takeScreenshot)
@@ -391,6 +407,11 @@ function registerShortcuts(): void {
 	// Provider switching shortcut
 	globalShortcut.register('CommandOrControl+P', () => {
 		switchProvider()
+	})
+
+	// Mode switching shortcut
+	globalShortcut.register('CommandOrControl+T', () => {
+		switchMode()
 	})
 }
 
@@ -543,12 +564,12 @@ async function saveScreenshot(buffer: Buffer, method: string): Promise<void> {
 async function triggerAnalysis(): Promise<void> {
 	if (!mainWindow || screenshotPaths.length === 0) return
 
-	const prompt =
-		'You are an expert software developer. Analyze the code in these images, extract it accurately, solve any problems shown, and provide the best practices solution.'
+	// Use the enhanced prompts from the analyzer (pass undefined to use defaults)
+	const prompt = undefined
 
 	try {
-		logger.info('Starting code analysis', {
-			prompt: prompt.substring(0, 100),
+		logger.info('Starting analysis', {
+			mode: currentMode,
 			imageCount: screenshotPaths.length,
 			hasPreviousAnalysis: !!previousAnalysis,
 		})
@@ -557,9 +578,10 @@ async function triggerAnalysis(): Promise<void> {
 		const currentModel = availableModels[currentModelIndex]
 
 		// Perform analysis with previous context if available
-		const result = await analyzeCodeFromImages(
+		const result = await analyzeContentFromImages(
 			screenshotPaths,
 			prompt,
+			currentMode, // Pass the current mode
 			previousAnalysis || undefined,
 			(detectedLanguage) => {
 				if (mainWindow) {
@@ -571,8 +593,11 @@ async function triggerAnalysis(): Promise<void> {
 			currentProvider, // Pass the current provider
 		)
 
-		// Format result as markdown
-		const markdownResult = `
+		// Format result as markdown based on mode
+		let markdownResult: string
+		
+		if (currentMode === 'code' && 'code' in result) {
+			markdownResult = `
 ## Code
 \`\`\`${result.language.toLowerCase()}
 ${result.code}
@@ -586,14 +611,29 @@ ${result.summary}
 - **Space Complexity:** ${result.spaceComplexity}
 - **Language:** ${result.language}`
 
-		// Store this analysis as context for future screenshots
-		previousAnalysis = JSON.stringify({
-			code: result.code,
-			summary: result.summary,
-			timeComplexity: result.timeComplexity,
-			spaceComplexity: result.spaceComplexity,
-			language: result.language,
-		})
+			// Store this analysis as context for future screenshots
+			previousAnalysis = JSON.stringify({
+				code: result.code,
+				summary: result.summary,
+				timeComplexity: result.timeComplexity,
+				spaceComplexity: result.spaceComplexity,
+				language: result.language,
+			})
+		} else if ('content' in result) {
+			// For general mode, just show the response without structure
+			markdownResult = result.response
+
+			// Store this analysis as context for future screenshots
+			previousAnalysis = JSON.stringify({
+				content: result.content,
+				type: result.type,
+				response: result.response,
+				context: result.context,
+			})
+		} else {
+			markdownResult = '## Error\nUnexpected result format'
+			previousAnalysis = null
+		}
 
 		// Send result to renderer
 		mainWindow.webContents.send('analysis-result', markdownResult)

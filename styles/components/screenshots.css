@@ -88,8 +88,9 @@
 	font-size: var(--small-font-size);
 	color: var(--text-secondary);
 	text-align: center;
-	padding: var(--spacing-xs);
-	background-color: var(--bg-primary);
+	padding: var(--spacing-sm);
+	background-color: var(--bg-secondary);
+	border: 1px solid var(--border-primary);
 	border-radius: var(--border-radius);
 	font-family: var(--font-mono);
 	letter-spacing: 0.5px;
@@ -97,12 +98,50 @@
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .model-indicator.no-key {
-	border-color: var(--text-muted);
-	color: var(--text-muted);
+	background-color: rgba(255, 193, 7, 0.1);
+	border-color: rgba(255, 193, 7, 0.3);
+	color: #f59e0b;
 	font-style: italic;
+}
+
+.model-indicator.gpt-4o {
+	background-color: rgba(16, 185, 129, 0.1);
+	border-color: rgba(16, 185, 129, 0.3);
+	color: #10b981;
+}
+
+.model-indicator.gpt-4o-mini {
+	background-color: rgba(34, 197, 94, 0.1);
+	border-color: rgba(34, 197, 94, 0.3);
+	color: #22c55e;
+}
+
+.model-indicator.claude-sonnet-4 {
+	background-color: rgba(139, 69, 19, 0.1);
+	border-color: rgba(139, 69, 19, 0.3);
+	color: #d2691e;
+}
+
+.model-indicator.claude-opus-4\.1 {
+	background-color: rgba(128, 0, 128, 0.1);
+	border-color: rgba(128, 0, 128, 0.3);
+	color: #9333ea;
+}
+
+.model-indicator.grok-4 {
+	background-color: rgba(239, 68, 68, 0.1);
+	border-color: rgba(239, 68, 68, 0.3);
+	color: #ef4444;
+}
+
+.model-indicator.gemini-2\.5-pro {
+	background-color: rgba(59, 130, 246, 0.1);
+	border-color: rgba(59, 130, 246, 0.3);
+	color: #3b82f6;
 }
 
 .provider-name {
@@ -115,4 +154,36 @@
 	font-size: calc(var(--tiny-font-size) * 0.9);
 	font-weight: 400;
 	opacity: 0.7;
+}
+
+/* Mode Indicator */
+.mode-indicator {
+	margin-top: var(--spacing-xs);
+	font-size: var(--small-font-size);
+	color: var(--text-secondary);
+	text-align: center;
+	padding: var(--spacing-xs);
+	background-color: var(--bg-secondary);
+	border-radius: var(--border-radius);
+	font-family: var(--font-mono);
+	letter-spacing: 0.5px;
+	transition: all var(--transition-fast);
+	border: 1px solid var(--border-primary);
+}
+
+.mode-indicator.code {
+	background-color: rgba(74, 222, 128, 0.1);
+	border-color: rgba(74, 222, 128, 0.3);
+	color: #10b981;
+}
+
+.mode-indicator.general {
+	background-color: rgba(59, 130, 246, 0.1);
+	border-color: rgba(59, 130, 246, 0.3);
+	color: #3b82f6;
+}
+
+.mode-name {
+	font-size: calc(var(--small-font-size) * 0.9);
+	font-weight: 500;
 }
