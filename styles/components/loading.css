@@ -22,9 +22,11 @@
 	border-top-color: var(--text-primary);
 	animation: spin 1s ease-in-out infinite;
 	margin-bottom: var(--spacing-lg);
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .loading-text {
 	font-size: var(--header-font-size);
 	color: var(--text-primary);
+	text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }

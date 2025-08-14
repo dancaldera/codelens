@@ -109,7 +109,7 @@ window.addEventListener('DOMContentLoaded', () => {
 		if (modelIndicator) {
 			const providerNameElement = modelIndicator.querySelector('.provider-name')
 			const modelNameElement = modelIndicator.querySelector('.model-name')
-			
+
 			if (modelInfo === 'no-key') {
 				if (providerNameElement) providerNameElement.textContent = 'No key provided'
 				if (modelNameElement) modelNameElement.textContent = ''

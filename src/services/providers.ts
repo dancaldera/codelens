@@ -35,6 +35,7 @@ export const PROVIDERS: Record<Provider, ProviderConfig> = {
 			'openai/gpt-4o-mini',
 			'x-ai/grok-4',
 			'google/gemini-2.5-pro',
+			'z-ai/glm-4.5v',
 		],
 		defaultModel: 'openai/gpt-4o',
 	},
