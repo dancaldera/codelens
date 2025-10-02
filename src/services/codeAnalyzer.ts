@@ -43,7 +43,10 @@ function createErrorResponse(mode: AnalysisMode, error: string, details: string)
 	} as GeneralAnalysisResult
 }
 
-function handleCodeResult(result: AnalysisResponse, onLanguageDetected?: (language: string) => void): CodeAnalysisResult {
+function handleCodeResult(
+	result: AnalysisResponse,
+	onLanguageDetected?: (language: string) => void,
+): CodeAnalysisResult {
 	if (result.language && result.language !== 'Unknown' && onLanguageDetected) {
 		onLanguageDetected(result.language)
 	}
@@ -108,7 +111,7 @@ Quality standards:
 - Never skip or summarize away important details
 - If something is unclear in the image, acknowledge it and provide best interpretation
 
-Your goal: Ensure the user gets complete, accurate, and contextually rich information about EVERYTHING in the image.`
+Your goal: Ensure the user gets complete, accurate, and contextually rich information about EVERYTHING in the image.`,
 }
 
 /**
@@ -143,7 +146,7 @@ export async function analyzeContentFromImages(
 			type: 'Error',
 			response: 'Unable to complete analysis',
 			context: 'Please try again',
-		} as GeneralAnalysisResult
+		} as GeneralAnalysisResult,
 	}
 
 	const defaultResponse = defaults[mode]
@@ -182,14 +185,11 @@ export async function analyzeContentFromImages(
 		const result = await analyzeCodeWithProvider(analysisRequest, model, providerOverride)
 
 		// Handle results based on mode
-		const finalResult = mode === 'code' 
-			? handleCodeResult(result, onLanguageDetected)
-			: handleGeneralResult(result)
+		const finalResult = mode === 'code' ? handleCodeResult(result, onLanguageDetected) : handleGeneralResult(result)
 
 		clearTimeout(analysisTimeout)
 		logPerformance(`${mode} analysis completed`, startTime)
 		return finalResult
-
 	} catch (error) {
 		logger.error('Analysis failed', { error: error instanceof Error ? error.message : String(error) })
 		clearTimeout(analysisTimeout)
@@ -214,7 +214,13 @@ export async function analyzeCodeFromImages(
 	providerOverride?: Provider,
 ): Promise<CodeAnalysisResult> {
 	return analyzeContentFromImages(
-		imagePaths, prompt, 'code', previousContext, onLanguageDetected, model, providerOverride
+		imagePaths,
+		prompt,
+		'code',
+		previousContext,
+		onLanguageDetected,
+		model,
+		providerOverride,
 	) as Promise<CodeAnalysisResult>
 }
 
@@ -248,7 +254,7 @@ async function processImages(imagePaths: string[]): Promise<ImageContent[]> {
 				logger.error('Image processing failed', { path, error })
 				return null
 			}
-		})
+		}),
 	)
 
 	const validImages = results.filter((img): img is ImageContent => img !== null)
@@ -286,28 +292,43 @@ export async function extendAnalysisWithImage(
 
 		// Create context from previous analysis
 		const contextString = JSON.stringify(previousAnalysis)
-		
+
 		// Enhanced prompt for extension
-		const prompt = customPrompt || `${PROMPTS[mode]}
+		const prompt =
+			customPrompt ||
+			`${PROMPTS[mode]}
 
 IMPORTANT: This is an extension of previous analysis. Incorporate the new image(s) with the existing analysis, updating or expanding as needed.`
 
 		logger.info('Extending analysis', { newImages: newImagePaths.length, mode })
-		return await analyzeContentFromImages(newImagePaths, prompt, mode, contextString, undefined, model, providerOverride)
-
+		return await analyzeContentFromImages(
+			newImagePaths,
+			prompt,
+			mode,
+			contextString,
+			undefined,
+			model,
+			providerOverride,
+		)
 	} catch (error) {
 		logger.error('Extension failed', { error })
-		
+
 		// Return previous analysis with error note
 		if (mode === 'code' && 'summary' in previousAnalysis) {
-			return { ...previousAnalysis, summary: `${previousAnalysis.summary}
+			return {
+				...previousAnalysis,
+				summary: `${previousAnalysis.summary}
 
-⚠️ Failed to extend with new image` }
+⚠️ Failed to extend with new image`,
+			}
 		}
 		if ('response' in previousAnalysis) {
-			return { ...previousAnalysis, response: `${previousAnalysis.response}
+			return {
+				...previousAnalysis,
+				response: `${previousAnalysis.response}
 
-⚠️ Failed to extend with new image` }
+⚠️ Failed to extend with new image`,
+			}
 		}
 		return previousAnalysis
 	}

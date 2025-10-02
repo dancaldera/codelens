@@ -277,7 +277,7 @@ function getInitialModelState(): string | { provider: Provider; model: string } 
 function switchMode(): void {
 	// Toggle between code and general modes
 	currentMode = currentMode === 'code' ? 'general' : 'code'
-	
+
 	logger.info('Mode switched', { mode: currentMode })
 
 	if (mainWindow) {
@@ -595,7 +595,7 @@ async function triggerAnalysis(): Promise<void> {
 
 		// Format result as markdown based on mode
 		let markdownResult: string
-		
+
 		if (currentMode === 'code' && 'code' in result) {
 			markdownResult = `
 ## Code
