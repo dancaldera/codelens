@@ -1,17 +1,42 @@
-// CodeLens Renderer - Simplified
+// CodeLens Renderer - TypeScript
+
+// Type declarations for external libraries
+declare const marked: {
+	parse: (markdown: string) => string
+	setOptions: (options: { highlight?: (code: string, lang: string) => string; breaks?: boolean }) => void
+}
+
+declare const hljs: {
+	highlight: (code: string, options: { language: string }) => { value: string }
+	highlightAuto: (code: string) => { value: string }
+	highlightElement: (element: HTMLElement) => void
+	getLanguage: (name: string) => unknown
+}
+
+interface ScreenshotData {
+	index: number
+	path: string
+	data: string
+}
+
+interface ModelInfo {
+	provider: string
+	model: string
+}
+
 window.addEventListener('DOMContentLoaded', () => {
-	const screenshots = document.getElementById('screenshots')
-	const result = document.getElementById('result')
-	const loading = document.getElementById('loading')
-	const modelInfo = document.getElementById('modelInfo')
-	const modeInfo = document.getElementById('modeInfo')
+	const screenshots = document.getElementById('screenshots') as HTMLDivElement
+	const result = document.getElementById('result') as HTMLDivElement
+	const loading = document.getElementById('loading') as HTMLDivElement
+	const modelInfo = document.getElementById('modelInfo') as HTMLDivElement
+	const modeInfo = document.getElementById('modeInfo') as HTMLDivElement
 
 	const MAX_SCREENSHOTS = 2
-	const screenshotData = new Map()
+	const screenshotData = new Map<number, ScreenshotData>()
 
 	// Configure marked.js
 	marked.setOptions({
-		highlight: (code, lang) => {
+		highlight: (code: string, lang: string): string => {
 			if (lang && hljs.getLanguage(lang)) {
 				return hljs.highlight(code, { language: lang }).value
 			}
@@ -21,12 +46,12 @@ window.addEventListener('DOMContentLoaded', () => {
 	})
 
 	// Initialize screenshot slots
-	function initScreenshots() {
+	function initScreenshots(): void {
 		for (let i = 1; i <= MAX_SCREENSHOTS; i++) {
 			const slot = document.createElement('div')
 			slot.className = 'screenshot'
 			slot.id = `screenshot${i}`
-			slot.textContent = i
+			slot.textContent = i.toString()
 			screenshots.appendChild(slot)
 		}
 	}
@@ -34,8 +59,8 @@ window.addEventListener('DOMContentLoaded', () => {
 	initScreenshots()
 
 	// Handle screenshot images
-	window.api.onScreenshotImage((data) => {
-		const slot = document.getElementById(`screenshot${data.index}`)
+	window.api.onScreenshotImage((data: ScreenshotData) => {
+		const slot = document.getElementById(`screenshot${data.index}`) as HTMLDivElement | null
 		if (!slot) return
 
 		screenshotData.set(data.index, data)
@@ -45,30 +70,33 @@ window.addEventListener('DOMContentLoaded', () => {
 	})
 
 	// Handle analysis results
-	window.api.onAnalysisResult((markdown) => {
+	window.api.onAnalysisResult((markdown: string) => {
 		loading.classList.add('hidden')
 		result.innerHTML = marked.parse(markdown)
 		result.classList.add('visible')
 
 		// Highlight code blocks
 		result.querySelectorAll('pre code').forEach((block) => {
-			hljs.highlightElement(block)
+			hljs.highlightElement(block as HTMLElement)
 		})
 	})
 
 	// Handle model changes
-	window.api.onModelChanged((info) => {
+	window.api.onModelChanged((info: string | ModelInfo) => {
 		if (info === 'no-key') {
 			modelInfo.textContent = 'No API Key'
 			modelInfo.dataset.model = 'no-key'
-		} else {
+		} else if (typeof info === 'object') {
 			modelInfo.textContent = info.model
 			modelInfo.dataset.model = info.model
+		} else {
+			modelInfo.textContent = info
+			modelInfo.dataset.model = info
 		}
 	})
 
 	// Handle mode changes
-	window.api.onModeChanged((mode) => {
+	window.api.onModeChanged((mode: string) => {
 		modeInfo.textContent = mode === 'code' ? 'Code' : 'General'
 		modeInfo.dataset.mode = mode
 	})
@@ -84,9 +112,10 @@ window.addEventListener('DOMContentLoaded', () => {
 		result.classList.remove('visible')
 		screenshotData.clear()
 		screenshots.querySelectorAll('.screenshot').forEach((slot, i) => {
-			slot.style.backgroundImage = ''
-			slot.textContent = i + 1
-			slot.classList.remove('active')
+			const element = slot as HTMLDivElement
+			element.style.backgroundImage = ''
+			element.textContent = (i + 1).toString()
+			element.classList.remove('active')
 		})
 	})
 
@@ -94,9 +123,10 @@ window.addEventListener('DOMContentLoaded', () => {
 	window.api.onClearScreenshots(() => {
 		screenshotData.clear()
 		screenshots.querySelectorAll('.screenshot').forEach((slot, i) => {
-			slot.style.backgroundImage = ''
-			slot.textContent = i + 1
-			slot.classList.remove('active')
+			const element = slot as HTMLDivElement
+			element.style.backgroundImage = ''
+			element.textContent = (i + 1).toString()
+			element.classList.remove('active')
 		})
 	})
 

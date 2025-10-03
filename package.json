@@ -15,7 +15,7 @@
 		"test": "bun test",
 		"test:watch": "bun test --watch",
 		"test:coverage": "bun test --coverage",
-		"electron-dev": "nodemon --watch dist --watch index.html --watch styles --watch src/renderer.js --exec \"electron .\"",
+		"electron-dev": "nodemon --watch dist --watch index.html --watch styles --exec \"electron .\"",
 		"package": "npm run build && electron-builder build --mac",
 		"package-win": "npm run build && electron-builder build --win",
 		"package-linux": "npm run build && electron-builder build --linux",
@@ -46,8 +46,7 @@
 			"dist/**/*",
 			"index.html",
 			"package.json",
-			"styles/**/*",
-			"src/renderer.js"
+			"styles/**/*"
 		],
 		"directories": {
 			"output": "release/"
