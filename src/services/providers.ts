@@ -1,12 +1,10 @@
 import { createLogger } from '../lib/logger'
-import { isOpenAIConfigured } from './openai/client'
-import { type AnalysisRequest, type AnalysisResponse, OpenAIService } from './openai/service'
 import { isOpenRouterConfigured } from './openrouter/client'
-import { OpenRouterService } from './openrouter/service'
+import { type AnalysisRequest, type AnalysisResponse, OpenRouterService } from './openrouter/service'
 
 const logger = createLogger('ProviderManager')
 
-export type Provider = 'openai' | 'openrouter'
+export type Provider = 'openrouter'
 
 export interface ProviderConfig {
 	name: Provider
@@ -17,27 +15,12 @@ export interface ProviderConfig {
 }
 
 export const PROVIDERS: Record<Provider, ProviderConfig> = {
-	openai: {
-		name: 'openai',
-		displayName: 'OpenAI',
-		isConfigured: isOpenAIConfigured,
-		models: ['gpt-4o', 'gpt-4o-mini'],
-		defaultModel: 'gpt-4o',
-	},
 	openrouter: {
 		name: 'openrouter',
 		displayName: 'OpenRouter',
 		isConfigured: isOpenRouterConfigured,
-		models: [
-			'anthropic/claude-sonnet-4',
-			'anthropic/claude-opus-4.1',
-			'openai/gpt-4o',
-			'openai/gpt-4o-mini',
-			'x-ai/grok-4',
-			'google/gemini-2.5-pro',
-			'z-ai/glm-4.5v',
-		],
-		defaultModel: 'openai/gpt-4o',
+		models: ['anthropic/claude-sonnet-4.5', 'google/gemini-2.5-pro'],
+		defaultModel: 'anthropic/claude-sonnet-4.5',
 	},
 }
 
@@ -58,20 +41,9 @@ export function getCurrentProvider(override?: Provider): Provider {
 		return envProvider
 	}
 
-	// Default to OpenAI if available, otherwise OpenRouter
-	if (isOpenAIConfigured()) {
-		logger.debug('Using OpenAI as default provider')
-		return 'openai'
-	}
-
-	if (isOpenRouterConfigured()) {
-		logger.debug('Using OpenRouter as fallback provider')
-		return 'openrouter'
-	}
-
-	// Return OpenAI as final fallback (will show "no key" state)
-	logger.debug('No provider configured, defaulting to OpenAI')
-	return 'openai'
+	// Always return OpenRouter
+	logger.debug('Using OpenRouter as provider')
+	return 'openrouter'
 }
 
 /**
@@ -100,20 +72,13 @@ export function getDefaultModel(providerOverride?: Provider): string {
 /**
  * Create the appropriate service instance based on provider and model
  */
-export function createAnalysisService(model?: string, providerOverride?: Provider): OpenAIService | OpenRouterService {
+export function createAnalysisService(model?: string, providerOverride?: Provider): OpenRouterService {
 	const provider = getCurrentProvider(providerOverride)
 	const selectedModel = model || getDefaultModel(providerOverride)
 
 	logger.debug('Creating analysis service', { provider, model: selectedModel })
 
-	switch (provider) {
-		case 'openai':
-			return new OpenAIService({ model: selectedModel })
-		case 'openrouter':
-			return new OpenRouterService({ model: selectedModel })
-		default:
-			throw new Error(`Unknown provider: ${provider}`)
-	}
+	return new OpenRouterService({ model: selectedModel })
 }
 
 /**
@@ -133,36 +98,6 @@ export async function analyzeCodeWithProvider(
  */
 export function getAvailableProviders(): Provider[] {
 	return Object.keys(PROVIDERS) as Provider[]
-}
-
-/**
- * Get all configured providers
- */
-export function getConfiguredProviders(): Provider[] {
-	return getAvailableProviders().filter((provider) => PROVIDERS[provider].isConfigured())
-}
-
-/**
- * Switch to the next available provider
- */
-export function getNextProvider(currentProvider: Provider): Provider {
-	const configuredProviders = getConfiguredProviders()
-
-	// If no providers are configured, return the current one
-	if (configuredProviders.length === 0) {
-		return currentProvider
-	}
-
-	// If only one provider is configured, return it
-	if (configuredProviders.length === 1) {
-		return configuredProviders[0]
-	}
-
-	// Find the current provider index and switch to the next one
-	const currentIndex = configuredProviders.indexOf(currentProvider)
-	const nextIndex = (currentIndex + 1) % configuredProviders.length
-
-	return configuredProviders[nextIndex]
 }
 
 /**

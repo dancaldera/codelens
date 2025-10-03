@@ -5,12 +5,10 @@ import * as path from 'node:path'
 import * as util from 'node:util'
 import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain } from 'electron'
 import { createLogger, suppressElectronErrors } from './lib'
-import { analyzeContentFromImages, type AnalysisMode } from './services'
+import { type AnalysisMode, analyzeContentFromImages } from './services'
 import {
 	getAvailableModels,
-	getConfiguredProviders,
 	getCurrentProvider,
-	getNextProvider,
 	getProviderInfo,
 	isAnyProviderConfigured,
 	type Provider,
@@ -62,7 +60,7 @@ const MAX_SCREENSHOTS = 2
 let currentOpacity = 0.8
 let currentModelIndex = 0 // Current model index for cycling
 let availableModels: string[] = []
-let currentProvider: Provider = 'openai'
+let currentProvider: Provider = 'openrouter'
 let currentMode: AnalysisMode = 'code' // Current analysis mode
 
 function createWindow(): void {
@@ -214,53 +212,6 @@ function switchModel(): void {
 	}
 }
 
-function switchProvider(): void {
-	const configuredProviders = getConfiguredProviders()
-
-	// Check if we have any providers configured
-	if (configuredProviders.length === 0) {
-		logger.warn('Attempted to switch provider without any provider configured')
-		if (mainWindow) {
-			mainWindow.webContents.send('screenshot-status', 'No API key configured')
-		}
-		return
-	}
-
-	// If only one provider is configured, show message
-	if (configuredProviders.length === 1) {
-		logger.info('Only one provider configured', { provider: configuredProviders[0] })
-		if (mainWindow) {
-			mainWindow.webContents.send('screenshot-status', `Only ${configuredProviders[0]} configured`)
-		}
-		return
-	}
-
-	// Switch to next provider
-	const nextProvider = getNextProvider(currentProvider)
-	currentProvider = nextProvider
-
-	// Reset to first model of the new provider
-	availableModels = getAvailableModels(currentProvider)
-	currentModelIndex = 0
-	const currentModel = availableModels[currentModelIndex]
-
-	logger.info('Provider switched', {
-		provider: currentProvider,
-		model: currentModel,
-		availableModels,
-	})
-
-	if (mainWindow) {
-		// Send provider change to renderer
-		const modelInfo = {
-			provider: currentProvider,
-			model: currentModel,
-		}
-		mainWindow.webContents.send('model-changed', modelInfo)
-		mainWindow.webContents.send('screenshot-status', `Provider: ${currentProvider}:${currentModel}`)
-	}
-}
-
 function getInitialModelState(): string | { provider: Provider; model: string } {
 	// Return appropriate initial state based on provider configuration
 	if (!isAnyProviderConfigured()) {
@@ -402,11 +353,6 @@ function registerShortcuts(): void {
 	// Model switching shortcut
 	globalShortcut.register('CommandOrControl+M', () => {
 		switchModel()
-	})
-
-	// Provider switching shortcut
-	globalShortcut.register('CommandOrControl+P', () => {
-		switchProvider()
 	})
 
 	// Mode switching shortcut

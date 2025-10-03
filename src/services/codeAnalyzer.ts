@@ -1,7 +1,7 @@
 import * as fs from 'node:fs'
 import { createLogger, logPerformance } from '../lib/logger'
 import { getMimeType, validateImageFile } from '../lib/utils'
-import type { AnalysisRequest, AnalysisResponse, ImageContent } from './openai/service'
+import type { AnalysisRequest, AnalysisResponse, ImageContent } from './openrouter/service'
 import { analyzeCodeWithProvider, type Provider } from './providers'
 
 // Type definitions

@@ -21,11 +21,11 @@ describe('Basic Integration Tests', () => {
 		expect(typeof validateImageFile).toBe('function')
 	})
 
-	test('should be able to import OpenAI client utilities', async () => {
-		const { isOpenAIConfigured, validateOpenAIConfiguration } = await import('../../src/services/openai/client')
-		
-		expect(typeof isOpenAIConfigured).toBe('function')
-		expect(typeof validateOpenAIConfiguration).toBe('function')
+	test('should be able to import OpenRouter client utilities', async () => {
+		const { isOpenRouterConfigured, validateOpenRouterConfiguration } = await import('../../src/services/openrouter/client')
+
+		expect(typeof isOpenRouterConfigured).toBe('function')
+		expect(typeof validateOpenRouterConfiguration).toBe('function')
 	})
 
 	test('should handle environment variables correctly', () => {
