@@ -3,39 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <title>CodeLens</title>
-  <!-- Stylesheets -->
-  <link rel="stylesheet" href="styles/main.css">
-
-  <!-- Add marked.js for Markdown rendering -->
+  <link rel="stylesheet" href="styles/app.css">
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <!-- Add highlight.js for code syntax highlighting -->
   <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.7.0/build/highlight.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.7.0/build/styles/github-dark.min.css">
 </head>
 <body>
-  <div id="container">
-    <div class="main-content">
-      <div class="screenshot-section">
-        <div id="screenshotContainer" class="screenshot-container">
-          <!-- Screenshots will be dynamically created here -->
-        </div>
-        <div id="modelIndicator" class="model-indicator no-key">
-          <div class="provider-name">No key provided</div>
-          <div class="model-name"></div>
-        </div>
-        <div id="modeIndicator" class="mode-indicator">
-          <div class="mode-name">Code Mode</div>
-        </div>
-      </div>
-      <div id="analysisResult"></div>
+  <div id="app">
+    <div class="sidebar">
+      <div id="screenshots"></div>
+      <div id="modelInfo" class="info-badge">OpenRouter</div>
+      <div id="modeInfo" class="info-badge">Code</div>
     </div>
-    <div id="loadingIndicator">
+    <div id="result"></div>
+    <div id="loading" class="hidden">
       <div class="spinner"></div>
-      <div class="loading-text">Analyzing code...</div>
+      <span>Analyzing...</span>
     </div>
   </div>
-
-  <!-- Main renderer script -->
   <script src="src/renderer.js"></script>
 </body>
 </html>
