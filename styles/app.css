@@ -42,8 +42,9 @@ body {
 	gap: var(--spacing);
 	padding: var(--spacing);
 	width: 100%;
-	height: 100%;
-	overflow: hidden;
+	min-height: 100%;
+	overflow-y: auto;
+	overflow-x: hidden;
 }
 
 /* Sidebar */
@@ -129,14 +130,13 @@ body {
 
 /* Result panel */
 #result {
-	flex: 1;
+	flex: 1 0 auto;
 	background: var(--bg);
 	border-radius: var(--radius);
 	padding: calc(var(--spacing) * 1.5);
-	overflow-y: auto;
 	overflow-x: hidden;
 	display: none;
-	height: 100%;
+	height: fit-content;
 }
 
 #result.visible {
