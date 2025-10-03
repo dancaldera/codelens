@@ -106,11 +106,6 @@ body {
 	color: var(--accent-purple);
 }
 
-#modelInfo[data-model*="claude-sonnet-4"] {
-	background: rgba(168, 85, 247, 0.1);
-	border-color: var(--accent-purple);
-	color: var(--accent-purple);
-}
 
 #modelInfo[data-model*="gemini"] {
 	background: rgba(59, 130, 246, 0.1);

@@ -1,14 +1,16 @@
 # CodeLens
 
-AI-powered code analysis from screenshots. An Electron application that captures code screenshots and uses AI vision models (OpenAI GPT-4o, OpenRouter) to analyze, extract, and explain code with complexity analysis.
+AI-powered code analysis from screenshots. An Electron application that captures code screenshots and uses OpenRouter AI vision models to analyze, extract, and explain code with complexity analysis.
 
 ## Features
 
-- **Multi-Provider AI Analysis**: Support for OpenAI and OpenRouter with multiple vision models
+- **OpenRouter AI Integration**: Access multiple AI vision models through OpenRouter
 - **Screenshot Capture**: Press `Cmd+H` to capture code screenshots (cycles between 2 slots)
+- **Auto-Analysis**: Automatically analyzes after capturing 2 screenshots
 - **Code Extraction**: Extracts and formats code with syntax highlighting
 - **Complexity Analysis**: Provides time/space complexity analysis
 - **Language Detection**: Automatically detects programming languages
+- **Dual Modes**: Code mode and General mode (`Cmd+T` to switch)
 - **Always-on-top overlay**: Stays visible on all workspaces and fullscreen apps
 - **Multi-screen support**: Works across all displays and virtual desktops
 
@@ -16,37 +18,25 @@ AI-powered code analysis from screenshots. An Electron application that captures
 
 1. Clone this repository
 2. Install dependencies: `bun install`
-3. **Set up AI Provider API Key** (required for AI analysis):
+3. **Set up OpenRouter API Key** (required for AI analysis):
    ```bash
-   # For OpenAI (primary)
-   export OPENAI_API_KEY="sk-your-openai-api-key-here"
-   
-   # For OpenRouter (alternative)
    export OPENROUTER_API_KEY="sk-your-openrouter-api-key-here"
    ```
    Or create a `.env` file in the project root:
    ```
-   OPENAI_API_KEY=sk-your-openai-api-key-here
    OPENROUTER_API_KEY=sk-your-openrouter-api-key-here
    ```
 4. Start the application: `bun start`
 
 ## Configuration
 
-### AI Provider Setup
+### OpenRouter Setup
 
-CodeLens supports multiple AI providers for code analysis. Configure one or both providers:
+CodeLens uses OpenRouter for AI-powered code analysis.
 
 **Method 1: Environment Variables (Recommended for development)**
 ```bash
-# OpenAI (primary provider)
-export OPENAI_API_KEY="sk-your-openai-api-key-here"
-
-# OpenRouter (alternative provider)
 export OPENROUTER_API_KEY="sk-your-openrouter-api-key-here"
-
-# Optional: Force specific provider
-export AI_PROVIDER="openai"  # or "openrouter"
 
 # Optional: OpenRouter site tracking
 export OPENROUTER_SITE_URL="https://your-site.com"
@@ -57,9 +47,9 @@ export OPENROUTER_SITE_NAME="Your Site Name"
 
 For **development**, create `.env` in the project root:
 ```
-OPENAI_API_KEY=sk-your-openai-api-key-here
 OPENROUTER_API_KEY=sk-your-openrouter-api-key-here
-AI_PROVIDER=openai
+OPENROUTER_SITE_URL=https://your-site.com
+OPENROUTER_SITE_NAME=Your Site Name
 ```
 
 For **packaged applications**, create `.env` in one of these locations:
@@ -69,38 +59,51 @@ For **packaged applications**, create `.env` in one of these locations:
 
 **Method 3: Home Directory .env (Easiest for packaged apps)**
 ```bash
-echo "OPENAI_API_KEY=sk-your-openai-api-key-here" > ~/.env
-echo "OPENROUTER_API_KEY=sk-your-openrouter-api-key-here" >> ~/.env
+echo "OPENROUTER_API_KEY=sk-your-openrouter-api-key-here" > ~/.env
 ```
 
-### Provider Information
+### Available Models
 
-**OpenAI (Primary Provider):**
-- Models: `gpt-4o`, `gpt-4o-mini`
-- Get API key: [OpenAI Platform](https://platform.openai.com/api-keys)
-- Requires API credits for GPT-4o vision model
+**OpenRouter provides access to multiple AI models:**
+- `anthropic/claude-sonnet-4.5` ⭐ **(default)** - Latest Claude Sonnet, best for code
+- `google/gemini-2.5-pro` - Google's latest vision model
+- `openai/gpt-5` - OpenAI's GPT-5 via OpenRouter
 
-**OpenRouter (Alternative Provider):**
-- Models: `openai/gpt-4o`, `openai/gpt-4o-mini`
-- Get API key: [OpenRouter](https://openrouter.ai/keys)
-- Access OpenAI models through OpenRouter with competitive pricing
+**Get API Key:** [OpenRouter](https://openrouter.ai/keys)
 
-**Provider Selection:**
-- App automatically detects available providers based on configured API keys
-- Priority: OpenAI → OpenRouter → Default (OpenAI with "no key" state)
-- Use `Cmd+P` to cycle between configured providers during runtime
-- Use `Cmd+M` to cycle between available models for the current provider
+**Model Switching:**
+- Use `Cmd+M` to cycle between available models during runtime
+- Current model displayed in the sidebar with color-coded badge
+- No API key? The app will show "No API Key" indicator
 
-> **Note:** At least one provider API key is required for AI analysis. The app will show "No key provided" if no valid keys are configured.
+> **Note:** An OpenRouter API key is required for AI analysis. Get one at [openrouter.ai](https://openrouter.ai/keys).
 
 ## Keyboard Shortcuts
 
-- `Cmd+H` - Take screenshot (cycles between screenshots 1-2, auto-analyzes after 2nd screenshot)
+- `Cmd+H` - Take screenshot (cycles between slots 1-2, auto-analyzes after 2nd screenshot)
 - `Cmd+G` - Reset screenshots, clear analysis, and reposition window to (50,50)
 - `Cmd+B` - Hide/show window
-- `Cmd+M` - Switch AI model (cycles through available models for current provider)
-- `Cmd+P` - Switch AI provider (OpenAI ↔ OpenRouter)
+- `Cmd+M` - Switch AI model (cycles through: Sonnet 4.5 → Gemini 2.5 → GPT-5)
+- `Cmd+T` - Toggle between Code mode and General mode
+- `Cmd+1` - Decrease window opacity
+- `Cmd+2` - Increase window opacity
 - `Cmd+Q` - Quit application
+- `Cmd+Arrow Keys` - Move window (50px steps)
+- `Shift+Cmd+Arrow Keys` - Move window fast (200px steps)
+
+## Analysis Modes
+
+**Code Mode** (default):
+- Extracts code from screenshots
+- Detects programming language
+- Analyzes time/space complexity
+- Provides optimization suggestions
+
+**General Mode** (`Cmd+T` to switch):
+- Analyzes any content (not just code)
+- Answers questions from screenshots
+- Explains diagrams, errors, documentation
+- Handles multiple questions in one image
 
 ## macOS Permissions Setup
 
@@ -134,11 +137,18 @@ The app has a fallback mechanism:
 - `bun run build` - Compile TypeScript to JavaScript
 - `bun start` - Build and run the application
 - `bun run typescript-check` - Type check without compilation
+- `bun run watch` - Watch TypeScript files for changes
+- `bun run electron-dev` - Run Electron with nodemon auto-restart
 
 **Code Quality:**
 - `bun run format` - Format code with Biome
 - `bun run lint` - Lint and auto-fix with Biome
 - `bun run check` - Run both formatting and linting
+
+**Testing:**
+- `bun test` - Run all tests
+- `bun run test:watch` - Run tests in watch mode
+- `bun run test:coverage` - Run tests with coverage
 
 **Packaging:**
 - `bun run package` - Build macOS .dmg
@@ -150,9 +160,9 @@ The app has a fallback mechanism:
 
 **Architecture:**
 - **Main Process**: Electron app with screenshot capture and IPC communication
-- **Code Analyzer**: Multi-provider AI integration (OpenAI/OpenRouter) for vision-based code analysis
+- **Code Analyzer**: OpenRouter integration for vision-based code analysis
 - **Logger**: Winston-based logging with Electron error suppression
-- **UI**: Minimal overlay with markdown rendering, syntax highlighting, and provider status display
+- **UI**: Minimal overlay (800x600) with markdown rendering and syntax highlighting
 
 **Screenshot Workflow:**
 - Uses Electron's `desktopCapturer` API for individual window capture
@@ -161,19 +171,56 @@ The app has a fallback mechanism:
 - Subsequent screenshots use previous analysis as context for incremental updates
 
 **AI Analysis:**
-- Multi-provider support: OpenAI GPT-4o and OpenRouter with extended timeouts (60s)
-- Provider switching with `Cmd+P` and model switching with `Cmd+M`
+- OpenRouter integration with extended timeouts (60s total, 50s API)
+- Model switching with `Cmd+M` (3 models available)
 - Auto-triggers analysis after capturing 2 screenshots
 - Uses previous analysis as context for new screenshots (contextual analysis)
 - Extracts code with language detection and problem solving
 - Provides complexity analysis (time/space) and best practices
 - Structured output with markdown formatting and syntax highlighting
-- Smart API key detection with provider status display
+- Smart API key detection with model status display
+
+**UI/UX:**
+- Modern, clean interface with 800x600 default window
+- Sidebar with screenshot thumbnails and model/mode indicators
+- Color-coded model badges (Purple for Claude, Blue for Gemini, Green for GPT)
+- Dark theme optimized for code visibility
+- Smooth animations and transitions
+- Proper scrolling for long analysis results
 
 **Development Stack:**
 - TypeScript with strict mode and ES2020 target
 - Biome for formatting and linting with consistent code style
+- Bun for package management and testing
 - Winston for structured logging with Electron error suppression
-- Simplified dark theme with opacity-based colors
-- Component-based CSS architecture
+- Unified CSS architecture (single app.css file)
 - Concurrent development workflow with hot reload
+
+**File Structure:**
+- `src/main.ts` - Electron main process
+- `src/renderer.js` - Frontend renderer script
+- `src/services/` - OpenRouter service and providers
+- `src/lib/` - Utilities and logging
+- `styles/app.css` - Unified stylesheet
+- `test/` - Test suite
+
+## Why OpenRouter?
+
+OpenRouter provides several advantages:
+- Access to multiple AI models through a single API
+- Competitive pricing compared to direct API access
+- No vendor lock-in - switch models easily
+- Support for latest models (Claude Sonnet 4.5, Gemini 2.5, GPT-5)
+- Simple API key management
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Author
+
+Daniel Caldera

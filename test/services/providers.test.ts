@@ -66,7 +66,6 @@ describe('Provider Management', () => {
 		test('should return OpenRouter models', () => {
 			process.env.OPENROUTER_API_KEY = 'sk-test123'
 			const models = getAvailableModels()
-			expect(models).toContain('anthropic/claude-sonnet-4')
 			expect(models).toContain('anthropic/claude-sonnet-4.5')
 			expect(models).toContain('google/gemini-2.5-pro')
 			expect(models).toContain('openai/gpt-5')
@@ -74,9 +73,9 @@ describe('Provider Management', () => {
 	})
 
 	describe('getDefaultModel', () => {
-		test('should return anthropic/claude-sonnet-4 for OpenRouter', () => {
+		test('should return anthropic/claude-sonnet-4.5 for OpenRouter', () => {
 			process.env.OPENROUTER_API_KEY = 'sk-test123'
-			expect(getDefaultModel()).toBe('anthropic/claude-sonnet-4')
+			expect(getDefaultModel()).toBe('anthropic/claude-sonnet-4.5')
 		})
 	})
 

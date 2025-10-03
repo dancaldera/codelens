@@ -19,7 +19,7 @@ export const PROVIDERS: Record<Provider, ProviderConfig> = {
 		name: 'openrouter',
 		displayName: 'OpenRouter',
 		isConfigured: isOpenRouterConfigured,
-		models: ['anthropic/claude-sonnet-4.5', 'google/gemini-2.5-pro'],
+		models: ['anthropic/claude-sonnet-4.5', 'google/gemini-2.5-pro', 'openai/gpt-5'],
 		defaultModel: 'anthropic/claude-sonnet-4.5',
 	},
 }

@@ -1,8 +1,0 @@
-/* Main Stylesheet - Import all component styles */
-@import "./variables.css";
-@import "./base.css";
-@import "./components/api-key.css";
-@import "./components/screenshots.css";
-@import "./components/analysis-result.css";
-@import "./components/loading.css";
-@import "./components/status.css";
