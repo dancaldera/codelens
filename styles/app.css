@@ -101,40 +101,21 @@ body {
 
 /* Model-specific colors */
 #modelInfo[data-model*="claude-sonnet-4.5"] {
-	background: rgba(168, 85, 247, 0.1);
 	border-color: var(--accent-purple);
 	color: var(--accent-purple);
 }
 
-
 #modelInfo[data-model*="gemini"] {
-	background: rgba(59, 130, 246, 0.1);
 	border-color: var(--accent-blue);
 	color: var(--accent-blue);
 }
 
 #modelInfo[data-model*="gpt"] {
-	background: rgba(34, 197, 94, 0.1);
 	border-color: var(--accent-green);
 	color: var(--accent-green);
 }
 
 #modelInfo[data-model="no-key"] {
-	background: rgba(245, 158, 11, 0.1);
-	border-color: var(--accent-amber);
-	color: var(--accent-amber);
-	font-style: italic;
-}
-
-/* Mode colors */
-#modeInfo[data-mode="code"] {
-	background: rgba(34, 197, 94, 0.1);
-	border-color: var(--accent-green);
-	color: var(--accent-green);
-}
-
-#modeInfo[data-mode="general"] {
-	background: rgba(245, 158, 11, 0.1);
 	border-color: var(--accent-amber);
 	color: var(--accent-amber);
 }
@@ -211,9 +192,8 @@ body {
 /* Loading indicator */
 #loading {
 	position: fixed;
-	top: 50%;
-	left: 50%;
-	transform: translate(-50%, -50%);
+	top: var(--spacing);
+	left: calc(136px + var(--spacing) * 2);
 	background: var(--bg);
 	padding: calc(var(--spacing) * 2);
 	border-radius: var(--radius);
