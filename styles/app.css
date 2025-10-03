@@ -95,8 +95,15 @@ body {
 	font-family: var(--font-mono);
 	text-align: center;
 	color: var(--fg-dim);
-	transition: all 0.2s;
 	width: 120px;
+	opacity: 0;
+	transform: scale(0.9);
+	transition: all 0.3s ease;
+}
+
+.info-badge.show {
+	opacity: 1;
+	transform: scale(1);
 }
 
 /* Model-specific colors */

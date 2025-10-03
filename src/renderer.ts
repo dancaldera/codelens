@@ -32,6 +32,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 	const MAX_SCREENSHOTS = 2
 	const screenshotData = new Map<number, ScreenshotData>()
+	let modelInfoTimeout: ReturnType<typeof setTimeout> | null = null
 
 	// Configure marked.js
 	marked.setOptions({
@@ -84,6 +85,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
 	// Handle model changes
 	window.api.onModelChanged((info: string | ModelInfo) => {
+		// Clear existing timeout
+		if (modelInfoTimeout) {
+			clearTimeout(modelInfoTimeout)
+		}
+
+		// Update model info
 		if (info === 'no-key') {
 			modelInfo.textContent = 'No API Key'
 			modelInfo.dataset.model = 'no-key'
@@ -94,6 +101,15 @@ window.addEventListener('DOMContentLoaded', () => {
 			modelInfo.textContent = info
 			modelInfo.dataset.model = info
 		}
+
+		// Show the badge
+		modelInfo.classList.add('show')
+
+		// Hide after 3 seconds
+		modelInfoTimeout = setTimeout(() => {
+			modelInfo.classList.remove('show')
+			modelInfoTimeout = null
+		}, 3000)
 	})
 
 	// Handle loading state
