@@ -64,8 +64,8 @@ let currentProvider: Provider = 'openrouter'
 
 function createWindow(): void {
 	mainWindow = new BrowserWindow({
-		width: 800,
-		height: 600,
+		width: 1400,
+		height: 2000,
 		minWidth: 600,
 		minHeight: 400,
 		frame: false,

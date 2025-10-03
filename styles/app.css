@@ -147,8 +147,8 @@ body {
 	padding: calc(var(--spacing) * 1.5);
 	overflow-y: auto;
 	overflow-x: hidden;
-	height: 100%;
 	display: none;
+	height: 100%;
 }
 
 #result.visible {
@@ -185,12 +185,15 @@ body {
 	padding: calc(var(--spacing) * 1.5);
 	margin: var(--spacing) 0;
 	overflow-x: auto;
+	white-space: pre;
+	word-wrap: normal;
 }
 
 #result code {
 	font-family: var(--font-mono);
 	font-size: 12px;
 	line-height: 1.5;
+	white-space: pre;
 }
 
 #result p code {
@@ -240,21 +243,31 @@ body {
 	to { transform: rotate(360deg); }
 }
 
-/* Scrollbar */
+/* Scrollbar - Completely disabled */
 ::-webkit-scrollbar {
-	width: 8px;
-	height: 8px;
+	width: 0px;
+	height: 0px;
+	display: none;
 }
 
 ::-webkit-scrollbar-track {
-	background: transparent;
+	display: none;
 }
 
 ::-webkit-scrollbar-thumb {
-	background: rgba(255, 255, 255, 0.2);
-	border-radius: 4px;
+	display: none;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-	background: rgba(255, 255, 255, 0.3);
+	display: none;
+}
+
+/* Disable scrollbar for all elements */
+* {
+	scrollbar-width: none; /* Firefox */
+	-ms-overflow-style: none; /* IE and Edge */
+}
+
+*::-webkit-scrollbar {
+	display: none; /* Chrome, Safari, Opera */
 }
