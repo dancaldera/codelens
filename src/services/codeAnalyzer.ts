@@ -13,34 +13,17 @@ export type CodeAnalysisResult = {
 	language: string
 }
 
-export type GeneralAnalysisResult = {
-	content: string
-	type: string
-	response: string
-	context: string
-}
-
-export type AnalysisMode = 'code' | 'general'
-
 const logger = createLogger('CodeAnalyzer')
 
 // Helper functions
-function createErrorResponse(mode: AnalysisMode, error: string, details: string) {
-	if (mode === 'code') {
-		return {
-			code: error,
-			summary: details,
-			timeComplexity: 'N/A',
-			spaceComplexity: 'N/A',
-			language: 'Unknown',
-		} as CodeAnalysisResult
-	}
+function createErrorResponse(error: string, details: string): CodeAnalysisResult {
 	return {
-		content: error,
-		type: 'Error',
-		response: details,
-		context: 'Analysis failed',
-	} as GeneralAnalysisResult
+		code: error,
+		summary: details,
+		timeComplexity: 'N/A',
+		spaceComplexity: 'N/A',
+		language: 'Unknown',
+	}
 }
 
 function handleCodeResult(
@@ -53,18 +36,8 @@ function handleCodeResult(
 	return result
 }
 
-function handleGeneralResult(result: AnalysisResponse): GeneralAnalysisResult {
-	return {
-		content: result.code || 'No content extracted',
-		type: 'General Analysis',
-		response: result.summary || 'No analysis available',
-		context: `Language: ${result.language || 'Unknown'}`,
-	}
-}
-
-// Enhanced prompts for better AI analysis
-const PROMPTS = {
-	code: `You are an expert software engineer and code analyst. Analyze the code shown in these screenshots with precision and expertise.
+// Enhanced prompt for code analysis
+const CODE_PROMPT = `You are an expert software engineer and code analyst. Analyze the code shown in these screenshots with precision and expertise.
 
 Your tasks:
 1. EXTRACT the exact code from the image(s) - be precise and complete
@@ -79,77 +52,34 @@ Focus on:
 - Practical insights for developers
 - Best practices and optimization opportunities
 
-If there are errors, bugs, or improvements possible, highlight them with solutions.`,
-
-	general: `You are a highly intelligent assistant capable of understanding and analyzing any type of content from images with complete attention to detail.
-
-Your systematic approach:
-1. SCAN the entire image carefully - examine ALL text, elements, and context
-2. IDENTIFY every piece of information present (questions, statements, diagrams, etc.)
-3. UNDERSTAND the complete context and relationships between different parts
-4. RESPOND comprehensively to ALL content found
-
-CRITICAL: If there are MULTIPLE QUESTIONS or topics in the image:
-- Address EVERY SINGLE question or topic - don't miss any
-- Number your responses clearly (1., 2., 3., etc.)
-- Provide complete answers for each item
-- Maintain context between related questions
-
-Content-specific handling:
-- SINGLE QUESTION: Answer thoroughly with full context and examples
-- MULTIPLE QUESTIONS: Answer ALL questions systematically, maintaining context
-- TEXT/DOCUMENT: Extract and summarize ALL key points, don't miss details
-- DIAGRAMS/CHARTS: Explain everything shown, all labels, relationships, and insights
-- ERROR MESSAGES: Provide complete diagnosis and step-by-step solutions
-- INSTRUCTIONS/PROCEDURES: Clarify ALL steps and provide additional helpful context
-- MIXED CONTENT: Address each component separately but maintain overall coherence
-
-Quality standards:
-- Be exhaustively thorough - assume the user needs complete understanding
-- Provide context and background when helpful
-- Include examples, explanations, and clarifications
-- Never skip or summarize away important details
-- If something is unclear in the image, acknowledge it and provide best interpretation
-
-Your goal: Ensure the user gets complete, accurate, and contextually rich information about EVERYTHING in the image.`,
-}
+If there are errors, bugs, or improvements possible, highlight them with solutions.`
 
 /**
- * Main analysis function - handles both code and general content analysis
+ * Main analysis function - analyzes code from screenshots
  */
 export async function analyzeContentFromImages(
 	imagePaths: string[],
 	customPrompt?: string,
-	mode: AnalysisMode = 'code',
+	_mode: 'code' = 'code', // Kept for compatibility but always uses code mode
 	previousContext?: string,
 	onLanguageDetected?: (language: string) => void,
 	model: string = 'gpt-4o',
 	providerOverride?: Provider,
-): Promise<CodeAnalysisResult | GeneralAnalysisResult> {
+): Promise<CodeAnalysisResult> {
 	const startTime = Date.now()
-	logger.info(`Starting ${mode} analysis for ${imagePaths.length} images`)
+	logger.info(`Starting code analysis for ${imagePaths.length} images`)
 
-	// Use enhanced prompts or custom prompt
-	const prompt = customPrompt || PROMPTS[mode]
+	// Use enhanced prompt or custom prompt
+	const prompt = customPrompt || CODE_PROMPT
 
-	// Default responses
-	const defaults = {
-		code: {
-			code: 'Analysis failed or timed out',
-			summary: 'Unable to complete analysis',
-			timeComplexity: 'Unknown',
-			spaceComplexity: 'Unknown',
-			language: 'Unknown',
-		} as CodeAnalysisResult,
-		general: {
-			content: 'Analysis failed',
-			type: 'Error',
-			response: 'Unable to complete analysis',
-			context: 'Please try again',
-		} as GeneralAnalysisResult,
+	// Default response
+	const defaultResponse: CodeAnalysisResult = {
+		code: 'Analysis failed or timed out',
+		summary: 'Unable to complete analysis',
+		timeComplexity: 'Unknown',
+		spaceComplexity: 'Unknown',
+		language: 'Unknown',
 	}
-
-	const defaultResponse = defaults[mode]
 
 	// Timeout protection
 	const timeoutDuration = 60000
@@ -163,7 +93,7 @@ export async function analyzeContentFromImages(
 		if (!imagePaths?.length) {
 			logger.error('No image paths provided')
 			clearTimeout(analysisTimeout)
-			return createErrorResponse(mode, 'No images provided', 'Please capture screenshots first')
+			return createErrorResponse('No images provided', 'Please capture screenshots first')
 		}
 
 		// Process images
@@ -171,7 +101,7 @@ export async function analyzeContentFromImages(
 		if (!imageContents.length) {
 			logger.error('Image processing failed')
 			clearTimeout(analysisTimeout)
-			return createErrorResponse(mode, 'Failed to process images', 'Please check image files')
+			return createErrorResponse('Failed to process images', 'Please check image files')
 		}
 
 		// Prepare and execute analysis
@@ -181,14 +111,14 @@ export async function analyzeContentFromImages(
 			previousContext,
 		}
 
-		logger.info('Executing analysis', { model, provider: providerOverride, mode })
+		logger.info('Executing analysis', { model, provider: providerOverride })
 		const result = await analyzeCodeWithProvider(analysisRequest, model, providerOverride)
 
-		// Handle results based on mode
-		const finalResult = mode === 'code' ? handleCodeResult(result, onLanguageDetected) : handleGeneralResult(result)
+		// Handle results
+		const finalResult = handleCodeResult(result, onLanguageDetected)
 
 		clearTimeout(analysisTimeout)
-		logPerformance(`${mode} analysis completed`, startTime)
+		logPerformance('Code analysis completed', startTime)
 		return finalResult
 	} catch (error) {
 		logger.error('Analysis failed', { error: error instanceof Error ? error.message : String(error) })
@@ -198,7 +128,7 @@ export async function analyzeContentFromImages(
 		const errorMsg = isServiceError ? 'AI service unavailable' : 'Analysis failed'
 		const details = isServiceError ? 'Please check your API key' : 'Please try again'
 
-		return createErrorResponse(mode, errorMsg, details)
+		return createErrorResponse(errorMsg, details)
 	}
 }
 
@@ -268,13 +198,12 @@ async function processImages(imagePaths: string[]): Promise<ImageContent[]> {
  * Extend existing analysis with new images
  */
 export async function extendAnalysisWithImage(
-	previousAnalysis: CodeAnalysisResult | GeneralAnalysisResult,
+	previousAnalysis: CodeAnalysisResult,
 	newImagePaths: string[],
-	mode: AnalysisMode = 'code',
 	customPrompt?: string,
 	model: string = 'gpt-4o',
 	providerOverride?: Provider,
-): Promise<CodeAnalysisResult | GeneralAnalysisResult> {
+): Promise<CodeAnalysisResult> {
 	if (!newImagePaths?.length) {
 		logger.error('No new images provided for extension')
 		return previousAnalysis
@@ -296,15 +225,15 @@ export async function extendAnalysisWithImage(
 		// Enhanced prompt for extension
 		const prompt =
 			customPrompt ||
-			`${PROMPTS[mode]}
+			`${CODE_PROMPT}
 
 IMPORTANT: This is an extension of previous analysis. Incorporate the new image(s) with the existing analysis, updating or expanding as needed.`
 
-		logger.info('Extending analysis', { newImages: newImagePaths.length, mode })
+		logger.info('Extending analysis', { newImages: newImagePaths.length })
 		return await analyzeContentFromImages(
 			newImagePaths,
 			prompt,
-			mode,
+			'code',
 			contextString,
 			undefined,
 			model,
@@ -314,22 +243,11 @@ IMPORTANT: This is an extension of previous analysis. Incorporate the new image(
 		logger.error('Extension failed', { error })
 
 		// Return previous analysis with error note
-		if (mode === 'code' && 'summary' in previousAnalysis) {
-			return {
-				...previousAnalysis,
-				summary: `${previousAnalysis.summary}
+		return {
+			...previousAnalysis,
+			summary: `${previousAnalysis.summary}
 
 ⚠️ Failed to extend with new image`,
-			}
 		}
-		if ('response' in previousAnalysis) {
-			return {
-				...previousAnalysis,
-				response: `${previousAnalysis.response}
-
-⚠️ Failed to extend with new image`,
-			}
-		}
-		return previousAnalysis
 	}
 }

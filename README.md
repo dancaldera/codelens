@@ -10,7 +10,6 @@ AI-powered code analysis from screenshots. An Electron application that captures
 - **Code Extraction**: Extracts and formats code with syntax highlighting
 - **Complexity Analysis**: Provides time/space complexity analysis
 - **Language Detection**: Automatically detects programming languages
-- **Dual Modes**: Code mode and General mode (`Cmd+T` to switch)
 - **Always-on-top overlay**: Stays visible on all workspaces and fullscreen apps
 - **Multi-screen support**: Works across all displays and virtual desktops
 
@@ -84,26 +83,11 @@ echo "OPENROUTER_API_KEY=sk-your-openrouter-api-key-here" > ~/.env
 - `Cmd+G` - Reset screenshots, clear analysis, and reposition window to (50,50)
 - `Cmd+B` - Hide/show window
 - `Cmd+M` - Switch AI model (cycles through: Sonnet 4.5 → Gemini 2.5 → GPT-5)
-- `Cmd+T` - Toggle between Code mode and General mode
 - `Cmd+1` - Decrease window opacity
 - `Cmd+2` - Increase window opacity
 - `Cmd+Q` - Quit application
 - `Cmd+Arrow Keys` - Move window (50px steps)
 - `Shift+Cmd+Arrow Keys` - Move window fast (200px steps)
-
-## Analysis Modes
-
-**Code Mode** (default):
-- Extracts code from screenshots
-- Detects programming language
-- Analyzes time/space complexity
-- Provides optimization suggestions
-
-**General Mode** (`Cmd+T` to switch):
-- Analyzes any content (not just code)
-- Answers questions from screenshots
-- Explains diagrams, errors, documentation
-- Handles multiple questions in one image
 
 ## macOS Permissions Setup
 
@@ -182,7 +166,7 @@ The app has a fallback mechanism:
 
 **UI/UX:**
 - Modern, clean interface with 800x600 default window
-- Sidebar with screenshot thumbnails and model/mode indicators
+- Sidebar with screenshot thumbnails and model indicator
 - Color-coded model badges (Purple for Claude, Blue for Gemini, Green for GPT)
 - Dark theme optimized for code visibility
 - Smooth animations and transitions

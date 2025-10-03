@@ -29,7 +29,6 @@ window.addEventListener('DOMContentLoaded', () => {
 	const result = document.getElementById('result') as HTMLDivElement
 	const loading = document.getElementById('loading') as HTMLDivElement
 	const modelInfo = document.getElementById('modelInfo') as HTMLDivElement
-	const modeInfo = document.getElementById('modeInfo') as HTMLDivElement
 
 	const MAX_SCREENSHOTS = 2
 	const screenshotData = new Map<number, ScreenshotData>()
@@ -93,12 +92,6 @@ window.addEventListener('DOMContentLoaded', () => {
 			modelInfo.textContent = info
 			modelInfo.dataset.model = info
 		}
-	})
-
-	// Handle mode changes
-	window.api.onModeChanged((mode: string) => {
-		modeInfo.textContent = mode === 'code' ? 'Code' : 'General'
-		modeInfo.dataset.mode = mode
 	})
 
 	// Handle loading state

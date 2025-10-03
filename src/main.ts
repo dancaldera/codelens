@@ -5,7 +5,7 @@ import * as path from 'node:path'
 import * as util from 'node:util'
 import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain } from 'electron'
 import { createLogger, suppressElectronErrors } from './lib'
-import { type AnalysisMode, analyzeContentFromImages } from './services'
+import { analyzeContentFromImages } from './services'
 import {
 	getAvailableModels,
 	getCurrentProvider,
@@ -61,7 +61,6 @@ let currentOpacity = 0.8
 let currentModelIndex = 0 // Current model index for cycling
 let availableModels: string[] = []
 let currentProvider: Provider = 'openrouter'
-let currentMode: AnalysisMode = 'code' // Current analysis mode
 
 function createWindow(): void {
 	mainWindow = new BrowserWindow({
@@ -142,8 +141,6 @@ function createWindow(): void {
 		// Send initial model state to renderer
 		const initialState = getInitialModelState()
 		mainWindow?.webContents.send('model-changed', initialState)
-		// Send initial mode state to renderer
-		mainWindow?.webContents.send('mode-changed', currentMode)
 	})
 
 	mainWindow.on('closed', () => {
@@ -222,19 +219,6 @@ function getInitialModelState(): string | { provider: Provider; model: string } 
 	return {
 		provider: providerInfo.provider,
 		model: availableModels[currentModelIndex],
-	}
-}
-
-function switchMode(): void {
-	// Toggle between code and general modes
-	currentMode = currentMode === 'code' ? 'general' : 'code'
-
-	logger.info('Mode switched', { mode: currentMode })
-
-	if (mainWindow) {
-		// Send mode change to renderer
-		mainWindow.webContents.send('mode-changed', currentMode)
-		mainWindow.webContents.send('screenshot-status', `Mode: ${currentMode}`)
 	}
 }
 
@@ -353,11 +337,6 @@ function registerShortcuts(): void {
 	// Model switching shortcut
 	globalShortcut.register('CommandOrControl+M', () => {
 		switchModel()
-	})
-
-	// Mode switching shortcut
-	globalShortcut.register('CommandOrControl+T', () => {
-		switchMode()
 	})
 }
 
@@ -515,7 +494,6 @@ async function triggerAnalysis(): Promise<void> {
 
 	try {
 		logger.info('Starting analysis', {
-			mode: currentMode,
 			imageCount: screenshotPaths.length,
 			hasPreviousAnalysis: !!previousAnalysis,
 		})
@@ -527,7 +505,7 @@ async function triggerAnalysis(): Promise<void> {
 		const result = await analyzeContentFromImages(
 			screenshotPaths,
 			prompt,
-			currentMode, // Pass the current mode
+			'code', // Always use code mode
 			previousAnalysis || undefined,
 			(detectedLanguage) => {
 				if (mainWindow) {
@@ -539,10 +517,10 @@ async function triggerAnalysis(): Promise<void> {
 			currentProvider, // Pass the current provider
 		)
 
-		// Format result as markdown based on mode
+		// Format result as markdown
 		let markdownResult: string
 
-		if (currentMode === 'code' && 'code' in result) {
+		if ('code' in result) {
 			markdownResult = `
 ## Code
 \`\`\`${result.language.toLowerCase()}
@@ -564,17 +542,6 @@ ${result.summary}
 				timeComplexity: result.timeComplexity,
 				spaceComplexity: result.spaceComplexity,
 				language: result.language,
-			})
-		} else if ('content' in result) {
-			// For general mode, just show the response without structure
-			markdownResult = result.response
-
-			// Store this analysis as context for future screenshots
-			previousAnalysis = JSON.stringify({
-				content: result.content,
-				type: result.type,
-				response: result.response,
-				context: result.context,
 			})
 		} else {
 			markdownResult = '## Error\nUnexpected result format'
