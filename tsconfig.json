@@ -15,6 +15,6 @@
 			"*": ["node_modules/*"]
 		}
 	},
-	"include": ["src/**/*", "dev-watcher.ts"],
+	"include": ["src/**/*", "dev-watcher.ts", "dev-runner.ts"],
 	"exclude": ["node_modules", "dist"]
 }

@@ -6,8 +6,8 @@
  * No external dependencies - uses Node.js built-in fs.watch
  */
 
-import { spawn, type ChildProcess } from "node:child_process";
-import { watch, type FSWatcher } from "node:fs";
+import { type ChildProcess, spawn } from "node:child_process";
+import { type FSWatcher, watch } from "node:fs";
 import path from "node:path";
 
 // Paths to watch
@@ -21,11 +21,17 @@ const EXPECTED_EXIT_CODES = [0, 143] as const;
 
 let electronProcess: ChildProcess | null = null;
 let restartTimeout: NodeJS.Timeout | null = null;
+let autoRestartTimeout: NodeJS.Timeout | null = null;
 
 /**
  * Start the Electron process
  */
 function startElectron(): void {
+	// Prevent duplicate starts
+	if (electronProcess) {
+		return;
+	}
+
 	console.log("[dev-watcher] Starting Electron...");
 
 	electronProcess = spawn("electron", ["."], {
@@ -33,8 +39,22 @@ function startElectron(): void {
 		env: { ...process.env },
 	});
 
-	electronProcess.on("exit", (code: number | null) => {
-		if (code !== null && !EXPECTED_EXIT_CODES.includes(code as 0 | 143)) {
+	electronProcess.on("exit", (code: number | null, signal: string | null) => {
+		// Clear reference immediately
+		electronProcess = null;
+
+		if (signal) {
+			console.log(`[dev-watcher] Electron exited with signal ${signal}`);
+		} else if (code === 0) {
+			console.log("[dev-watcher] Electron exited normally (Cmd+Q)");
+			console.log("[dev-watcher] Press Ctrl+C to stop, or app will restart in 3 seconds...");
+
+			// Auto-restart after normal exit (e.g., Cmd+Q)
+			// Give user time to press Ctrl+C if they want to stop
+			autoRestartTimeout = setTimeout(() => {
+				startElectron();
+			}, 3000);
+		} else if (code !== null && !EXPECTED_EXIT_CODES.includes(code as 0 | 143)) {
 			console.log(`[dev-watcher] Electron exited with code ${code}`);
 		}
 	});
@@ -44,6 +64,12 @@ function startElectron(): void {
  * Stop the Electron process
  */
 function stopElectron(): void {
+	// Cancel any pending auto-restart
+	if (autoRestartTimeout) {
+		clearTimeout(autoRestartTimeout);
+		autoRestartTimeout = null;
+	}
+
 	if (electronProcess) {
 		console.log("[dev-watcher] Stopping Electron...");
 		electronProcess.kill("SIGTERM");

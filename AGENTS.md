@@ -5,12 +5,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Common Commands
 
 **Development:**
-- `bun run dev` - Start development mode with hot reload (TypeScript watch + Electron restart)
+- `bun run dev` - Start development mode with hot reload (runs TypeScript watch + Electron restart via vanilla dev-runner)
 - `bun run build` - Compile TypeScript to JavaScript in dist/ folder
 - `bun start` - Build and run the Electron application
 - `bun run typescript-check` - Type check without compilation
 - `bun run watch` - Watch TypeScript files for changes and recompile
-- `bun run electron-dev` - Run Electron with vanilla file watcher for auto-restart
+- `bun run electron-dev` - Run Electron with vanilla file watcher for auto-restart (called by dev-runner)
 
 **Code Quality:**
 - `bun run format` - Format code using Biome formatter
@@ -109,10 +109,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `OPENROUTER_API_KEY`: OpenRouter API key (format: `sk-...`) - **Required**
   - `OPENROUTER_SITE_URL`: Optional site URL for OpenRouter rankings
   - `OPENROUTER_SITE_NAME`: Optional site name for OpenRouter rankings
-- Development uses vanilla Node.js `fs.watch` for auto-restart on file changes (see `dev-watcher.js`)
+- Development uses vanilla Node.js `fs.watch` for auto-restart on file changes (see `dev-watcher.ts`)
 - TypeScript strict mode enabled with source maps
 - Biome for code formatting and linting with tab indentation
-- Concurrently runs TypeScript compiler and Electron in development
+- Vanilla TypeScript process manager runs TypeScript compiler and Electron in development (see `dev-runner.ts`)
 
 **Code Quality Tools:**
 - **Biome Integration:** Unified formatter and linter with consistent config

@@ -7,7 +7,7 @@
 		"build": "tsc",
 		"start": "npm run build && electron .",
 		"typescript-check": "tsc --noEmit",
-		"dev": "concurrently \"npm run watch\" \"npm run electron-dev\"",
+		"dev": "bun run dev-runner.ts",
 		"watch": "tsc -w",
 		"format": "biome format --write",
 		"lint": "biome lint --write",
@@ -33,7 +33,6 @@
 		"@types/glob": "^9.0.0",
 		"@types/json-schema": "^7.0.15",
 		"@types/node": "^22.15.3",
-		"concurrently": "^8.2.2",
 		"electron": "^36.1.0",
 		"electron-builder": "^26.0.12",
 		"typescript": "^5.9.3"
