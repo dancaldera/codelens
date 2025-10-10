@@ -1,6 +1,0 @@
-{
-	"watch": ["src/**/*.*", "index.html"],
-	"ignore": ["node_modules", "*.log"],
-	"exec": "electron .",
-	"ext": "js,html,css,json"
-}

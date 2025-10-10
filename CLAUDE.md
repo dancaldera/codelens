@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `bun start` - Build and run the Electron application
 - `bun run typescript-check` - Type check without compilation
 - `bun run watch` - Watch TypeScript files for changes and recompile
-- `bun run electron-dev` - Run Electron with nodemon for auto-restart
+- `bun run electron-dev` - Run Electron with vanilla file watcher for auto-restart
 
 **Code Quality:**
 - `bun run format` - Format code using Biome formatter
@@ -109,7 +109,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `OPENROUTER_API_KEY`: OpenRouter API key (format: `sk-...`) - **Required**
   - `OPENROUTER_SITE_URL`: Optional site URL for OpenRouter rankings
   - `OPENROUTER_SITE_NAME`: Optional site name for OpenRouter rankings
-- Development uses nodemon for auto-restart on file changes
+- Development uses vanilla Node.js `fs.watch` for auto-restart on file changes (see `dev-watcher.js`)
 - TypeScript strict mode enabled with source maps
 - Biome for code formatting and linting with tab indentation
 - Concurrently runs TypeScript compiler and Electron in development
