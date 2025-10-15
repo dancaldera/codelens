@@ -375,6 +375,24 @@ function registerShortcuts(): void {
 	globalShortcut.register('CommandOrControl+M', () => {
 		switchModel()
 	})
+
+	// Manual analysis trigger shortcut
+	globalShortcut.register('CommandOrControl+Enter', () => {
+		if (!mainWindow) return
+
+		if (screenshotPaths.length === 0) {
+			mainWindow.webContents.send('screenshot-status', 'No screenshots available for analysis')
+			return
+		}
+
+		cancelScheduledAnalysis()
+		mainWindow.webContents.send('show-loading')
+		void triggerAnalysis().catch((error) => {
+			logger.error('Manual analysis shortcut failed', {
+				error: error instanceof Error ? error.message : String(error),
+			})
+		})
+	})
 }
 
 async function takeScreenshot(): Promise<void> {
