@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process'
 import * as fs from 'node:fs'
+import * as fsPromises from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import * as util from 'node:util'
@@ -61,6 +62,10 @@ let currentOpacity = 0.8
 let currentModelIndex = 0 // Current model index for cycling
 let availableModels: string[] = []
 let currentProvider: Provider = 'openrouter'
+let isAnalysisRunning = false
+let pendingAnalysis = false
+let analysisPromise: Promise<void> | null = null
+let analysisTimer: NodeJS.Timeout | null = null
 
 function createWindow(): void {
 	mainWindow = new BrowserWindow({
@@ -209,6 +214,33 @@ function switchModel(): void {
 	}
 }
 
+function scheduleAnalysis(delay = 0): void {
+	if (analysisTimer) {
+		clearTimeout(analysisTimer)
+	}
+
+	analysisTimer = setTimeout(() => {
+		analysisTimer = null
+		if (!mainWindow || screenshotPaths.length === 0) {
+			return
+		}
+		mainWindow.webContents.send('show-loading')
+		void triggerAnalysis().catch((error) => {
+			logger.error('Scheduled analysis failed', {
+				error: error instanceof Error ? error.message : String(error),
+			})
+		})
+	}, delay)
+}
+
+function cancelScheduledAnalysis(): void {
+	if (analysisTimer) {
+		clearTimeout(analysisTimer)
+		analysisTimer = null
+	}
+	pendingAnalysis = false
+}
+
 function getInitialModelState(): string | { provider: Provider; model: string } {
 	// Return appropriate initial state based on provider configuration
 	if (!isAnyProviderConfigured()) {
@@ -229,6 +261,8 @@ function registerShortcuts(): void {
 	// Reset screenshots shortcut
 	globalShortcut.register('CommandOrControl+G', () => {
 		if (!mainWindow) return
+		cancelScheduledAnalysis()
+		const pathsToRemove = [...screenshotPaths]
 		screenshotCount = 0
 		screenshotPaths = []
 		previousAnalysis = null
@@ -238,6 +272,9 @@ function registerShortcuts(): void {
 		// Reset window position to initial coordinates
 		mainWindow.setPosition(50, 50, false)
 		logger.info('Screenshots reset and window repositioned')
+		for (const filePath of pathsToRemove) {
+			void fsPromises.unlink(filePath).catch(() => {})
+		}
 	})
 
 	// Quit shortcut
@@ -391,9 +428,7 @@ async function takeScreenshot(): Promise<void> {
 			try {
 				logger.info('Using fallback screencapture method')
 				const tempDir = path.join(os.tmpdir(), 'screenshots')
-				if (!fs.existsSync(tempDir)) {
-					fs.mkdirSync(tempDir, { recursive: true })
-				}
+				await fsPromises.mkdir(tempDir, { recursive: true })
 
 				const timestamp = Date.now()
 				const filePath = path.join(tempDir, `fallback-screenshot-${timestamp}.png`)
@@ -401,11 +436,16 @@ async function takeScreenshot(): Promise<void> {
 				const execFilePromise = util.promisify(execFile)
 				await execFilePromise('/usr/sbin/screencapture', ['-x', '-T', '0', filePath])
 
-				if (fs.existsSync(filePath)) {
-					const buffer = fs.readFileSync(filePath)
+				try {
+					const buffer = await fsPromises.readFile(filePath)
 					await saveScreenshot(buffer, 'screencapture')
 					success = true
+				} catch (readError) {
+					logger.error('Failed to process fallback screenshot', {
+						error: readError instanceof Error ? readError.message : String(readError),
+					})
 				}
+				void fsPromises.unlink(filePath).catch(() => {})
 			} catch (fallbackError) {
 				logger.error('Fallback screencapture failed', {
 					error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
@@ -436,24 +476,33 @@ async function takeScreenshot(): Promise<void> {
 
 async function saveScreenshot(buffer: Buffer, method: string): Promise<void> {
 	const tempDir = path.join(os.tmpdir(), 'screenshots')
-	if (!fs.existsSync(tempDir)) {
-		fs.mkdirSync(tempDir, { recursive: true })
-	}
+	await fsPromises.mkdir(tempDir, { recursive: true })
 
-	// Increment screenshot count and cycle through 1-8
-	screenshotCount = screenshotCount >= MAX_SCREENSHOTS ? 1 : screenshotCount + 1
-
+	const nextSlot = screenshotCount >= MAX_SCREENSHOTS ? 1 : screenshotCount + 1
+	const slotIndex = nextSlot - 1
 	const timestamp = Date.now()
-	const filePath = path.join(tempDir, `screenshot-${screenshotCount}-${timestamp}.png`)
-	fs.writeFileSync(filePath, buffer)
+	const filePath = path.join(tempDir, `screenshot-${nextSlot}-${timestamp}.png`)
+	await fsPromises.writeFile(filePath, buffer)
+
+	let previousPath: string | undefined
 
 	// Store screenshot path for analysis - replace at the current index for cycling
 	if (screenshotPaths.length < MAX_SCREENSHOTS) {
-		// Still filling up the array
-		screenshotPaths.push(filePath)
+		if (slotIndex < screenshotPaths.length) {
+			previousPath = screenshotPaths[slotIndex]
+			screenshotPaths[slotIndex] = filePath
+		} else {
+			screenshotPaths.push(filePath)
+		}
 	} else {
-		// Array is full, replace at the current index (screenshotCount - 1)
-		screenshotPaths[screenshotCount - 1] = filePath
+		previousPath = screenshotPaths[slotIndex]
+		screenshotPaths[slotIndex] = filePath
+	}
+
+	screenshotCount = nextSlot
+
+	if (previousPath && previousPath !== filePath) {
+		void fsPromises.unlink(previousPath).catch(() => {})
 	}
 
 	logger.info('Screenshot saved', {
@@ -476,52 +525,67 @@ async function saveScreenshot(buffer: Buffer, method: string): Promise<void> {
 
 		// Auto-trigger analysis when we have 2 screenshots or when adding to existing analysis
 		if (screenshotCount === 2 || (screenshotCount === 1 && previousAnalysis)) {
-			setTimeout(() => {
-				if (mainWindow) {
-					mainWindow.webContents.send('show-loading')
-					triggerAnalysis()
-				}
-			}, 500)
+			scheduleAnalysis(500)
 		}
 	}
 }
 
 async function triggerAnalysis(): Promise<void> {
-	if (!mainWindow || screenshotPaths.length === 0) return
+	if (!mainWindow || screenshotPaths.length === 0) {
+		return
+	}
 
-	// Use the enhanced prompts from the analyzer (pass undefined to use defaults)
-	const prompt = undefined
+	if (isAnalysisRunning) {
+		pendingAnalysis = true
+		return analysisPromise ?? Promise.resolve()
+	}
 
-	try {
-		logger.info('Starting analysis', {
-			imageCount: screenshotPaths.length,
-			hasPreviousAnalysis: !!previousAnalysis,
+	if (!availableModels.length) {
+		initializeProvider()
+	}
+
+	const currentModel = availableModels[currentModelIndex]
+
+	if (!currentModel) {
+		logger.warn('No model available for analysis', {
+			modelIndex: currentModelIndex,
+			models: availableModels,
 		})
+		return
+	}
 
-		// Get current model
-		const currentModel = availableModels[currentModelIndex]
+	const prompt = undefined
+	isAnalysisRunning = true
+	pendingAnalysis = false
 
-		// Perform analysis with previous context if available
-		const result = await analyzeContentFromImages(
-			screenshotPaths,
-			prompt,
-			'code', // Always use code mode
-			previousAnalysis || undefined,
-			(detectedLanguage) => {
-				if (mainWindow) {
-					mainWindow.webContents.send('language-detected', detectedLanguage)
-					logger.info('Language detected', { language: detectedLanguage })
-				}
-			},
-			currentModel, // Pass the current model
-			currentProvider, // Pass the current provider
-		)
+	const currentPromise = (async () => {
+		try {
+			logger.info('Starting analysis', {
+				imageCount: screenshotPaths.length,
+				hasPreviousAnalysis: !!previousAnalysis,
+				model: currentModel,
+				provider: currentProvider,
+			})
 
-		// Format result as markdown
-		let markdownResult: string
+			const result = await analyzeContentFromImages(
+				screenshotPaths,
+				prompt,
+				'code',
+				previousAnalysis || undefined,
+				(detectedLanguage) => {
+					if (mainWindow) {
+						mainWindow.webContents.send('language-detected', detectedLanguage)
+						logger.info('Language detected', { language: detectedLanguage })
+					}
+				},
+				currentModel,
+				currentProvider,
+			)
 
-		if ('code' in result) {
-			markdownResult = `
+			let markdownResult: string
+
+			if ('code' in result) {
+				markdownResult = `
 ## Code
 \`\`\`${result.language.toLowerCase()}
 ${result.code}
@@ -535,38 +599,48 @@ ${result.summary}
 - **Space Complexity:** ${result.spaceComplexity}
 - **Language:** ${result.language}`
 
-			// Store this analysis as context for future screenshots
-			previousAnalysis = JSON.stringify({
-				code: result.code,
-				summary: result.summary,
-				timeComplexity: result.timeComplexity,
-				spaceComplexity: result.spaceComplexity,
-				language: result.language,
+				previousAnalysis = JSON.stringify({
+					code: result.code,
+					summary: result.summary,
+					timeComplexity: result.timeComplexity,
+					spaceComplexity: result.spaceComplexity,
+					language: result.language,
+				})
+			} else {
+				markdownResult = '## Error\nUnexpected result format'
+				previousAnalysis = null
+			}
+
+			mainWindow?.webContents.send('analysis-result', markdownResult)
+			mainWindow?.webContents.send('screenshot-status', 'Analysis completed')
+
+			logger.info('Analysis completed successfully')
+		} catch (error) {
+			logger.error('Analysis failed', {
+				error: error instanceof Error ? error.message : String(error),
 			})
-		} else {
-			markdownResult = '## Error\nUnexpected result format'
-			previousAnalysis = null
-		}
 
-		// Send result to renderer
-		mainWindow.webContents.send('analysis-result', markdownResult)
-		mainWindow.webContents.send('screenshot-status', 'Analysis completed')
-
-		logger.info('Analysis completed successfully')
-	} catch (error) {
-		logger.error('Analysis failed', {
-			error: error instanceof Error ? error.message : String(error),
-		})
-
-		const errorMessage = `# Analysis Failed
+			const errorMessage = `# Analysis Failed
 
 An error occurred during code analysis: ${error instanceof Error ? error.message : 'Unknown error'}
 
 Please try again or check your OpenAI API key configuration.`
 
-		mainWindow.webContents.send('analysis-result', errorMessage)
-		mainWindow.webContents.send('screenshot-status', 'Analysis failed')
-	}
+			mainWindow?.webContents.send('analysis-result', errorMessage)
+			mainWindow?.webContents.send('screenshot-status', 'Analysis failed')
+		} finally {
+			isAnalysisRunning = false
+			analysisPromise = null
+
+			if (pendingAnalysis && mainWindow && screenshotPaths.length > 0) {
+				pendingAnalysis = false
+				await triggerAnalysis()
+			}
+		}
+	})()
+
+	analysisPromise = currentPromise
+	await currentPromise
 }
 
 // Handle window resizing
@@ -588,6 +662,7 @@ ipcMain.on('submit-prompt', async (_event, _prompt: string) => {
 		return
 	}
 
+	cancelScheduledAnalysis()
 	mainWindow.webContents.send('show-loading')
 	await triggerAnalysis()
 })
