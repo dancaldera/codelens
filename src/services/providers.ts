@@ -1,6 +1,11 @@
 import { createLogger } from '../lib/logger'
 import { isOpenRouterConfigured } from './openrouter/client'
-import { type AnalysisRequest, type AnalysisResponse, OpenRouterService } from './openrouter/service'
+import {
+	type AnalysisRequest,
+	type AnalysisResponse,
+	type GeneralAnalysisResponse,
+	OpenRouterService,
+} from './openrouter/service'
 
 const logger = createLogger('ProviderManager')
 
@@ -91,6 +96,18 @@ export async function analyzeCodeWithProvider(
 ): Promise<AnalysisResponse> {
 	const service = createAnalysisService(model, providerOverride)
 	return await service.analyzeCode(request)
+}
+
+/**
+ * Analyze general content using the specified provider
+ */
+export async function analyzeGeneralWithProvider(
+	request: AnalysisRequest,
+	model?: string,
+	providerOverride?: Provider,
+): Promise<GeneralAnalysisResponse> {
+	const service = createAnalysisService(model, providerOverride)
+	return await service.analyzeGeneral(request)
 }
 
 /**

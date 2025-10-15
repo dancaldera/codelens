@@ -25,6 +25,11 @@ export interface AnalysisResponse {
 	language: string
 }
 
+export interface GeneralAnalysisResponse {
+	answer: string
+	explanation: string
+	test: string
+}
 export interface OpenRouterServiceOptions {
 	model?: string
 	maxTokens?: number
@@ -131,6 +136,84 @@ export class OpenRouterService {
 	}
 
 	/**
+	 * Analyze general questions or content from images using OpenRouter
+	 */
+	async analyzeGeneral(request: AnalysisRequest): Promise<GeneralAnalysisResponse> {
+		validateOpenRouterConfiguration()
+
+		const client = createOpenRouterClient()
+		const enhancedPrompt = this.buildGeneralPrompt(request.prompt, request.previousContext)
+
+		const content = [
+			{
+				type: 'text' as const,
+				text: enhancedPrompt,
+			},
+			...request.images,
+		]
+
+		logger.debug('Preparing OpenRouter general analysis call', {
+			imageCount: request.images.length,
+			promptLength: enhancedPrompt.length,
+			model: this.options.model,
+		})
+
+		const apiCallStart = Date.now()
+		logger.info('Calling OpenRouter API for general analysis...')
+
+		try {
+			const response = await client.chat.completions.create({
+				model: this.options.model,
+				messages: [
+					{
+						role: 'system',
+						content:
+							'You are an expert analyst and educator. Always respond with concise reasoning and a verification plan in the requested JSON format.',
+					},
+					{
+						role: 'user',
+						content,
+					},
+				],
+				max_tokens: this.options.maxTokens,
+				temperature: this.options.temperature,
+				response_format: { type: 'json_object' },
+			})
+
+			const apiCallTime = Date.now() - apiCallStart
+			logApiCall('POST', '/chat/completions', 200, apiCallTime, {
+				provider: 'openrouter',
+				model: this.options.model,
+				imageCount: request.images.length,
+				mode: 'general',
+			})
+
+			const responseText = response.choices[0]?.message.content || ''
+			logger.debug('OpenRouter general response received', {
+				responseLength: responseText.length,
+				hasContent: !!responseText,
+			})
+
+			return this.parseGeneralResponse(responseText)
+		} catch (error) {
+			const apiCallTime = Date.now() - apiCallStart
+			logApiCall('POST', '/chat/completions', 500, apiCallTime, {
+				provider: 'openrouter',
+				model: this.options.model,
+				mode: 'general',
+				error: error instanceof Error ? error.message : String(error),
+			})
+
+			logger.error('OpenRouter general analysis failed', {
+				error: error instanceof Error ? error.message : String(error),
+				duration: apiCallTime,
+			})
+
+			throw new Error(`OpenRouter general analysis failed: ${error instanceof Error ? error.message : String(error)}`)
+		}
+	}
+
+	/**
 	 * Build enhanced prompt for code analysis
 	 */
 	private buildAnalysisPrompt(prompt: string, previousContext?: string): string {
@@ -161,6 +244,24 @@ PRIORITY FOCUS:
 - If you see incomplete code → Provide completed implementation
 - If you see algorithm challenge → Provide optimized solution with edge cases handled
 - Always include FULL working code, not pseudocode or partial solutions
+		`.trim()
+	}
+
+	private buildGeneralPrompt(prompt: string, previousContext?: string): string {
+		return `
+You are a senior analyst. Study the screenshot content, solve every question inside, and design a verification test.
+
+Task: ${prompt}
+${previousContext ? `\nPrevious context: ${previousContext}` : ''}
+
+Respond ONLY in JSON with this schema:
+{
+  "answer": "Complete solution to every question in the images. Be direct.",
+  "explanation": "Brief reasoning describing how you reached the answer.",
+  "test": "Concrete verification. Provide a runnable test case, QA script, or step-by-step checklist that proves the answer."
+}
+
+Keep the explanation concise and the test thorough enough to validate the answer end-to-end.
 		`.trim()
 	}
 
@@ -205,6 +306,40 @@ PRIORITY FOCUS:
 
 			// Return fallback response with extracted text
 			return this.extractFromText(responseText)
+		}
+	}
+
+	private parseGeneralResponse(responseText: string): GeneralAnalysisResponse {
+		try {
+			let jsonStr = responseText
+
+			const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+			if (jsonMatch?.[1]) {
+				jsonStr = jsonMatch[1]
+			}
+
+			if (jsonStr.trim().startsWith('{')) {
+				try {
+					const parsed = JSON.parse(jsonStr)
+					return {
+						answer: parsed.answer || '',
+						explanation: parsed.explanation || '',
+						test: parsed.test || '',
+					}
+				} catch (jsonError) {
+					logger.warn('General JSON parsing failed, falling back to text extraction', {
+						error: jsonError instanceof Error ? jsonError.message : String(jsonError),
+					})
+				}
+			}
+
+			return this.extractGeneralFromText(responseText)
+		} catch (error) {
+			logger.error('Error processing general response', {
+				error: error instanceof Error ? error.message : String(error),
+			})
+
+			return this.extractGeneralFromText(responseText)
 		}
 	}
 
@@ -266,6 +401,24 @@ PRIORITY FOCUS:
 			return codeMatch[1]
 		}
 
+		return null
+	}
+
+	private extractGeneralFromText(text: string): GeneralAnalysisResponse {
+		return {
+			answer: this.extractGeneralSection(text, ['answer', 'solution', 'response']) || text.substring(0, 200),
+			explanation:
+				this.extractGeneralSection(text, ['explanation', 'reason', 'rationale']) || 'Explanation unavailable',
+			test: this.extractGeneralSection(text, ['test', 'verification', 'checklist']) || 'No verification test provided',
+		}
+	}
+
+	private extractGeneralSection(text: string, keywords: string[]): string | null {
+		const pattern = new RegExp(`(?:${keywords.join('|')})\\s*[:\\-]\\s*([\\s\\S]*?)(?:\\n\\n|$)`, 'i')
+		const match = text.match(pattern)
+		if (match?.[1]) {
+			return match[1].trim()
+		}
 		return null
 	}
 }

@@ -157,7 +157,7 @@ export async function analyzeCodeFromImages(
 /**
  * Process and validate images for analysis
  */
-async function processImages(imagePaths: string[]): Promise<ImageContent[]> {
+export async function processImages(imagePaths: string[]): Promise<ImageContent[]> {
 	const startTime = Date.now()
 	logger.debug('Processing images', { count: imagePaths.length })
 

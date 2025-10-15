@@ -6,7 +6,7 @@ import * as path from 'node:path'
 import * as util from 'node:util'
 import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain } from 'electron'
 import { createLogger, suppressElectronErrors } from './lib'
-import { analyzeContentFromImages } from './services'
+import { analyzeContentFromImages, analyzeGeneralContentFromImages } from './services'
 import {
 	getAvailableModels,
 	getCurrentProvider,
@@ -14,6 +14,8 @@ import {
 	isAnyProviderConfigured,
 	type Provider,
 } from './services/providers'
+
+type AnalysisMode = 'code' | 'general'
 
 // Load environment variables from .env file
 try {
@@ -56,12 +58,14 @@ suppressElectronErrors()
 let mainWindow: BrowserWindow | null = null
 let screenshotCount = 0
 let screenshotPaths: string[] = []
-let previousAnalysis: string | null = null
+let previousCodeAnalysis: string | null = null
+let previousGeneralAnalysis: string | null = null
 const MAX_SCREENSHOTS = 2
 let currentOpacity = 0.8
 let currentModelIndex = 0 // Current model index for cycling
 let availableModels: string[] = []
 let currentProvider: Provider = 'openrouter'
+let currentMode: AnalysisMode = 'code'
 let isAnalysisRunning = false
 let pendingAnalysis = false
 let analysisPromise: Promise<void> | null = null
@@ -146,6 +150,7 @@ function createWindow(): void {
 		// Send initial model state to renderer
 		const initialState = getInitialModelState()
 		mainWindow?.webContents.send('model-changed', initialState)
+		mainWindow?.webContents.send('analysis-mode-changed', currentMode)
 	})
 
 	mainWindow.on('closed', () => {
@@ -214,6 +219,22 @@ function switchModel(): void {
 	}
 }
 
+function toggleAnalysisMode(): void {
+	cancelScheduledAnalysis()
+	currentMode = currentMode === 'code' ? 'general' : 'code'
+	const modeLabel = currentMode === 'code' ? 'Code analysis mode' : 'General analysis mode'
+
+	logger.info('Analysis mode toggled', { mode: currentMode })
+
+	if (mainWindow) {
+		mainWindow.webContents.send('screenshot-status', modeLabel)
+		mainWindow.webContents.send('analysis-mode-changed', currentMode)
+	}
+
+	// Don't auto-trigger analysis on mode switch
+	// User can manually trigger with Cmd+Enter if desired
+}
+
 function scheduleAnalysis(delay = 0): void {
 	if (analysisTimer) {
 		clearTimeout(analysisTimer)
@@ -265,7 +286,8 @@ function registerShortcuts(): void {
 		const pathsToRemove = [...screenshotPaths]
 		screenshotCount = 0
 		screenshotPaths = []
-		previousAnalysis = null
+		previousCodeAnalysis = null
+		previousGeneralAnalysis = null
 		mainWindow.webContents.send('clear-screenshots')
 		mainWindow.webContents.send('context-reset')
 		mainWindow.webContents.send('screenshot-status', 'Screenshots cleared')
@@ -392,6 +414,14 @@ function registerShortcuts(): void {
 				error: error instanceof Error ? error.message : String(error),
 			})
 		})
+	})
+
+	// Toggle analysis mode shortcut
+	globalShortcut.register('Shift+CommandOrControl+A', () => {
+		toggleAnalysisMode()
+	})
+	globalShortcut.register('CommandOrControl+A', () => {
+		toggleAnalysisMode()
 	})
 }
 
@@ -542,7 +572,8 @@ async function saveScreenshot(buffer: Buffer, method: string): Promise<void> {
 		mainWindow.webContents.send('screenshot-status', `Screenshot ${screenshotCount} captured`)
 
 		// Auto-trigger analysis when we have 2 screenshots or when adding to existing analysis
-		if (screenshotCount === 2 || (screenshotCount === 1 && previousAnalysis)) {
+		const hasContext = currentMode === 'code' ? !!previousCodeAnalysis : !!previousGeneralAnalysis
+		if (screenshotCount === MAX_SCREENSHOTS || (screenshotCount === 1 && hasContext)) {
 			scheduleAnalysis(500)
 		}
 	}
@@ -578,32 +609,35 @@ async function triggerAnalysis(): Promise<void> {
 
 	const currentPromise = (async () => {
 		try {
+			const hasPrevious = currentMode === 'code' ? !!previousCodeAnalysis : !!previousGeneralAnalysis
 			logger.info('Starting analysis', {
 				imageCount: screenshotPaths.length,
-				hasPreviousAnalysis: !!previousAnalysis,
+				hasPreviousAnalysis: hasPrevious,
+				mode: currentMode,
 				model: currentModel,
 				provider: currentProvider,
 			})
 
-			const result = await analyzeContentFromImages(
-				screenshotPaths,
-				prompt,
-				'code',
-				previousAnalysis || undefined,
-				(detectedLanguage) => {
-					if (mainWindow) {
-						mainWindow.webContents.send('language-detected', detectedLanguage)
-						logger.info('Language detected', { language: detectedLanguage })
-					}
-				},
-				currentModel,
-				currentProvider,
-			)
+			let markdownResult = ''
 
-			let markdownResult: string
+			if (currentMode === 'code') {
+				const result = await analyzeContentFromImages(
+					screenshotPaths,
+					prompt,
+					'code',
+					previousCodeAnalysis || undefined,
+					(detectedLanguage) => {
+						if (mainWindow) {
+							mainWindow.webContents.send('language-detected', detectedLanguage)
+							logger.info('Language detected', { language: detectedLanguage })
+						}
+					},
+					currentModel,
+					currentProvider,
+				)
 
-			if ('code' in result) {
-				markdownResult = `
+				if ('code' in result) {
+					markdownResult = `
 ## Code
 \`\`\`${result.language.toLowerCase()}
 ${result.code}
@@ -617,30 +651,52 @@ ${result.summary}
 - **Space Complexity:** ${result.spaceComplexity}
 - **Language:** ${result.language}`
 
-				previousAnalysis = JSON.stringify({
-					code: result.code,
-					summary: result.summary,
-					timeComplexity: result.timeComplexity,
-					spaceComplexity: result.spaceComplexity,
-					language: result.language,
-				})
+					previousCodeAnalysis = JSON.stringify({
+						code: result.code,
+						summary: result.summary,
+						timeComplexity: result.timeComplexity,
+						spaceComplexity: result.spaceComplexity,
+						language: result.language,
+					})
+				} else {
+					markdownResult = '## Error\nUnexpected result format'
+					previousCodeAnalysis = null
+				}
 			} else {
-				markdownResult = '## Error\nUnexpected result format'
-				previousAnalysis = null
+				const result = await analyzeGeneralContentFromImages(
+					screenshotPaths,
+					prompt,
+					previousGeneralAnalysis || undefined,
+					currentModel,
+					currentProvider,
+				)
+
+				markdownResult = `
+## Solution
+${result.answer}
+
+## Analysis
+${result.explanation}
+
+## Test Plan
+${result.test}`
+
+				previousGeneralAnalysis = JSON.stringify(result)
 			}
 
 			mainWindow?.webContents.send('analysis-result', markdownResult)
 			mainWindow?.webContents.send('screenshot-status', 'Analysis completed')
 
-			logger.info('Analysis completed successfully')
+			logger.info('Analysis completed successfully', { mode: currentMode })
 		} catch (error) {
 			logger.error('Analysis failed', {
 				error: error instanceof Error ? error.message : String(error),
 			})
 
+			const failureContext = currentMode === 'code' ? 'code analysis' : 'general analysis'
 			const errorMessage = `# Analysis Failed
 
-An error occurred during code analysis: ${error instanceof Error ? error.message : 'Unknown error'}
+An error occurred during ${failureContext}: ${error instanceof Error ? error.message : 'Unknown error'}
 
 Please try again or check your OpenAI API key configuration.`
 

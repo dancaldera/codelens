@@ -22,6 +22,8 @@ const EXPECTED_EXIT_CODES = [0, 143] as const;
 let electronProcess: ChildProcess | null = null;
 let restartTimeout: NodeJS.Timeout | null = null;
 let autoRestartTimeout: NodeJS.Timeout | null = null;
+let restartRequested = false;
+let suppressAutoRestart = false;
 
 /**
  * Start the Electron process
@@ -38,22 +40,33 @@ function startElectron(): void {
 		stdio: "inherit",
 		env: { ...process.env },
 	});
+	// Reset suppression for user-triggered exits
+	suppressAutoRestart = false;
 
 	electronProcess.on("exit", (code: number | null, signal: string | null) => {
+		const shouldRestart = restartRequested;
+		// Reset flags
+		restartRequested = false;
+
 		// Clear reference immediately
 		electronProcess = null;
 
 		if (signal) {
 			console.log(`[dev-watcher] Electron exited with signal ${signal}`);
+		} else if (shouldRestart) {
+			console.log("[dev-watcher] Electron exited for restart.");
+			startElectron();
 		} else if (code === 0) {
 			console.log("[dev-watcher] Electron exited normally (Cmd+Q)");
-			console.log("[dev-watcher] Press Ctrl+C to stop, or app will restart in 3 seconds...");
+			if (!suppressAutoRestart) {
+				console.log("[dev-watcher] Press Ctrl+C to stop, or app will restart in 3 seconds...");
 
-			// Auto-restart after normal exit (e.g., Cmd+Q)
-			// Give user time to press Ctrl+C if they want to stop
-			autoRestartTimeout = setTimeout(() => {
-				startElectron();
-			}, 3000);
+				// Auto-restart after normal exit (e.g., Cmd+Q)
+				// Give user time to press Ctrl+C if they want to stop
+				autoRestartTimeout = setTimeout(() => {
+					startElectron();
+				}, 3000);
+			}
 		} else if (code !== null && !EXPECTED_EXIT_CODES.includes(code as 0 | 143)) {
 			console.log(`[dev-watcher] Electron exited with code ${code}`);
 		}
@@ -74,6 +87,7 @@ function stopElectron(): void {
 		console.log("[dev-watcher] Stopping Electron...");
 		electronProcess.kill("SIGTERM");
 		electronProcess = null;
+		suppressAutoRestart = true;
 	}
 }
 
@@ -90,8 +104,16 @@ function restartElectron(changedFile: string): void {
 	// Debounce restarts (wait for multiple file changes)
 	restartTimeout = setTimeout(() => {
 		console.log(`[dev-watcher] File changed: ${changedFile}`);
+		restartRequested = true;
+		suppressAutoRestart = true;
+
+		if (!electronProcess) {
+			restartRequested = false;
+			startElectron();
+			return;
+		}
+
 		stopElectron();
-		startElectron();
 	}, DEBOUNCE_DELAY);
 }
 
@@ -104,7 +126,10 @@ function shouldIgnoreFile(filename: string): boolean {
 	return (
 		filename.includes(".log") ||
 		filename.includes("node_modules") ||
-		filename.startsWith(".")
+		filename.startsWith(".") ||
+		filename.endsWith(".map") ||
+		filename.includes("dev-runner") ||
+		filename.includes("dev-watcher")
 	);
 }
 
@@ -138,6 +163,8 @@ function handleShutdown(signal: "SIGINT" | "SIGTERM"): void {
 	if (signal === "SIGINT") {
 		console.log("\n[dev-watcher] Shutting down...");
 	}
+	restartRequested = false;
+	suppressAutoRestart = true;
 	stopElectron();
 	process.exit(0);
 }

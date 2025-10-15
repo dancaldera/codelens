@@ -15,6 +15,7 @@ interface ApiInterface {
 	onShowLoading: (callback: () => void) => void
 	onLanguageDetected: (callback: (language: string) => void) => void
 	onModelChanged: (callback: (model: string) => void) => void
+	onAnalysisModeChanged: (callback: (mode: string) => void) => void
 	resizeWindow: (width: number, height: number) => void
 }
 
@@ -66,6 +67,9 @@ contextBridge.exposeInMainWorld('api', {
 		ipcRenderer.on('model-changed', (_e: IpcRendererEvent, model: string) => callback(model)),
 	// Window resizing
 	resizeWindow: (width: number, height: number) => ipcRenderer.send('resize-window', { width, height }),
+	// Analysis mode change notification
+	onAnalysisModeChanged: (callback: (mode: string) => void) =>
+		ipcRenderer.on('analysis-mode-changed', (_e: IpcRendererEvent, mode: string) => callback(mode)),
 } as ApiInterface)
 
 // Handle screenshot trigger from main process

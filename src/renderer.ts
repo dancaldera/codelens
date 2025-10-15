@@ -33,6 +33,34 @@ window.addEventListener('DOMContentLoaded', () => {
 	const MAX_SCREENSHOTS = 2
 	const screenshotData = new Map<number, ScreenshotData>()
 	let modelInfoTimeout: ReturnType<typeof setTimeout> | null = null
+	let currentModelLabel = ''
+	let currentModelDataset = ''
+	let currentAnalysisMode: 'code' | 'general' = 'code'
+
+	function updateModelInfoBadge(): void {
+		const label = currentModelLabel || 'Model'
+		const modeSuffix = currentAnalysisMode === 'general' ? ' • General' : ''
+		modelInfo.textContent = `${label}${modeSuffix}`
+
+		if (currentModelDataset) {
+			modelInfo.dataset.model = currentModelDataset
+		} else {
+			delete modelInfo.dataset.model
+		}
+
+		modelInfo.dataset.mode = currentAnalysisMode
+	}
+
+	function flashModelInfoBadge(): void {
+		modelInfo.classList.add('show')
+		if (modelInfoTimeout) {
+			clearTimeout(modelInfoTimeout)
+		}
+		modelInfoTimeout = setTimeout(() => {
+			modelInfo.classList.remove('show')
+			modelInfoTimeout = null
+		}, 3000)
+	}
 
 	// Configure marked.js
 	marked.setOptions({
@@ -75,6 +103,15 @@ window.addEventListener('DOMContentLoaded', () => {
 		result.innerHTML = marked.parse(markdown)
 		result.classList.add('visible')
 
+		// Apply current mode class
+		if (currentAnalysisMode === 'general') {
+			result.classList.add('general-mode')
+			result.classList.remove('code-mode')
+		} else {
+			result.classList.add('code-mode')
+			result.classList.remove('general-mode')
+		}
+
 		// Highlight code blocks
 		result.querySelectorAll('pre code').forEach((block) => {
 			hljs.highlightElement(block as HTMLElement)
@@ -85,31 +122,44 @@ window.addEventListener('DOMContentLoaded', () => {
 
 	// Handle model changes
 	window.api.onModelChanged((info: string | ModelInfo) => {
-		// Clear existing timeout
 		if (modelInfoTimeout) {
 			clearTimeout(modelInfoTimeout)
 		}
 
 		// Update model info
 		if (info === 'no-key') {
-			modelInfo.textContent = 'No API Key'
-			modelInfo.dataset.model = 'no-key'
+			currentModelLabel = 'No API Key'
+			currentModelDataset = 'no-key'
 		} else if (typeof info === 'object') {
-			modelInfo.textContent = info.model
-			modelInfo.dataset.model = info.model
+			currentModelLabel = info.model
+			currentModelDataset = info.model
 		} else {
-			modelInfo.textContent = info
-			modelInfo.dataset.model = info
+			currentModelLabel = info
+			currentModelDataset = info
 		}
 
-		// Show the badge
-		modelInfo.classList.add('show')
+		updateModelInfoBadge()
+		flashModelInfoBadge()
+	})
 
-		// Hide after 3 seconds
-		modelInfoTimeout = setTimeout(() => {
-			modelInfo.classList.remove('show')
-			modelInfoTimeout = null
-		}, 3000)
+	window.api.onAnalysisModeChanged((mode: string) => {
+		if (modelInfoTimeout) {
+			clearTimeout(modelInfoTimeout)
+		}
+
+		currentAnalysisMode = mode === 'general' ? 'general' : 'code'
+
+		// Apply mode-specific class to result panel
+		if (currentAnalysisMode === 'general') {
+			result.classList.add('general-mode')
+			result.classList.remove('code-mode')
+		} else {
+			result.classList.add('code-mode')
+			result.classList.remove('general-mode')
+		}
+
+		updateModelInfoBadge()
+		flashModelInfoBadge()
 	})
 
 	// Handle loading state
