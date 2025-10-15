@@ -158,6 +158,7 @@ The app has a fallback mechanism:
 - OpenRouter integration with extended timeouts (60s total, 50s API)
 - Model switching with `Cmd+M` (3 models available)
 - Auto-triggers analysis after capturing 2 screenshots
+
 - Uses previous analysis as context for new screenshots (contextual analysis)
 - Extracts code with language detection and problem solving
 - Provides complexity analysis (time/space) and best practices
@@ -199,7 +200,7 @@ OpenRouter provides several advantages:
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Review `AGENTS.md` for structure, workflows, and review expectations before opening a focused Pull Request.
 
 ## License
 
