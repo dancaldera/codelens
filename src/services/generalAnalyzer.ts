@@ -19,6 +19,7 @@ Your responsibilities:
 2. SOLVE them completely and accurately.
 3. ANALYZE your approach with clear reasoning.
 4. DESIGN a verification test plan that proves the solution is correct.
+5. COMMUNICATE using the same natural language used in the questions or text shown. When multiple languages appear, choose the primary language for your response.
 
 Respond ONLY in JSON with this exact shape:
 {

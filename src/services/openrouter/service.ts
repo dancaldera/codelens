@@ -238,6 +238,9 @@ Provide your response in this exact JSON format:
   "language": "Programming language (python, javascript, java, cpp, etc.)"
 }
 
+LANGUAGE REQUIREMENT:
+- Mirror the natural language used in the screenshot text, problem statement, or code comments when writing the summary and explanations. If multiple languages appear, choose the dominant one.
+
 PRIORITY FOCUS:
 - If you see a coding interview question → Provide complete working solution
 - If you see buggy code → Provide fixed version with explanation
@@ -260,6 +263,9 @@ Respond ONLY in JSON with this schema:
   "explanation": "Brief reasoning describing how you reached the answer.",
   "test": "Concrete verification. Provide a runnable test case, QA script, or step-by-step checklist that proves the answer."
 }
+
+LANGUAGE REQUIREMENT:
+- Use the same natural language found in the questions or text from the screenshots when providing the answer, explanation, and test. If multiple languages appear, respond in the dominant one.
 
 Keep the explanation concise and the test thorough enough to validate the answer end-to-end.
 		`.trim()
