@@ -9,6 +9,7 @@ import { createLogger, suppressElectronErrors } from './lib'
 import { analyzeContentFromImages, analyzeGeneralContentFromImages } from './services'
 import {
 	getAvailableModels,
+	getAvailableModelsSync,
 	getCurrentProvider,
 	getProviderInfo,
 	isAnyProviderConfigured,
@@ -176,16 +177,42 @@ function updateOpacity(): void {
 	logger.info('Opacity changed', { opacity: currentOpacity })
 }
 
-function initializeProvider(): void {
+async function initializeProvider(): Promise<void> {
 	currentProvider = getCurrentProvider()
-	availableModels = getAvailableModels(currentProvider)
+
+	// Use sync version first for immediate availability, then fetch async
+	availableModels = getAvailableModelsSync(currentProvider)
 	currentModelIndex = 0
 
-	logger.info('Provider initialized', {
+	logger.info('Provider initialized (sync)', {
 		provider: currentProvider,
 		models: availableModels,
 		defaultModel: availableModels[0],
 	})
+
+	// Fetch latest models from API in background
+	try {
+		const latestModels = await getAvailableModels(currentProvider)
+		if (latestModels.length > 0) {
+			availableModels = latestModels
+			logger.info('Models updated from API', {
+				provider: currentProvider,
+				models: availableModels,
+				count: availableModels.length,
+			})
+
+			// Send updated model state to renderer
+			if (mainWindow) {
+				const modelInfo = {
+					provider: currentProvider,
+					model: availableModels[currentModelIndex],
+				}
+				mainWindow.webContents.send('model-changed', modelInfo)
+			}
+		}
+	} catch (error) {
+		logger.error('Failed to fetch latest models, using fallback', { error })
+	}
 }
 
 function switchModel(): void {
