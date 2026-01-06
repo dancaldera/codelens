@@ -3,6 +3,9 @@ import { createOpenRouterClient, validateOpenRouterConfiguration } from './clien
 
 const logger = createLogger('OpenRouterService')
 
+// Pre-compiled regex patterns (module-level for shared access)
+const JSON_BLOCK_REGEX = /```(?:json)?\s*([\s\S]*?)\s*```/
+
 // Types for service layer (reusing from OpenAI service)
 export interface ImageContent {
 	type: 'image_url'
@@ -45,7 +48,7 @@ function extractAndParseJson<T>(responseText: string, loggerName: string): T | n
 	let jsonStr = responseText
 
 	// Try to find JSON in code blocks
-	const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+	const jsonMatch = responseText.match(JSON_BLOCK_REGEX)
 	if (jsonMatch?.[1]) {
 		jsonStr = jsonMatch[1]
 	}
@@ -70,6 +73,11 @@ function extractAndParseJson<T>(responseText: string, loggerName: string): T | n
  * Uses OpenRouter to access OpenAI models via their API
  */
 export class OpenRouterService {
+	// Pre-compiled regex patterns for performance
+	private static readonly CODE_BLOCK_REGEX = /```(?:\w+)?\s*([\s\S]*?)\s*```/g
+	private static readonly LANGUAGE_REGEX = /language[:\s]+(\w+)/i
+	private static readonly CODE_BLOCK_LANG_REGEX = /```(\w+)/
+
 	private readonly options: Required<OpenRouterServiceOptions>
 
 	constructor(options: OpenRouterServiceOptions = {}) {
@@ -379,13 +387,12 @@ Keep the explanation concise and the test thorough enough to validate the answer
 	 * Extract code blocks from text
 	 */
 	private extractCodeFromText(text: string): string {
-		const codeBlockRegex = /```(?:\w+)?\s*([\s\S]*?)\s*```/g
 		let extractedCode = ''
 
-		let currentMatch = codeBlockRegex.exec(text)
+		let currentMatch = OpenRouterService.CODE_BLOCK_REGEX.exec(text)
 		while (currentMatch !== null) {
 			extractedCode += `${currentMatch[1]}\n\n`
-			currentMatch = codeBlockRegex.exec(text)
+			currentMatch = OpenRouterService.CODE_BLOCK_REGEX.exec(text)
 		}
 
 		return extractedCode.trim() || text.substring(0, 500)
@@ -404,18 +411,14 @@ Keep the explanation concise and the test thorough enough to validate the answer
 	 * Extract programming language from text
 	 */
 	private extractLanguage(text: string): string | null {
-		// Common language patterns
-		const languageRegex = /language[:\s]+(\w+)/i
-		const codeBlockRegex = /```(\w+)/
-
 		// Try to find explicit language mention
-		const langMatch = text.match(languageRegex)
+		const langMatch = text.match(OpenRouterService.LANGUAGE_REGEX)
 		if (langMatch?.[1]) {
 			return langMatch[1]
 		}
 
 		// Try to infer from code block
-		const codeMatch = text.match(codeBlockRegex)
+		const codeMatch = text.match(OpenRouterService.CODE_BLOCK_LANG_REGEX)
 		if (codeMatch?.[1] && codeMatch[1].toLowerCase() !== 'json') {
 			return codeMatch[1]
 		}
