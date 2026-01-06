@@ -38,6 +38,34 @@ export interface OpenRouterServiceOptions {
 }
 
 /**
+ * Extract JSON from markdown code blocks and parse it
+ * Returns null if parsing fails
+ */
+function extractAndParseJson<T>(responseText: string, loggerName: string): T | null {
+	let jsonStr = responseText
+
+	// Try to find JSON in code blocks
+	const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+	if (jsonMatch?.[1]) {
+		jsonStr = jsonMatch[1]
+	}
+
+	// Try to parse as direct JSON
+	if (jsonStr.trim().startsWith('{')) {
+		try {
+			return JSON.parse(jsonStr) as T
+		} catch (jsonError) {
+			const localLogger = createLogger(loggerName)
+			localLogger.warn('JSON parsing failed, falling back to text extraction', {
+				error: jsonError instanceof Error ? jsonError.message : String(jsonError),
+			})
+		}
+	}
+
+	return null
+}
+
+/**
  * Service for handling OpenRouter API communication and response processing
  * Uses OpenRouter to access OpenAI models via their API
  */
@@ -276,30 +304,22 @@ Keep the explanation concise and the test thorough enough to validate the answer
 	 */
 	private parseResponse(responseText: string): AnalysisResponse {
 		try {
-			// Look for JSON in the response - it might be embedded in markdown code blocks
-			let jsonStr = responseText
+			// Try to extract and parse JSON from markdown code blocks
+			const parsed = extractAndParseJson<{
+				code?: string
+				summary?: string
+				timeComplexity?: string
+				spaceComplexity?: string
+				language?: string
+			}>(responseText, 'OpenRouterService')
 
-			// Try to find JSON in code blocks
-			const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
-			if (jsonMatch?.[1]) {
-				jsonStr = jsonMatch[1]
-			}
-
-			// Try to parse as direct JSON
-			if (jsonStr.trim().startsWith('{')) {
-				try {
-					const parsed = JSON.parse(jsonStr)
-					return {
-						code: parsed.code || '',
-						summary: parsed.summary || '',
-						timeComplexity: parsed.timeComplexity || 'O(?)',
-						spaceComplexity: parsed.spaceComplexity || 'O(?)',
-						language: parsed.language || 'Unknown',
-					}
-				} catch (jsonError) {
-					logger.warn('JSON parsing failed, falling back to text extraction', {
-						error: jsonError instanceof Error ? jsonError.message : String(jsonError),
-					})
+			if (parsed) {
+				return {
+					code: parsed.code || '',
+					summary: parsed.summary || '',
+					timeComplexity: parsed.timeComplexity || 'O(?)',
+					spaceComplexity: parsed.spaceComplexity || 'O(?)',
+					language: parsed.language || 'Unknown',
 				}
 			}
 
@@ -317,25 +337,18 @@ Keep the explanation concise and the test thorough enough to validate the answer
 
 	private parseGeneralResponse(responseText: string): GeneralAnalysisResponse {
 		try {
-			let jsonStr = responseText
+			// Try to extract and parse JSON from markdown code blocks
+			const parsed = extractAndParseJson<{
+				answer?: string
+				explanation?: string
+				test?: string
+			}>(responseText, 'OpenRouterService')
 
-			const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
-			if (jsonMatch?.[1]) {
-				jsonStr = jsonMatch[1]
-			}
-
-			if (jsonStr.trim().startsWith('{')) {
-				try {
-					const parsed = JSON.parse(jsonStr)
-					return {
-						answer: parsed.answer || '',
-						explanation: parsed.explanation || '',
-						test: parsed.test || '',
-					}
-				} catch (jsonError) {
-					logger.warn('General JSON parsing failed, falling back to text extraction', {
-						error: jsonError instanceof Error ? jsonError.message : String(jsonError),
-					})
+			if (parsed) {
+				return {
+					answer: parsed.answer || '',
+					explanation: parsed.explanation || '',
+					test: parsed.test || '',
 				}
 			}
 

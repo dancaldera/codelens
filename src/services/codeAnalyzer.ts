@@ -1,6 +1,12 @@
 import * as fs from 'node:fs'
 import { createLogger, logPerformance } from '../lib/logger'
 import { getMimeType, validateImageFile } from '../lib/utils'
+import {
+	buildErrorMessage,
+	createTimeoutHandler,
+	validateImagePaths,
+	validateProcessedImages,
+} from './baseAnalyzer'
 import type { AnalysisRequest, AnalysisResponse, ImageContent } from './openrouter/service'
 import { analyzeCodeWithProvider, type Provider } from './providers'
 
@@ -14,6 +20,15 @@ export type CodeAnalysisResult = {
 }
 
 const logger = createLogger('CodeAnalyzer')
+
+// Default error response
+const ERROR_RESPONSE: CodeAnalysisResult = {
+	code: 'Analysis failed or timed out',
+	summary: 'Unable to complete analysis',
+	timeComplexity: 'Unknown',
+	spaceComplexity: 'Unknown',
+	language: 'Unknown',
+}
 
 // Helper functions
 function createErrorResponse(error: string, details: string): CodeAnalysisResult {
@@ -73,35 +88,19 @@ export async function analyzeContentFromImages(
 	// Use enhanced prompt or custom prompt
 	const prompt = customPrompt || CODE_PROMPT
 
-	// Default response
-	const defaultResponse: CodeAnalysisResult = {
-		code: 'Analysis failed or timed out',
-		summary: 'Unable to complete analysis',
-		timeComplexity: 'Unknown',
-		spaceComplexity: 'Unknown',
-		language: 'Unknown',
-	}
-
-	// Timeout protection
-	const timeoutDuration = 60000
-	const analysisTimeout = setTimeout(() => {
-		logger.warn(`Analysis timeout after ${timeoutDuration}ms`)
-		return defaultResponse
-	}, timeoutDuration)
+	const timer = createTimeoutHandler(ERROR_RESPONSE, 'Code analysis')
 
 	try {
 		// Input validation
-		if (!imagePaths?.length) {
-			logger.error('No image paths provided')
-			clearTimeout(analysisTimeout)
+		if (!validateImagePaths(imagePaths, timer)) {
+			timer.clear()
 			return createErrorResponse('No images provided', 'Please capture screenshots first')
 		}
 
 		// Process images
 		const imageContents = await processImages(imagePaths)
-		if (!imageContents.length) {
-			logger.error('Image processing failed')
-			clearTimeout(analysisTimeout)
+		if (!validateProcessedImages(imageContents, timer, 'Image processing failed')) {
+			timer.clear()
 			return createErrorResponse('Failed to process images', 'Please check image files')
 		}
 
@@ -118,18 +117,13 @@ export async function analyzeContentFromImages(
 		// Handle results
 		const finalResult = handleCodeResult(result, onLanguageDetected)
 
-		clearTimeout(analysisTimeout)
+		timer.clear()
 		logPerformance('Code analysis completed', startTime)
 		return finalResult
 	} catch (error) {
-		logger.error('Analysis failed', { error: error instanceof Error ? error.message : String(error) })
-		clearTimeout(analysisTimeout)
-
-		const isServiceError = error instanceof Error && error.message.includes('API')
-		const errorMsg = isServiceError ? 'AI service unavailable' : 'Analysis failed'
-		const details = isServiceError ? 'Please check your API key' : 'Please try again'
-
-		return createErrorResponse(errorMsg, details)
+		timer.clear()
+		const { message, details } = buildErrorMessage(error)
+		return createErrorResponse(message, details)
 	}
 }
 

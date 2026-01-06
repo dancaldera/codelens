@@ -7,9 +7,10 @@ AI-powered code analysis from screenshots. An Electron application that captures
 - **OpenRouter AI Integration**: Access multiple AI vision models through OpenRouter
 - **Screenshot Capture**: Press `Cmd+H` to capture code screenshots (cycles between 2 slots)
 - **Auto-Analysis**: Automatically analyzes after capturing 2 screenshots
-- **Code Extraction**: Extracts and formats code with syntax highlighting
-- **Complexity Analysis**: Provides time/space complexity analysis
-- **Language Detection**: Automatically detects programming languages
+- **Manual Analysis**: Press `Cmd+Enter` to trigger analysis at any time
+- **Code Analysis Mode**: Extracts and formats code with syntax highlighting, complexity analysis, and language detection
+- **General Analysis Mode**: Analyzes any content (non-code screenshots, documents, error messages) with explanations and summaries
+- **Analysis Mode Toggle**: Press `Shift+Cmd/Ctrl+A` or `Cmd/Ctrl+A` to switch between Code and General modes
 - **Always-on-top overlay**: Stays visible on all workspaces and fullscreen apps
 - **Multi-screen support**: Works across all displays and virtual desktops
 
@@ -79,15 +80,24 @@ echo "OPENROUTER_API_KEY=sk-your-openrouter-api-key-here" > ~/.env
 
 ## Keyboard Shortcuts
 
+**Screenshot & Analysis**
 - `Cmd+H` - Take screenshot (cycles between slots 1-2, auto-analyzes after 2nd screenshot)
+- `Cmd+Enter` - Manually trigger analysis at any time
+
+**Analysis Mode**
+- `Shift+Cmd+A` or `Cmd+A` - Toggle between Code Analysis and General Analysis modes
+
+**Window Management**
 - `Cmd+G` - Reset screenshots, clear analysis, and reposition window to (50,50)
 - `Cmd+B` - Hide/show window
-- `Cmd+M` - Switch AI model (cycles through: Sonnet 4.5 → Gemini 2.5 → GPT-5)
-- `Cmd+1` - Decrease window opacity
-- `Cmd+2` - Increase window opacity
 - `Cmd+Q` - Quit application
 - `Cmd+Arrow Keys` - Move window (50px steps)
 - `Shift+Cmd+Arrow Keys` - Move window fast (200px steps)
+- `Cmd+1` - Decrease window opacity
+- `Cmd+2` - Increase window opacity
+
+**Model Selection**
+- `Cmd+M` - Switch AI model (cycles through: Sonnet 4.5 → Gemini 2.5 → GPT-5)
 
 ## macOS Permissions Setup
 
@@ -158,6 +168,12 @@ The app has a fallback mechanism:
 - OpenRouter integration with extended timeouts (60s total, 50s API)
 - Model switching with `Cmd+M` (3 models available)
 - Auto-triggers analysis after capturing 2 screenshots
+- Manual trigger with `Cmd+Enter` for single screenshots
+
+**Analysis Modes:**
+- **Code Mode**: Extracts code with language detection, complexity analysis (O-notation), best practices, and test suggestions
+- **General Mode**: Provides explanations, summaries, and answers for non-code content (documents, error messages, UI designs)
+- Toggle modes with `Shift+Cmd+A` or `Cmd+A`
 
 - Uses previous analysis as context for new screenshots (contextual analysis)
 - Extracts code with language detection and problem solving

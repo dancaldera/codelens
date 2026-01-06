@@ -343,73 +343,33 @@ function registerShortcuts(): void {
 
 	// Move window with command+arrow keys - unlimited movement across screens
 	const moveDistance = 50
-
-	globalShortcut.register('CommandOrControl+Up', () => {
-		if (!mainWindow) return
-		const [x, y] = mainWindow.getPosition()
-		const newY = y - moveDistance
-		mainWindow.setPosition(x, newY, false) // false = don't animate, allows negative coordinates
-		logger.debug('Window moved up', { x, y: newY })
-	})
-
-	globalShortcut.register('CommandOrControl+Down', () => {
-		if (!mainWindow) return
-		const [x, y] = mainWindow.getPosition()
-		const newY = y + moveDistance
-		mainWindow.setPosition(x, newY, false) // false = don't animate, allows beyond screen bounds
-		logger.debug('Window moved down', { x, y: newY })
-	})
-
-	globalShortcut.register('CommandOrControl+Left', () => {
-		if (!mainWindow) return
-		const [x, y] = mainWindow.getPosition()
-		const newX = x - moveDistance
-		mainWindow.setPosition(newX, y, false) // false = don't animate, allows negative coordinates
-		logger.debug('Window moved left', { x: newX, y })
-	})
-
-	globalShortcut.register('CommandOrControl+Right', () => {
-		if (!mainWindow) return
-		const [x, y] = mainWindow.getPosition()
-		const newX = x + moveDistance
-		mainWindow.setPosition(newX, y, false) // false = don't animate, allows beyond screen bounds
-		logger.debug('Window moved right', { x: newX, y })
-	})
-
-	// Fast movement shortcuts (Shift+Cmd+Arrow for larger steps)
 	const fastMoveDistance = 200
 
-	globalShortcut.register('Shift+CommandOrControl+Up', () => {
-		if (!mainWindow) return
-		const [x, y] = mainWindow.getPosition()
-		const newY = y - fastMoveDistance
-		mainWindow.setPosition(x, newY, false)
-		logger.debug('Window moved up fast', { x, y: newY })
-	})
+	/**
+	 * Register a window movement shortcut
+	 */
+	function registerMoveShortcut(accelerator: string, deltaX: number, deltaY: number, distance: number): void {
+		globalShortcut.register(accelerator, () => {
+			if (!mainWindow) return
+			const [x, y] = mainWindow.getPosition()
+			const newX = x + deltaX * distance
+			const newY = y + deltaY * distance
+			mainWindow.setPosition(newX, newY, false)
+			logger.debug('Window moved', { accelerator, x: newX, y: newY })
+		})
+	}
 
-	globalShortcut.register('Shift+CommandOrControl+Down', () => {
-		if (!mainWindow) return
-		const [x, y] = mainWindow.getPosition()
-		const newY = y + fastMoveDistance
-		mainWindow.setPosition(x, newY, false)
-		logger.debug('Window moved down fast', { x, y: newY })
-	})
+	// Normal movement (50px)
+	registerMoveShortcut('CommandOrControl+Up', 0, -1, moveDistance)
+	registerMoveShortcut('CommandOrControl+Down', 0, 1, moveDistance)
+	registerMoveShortcut('CommandOrControl+Left', -1, 0, moveDistance)
+	registerMoveShortcut('CommandOrControl+Right', 1, 0, moveDistance)
 
-	globalShortcut.register('Shift+CommandOrControl+Left', () => {
-		if (!mainWindow) return
-		const [x, y] = mainWindow.getPosition()
-		const newX = x - fastMoveDistance
-		mainWindow.setPosition(newX, y, false)
-		logger.debug('Window moved left fast', { x: newX, y })
-	})
-
-	globalShortcut.register('Shift+CommandOrControl+Right', () => {
-		if (!mainWindow) return
-		const [x, y] = mainWindow.getPosition()
-		const newX = x + fastMoveDistance
-		mainWindow.setPosition(newX, y, false)
-		logger.debug('Window moved right fast', { x: newX, y })
-	})
+	// Fast movement (200px)
+	registerMoveShortcut('Shift+CommandOrControl+Up', 0, -1, fastMoveDistance)
+	registerMoveShortcut('Shift+CommandOrControl+Down', 0, 1, fastMoveDistance)
+	registerMoveShortcut('Shift+CommandOrControl+Left', -1, 0, fastMoveDistance)
+	registerMoveShortcut('Shift+CommandOrControl+Right', 1, 0, fastMoveDistance)
 
 	// Opacity control shortcuts
 	globalShortcut.register('CommandOrControl+1', () => {

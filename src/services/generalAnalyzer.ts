@@ -1,4 +1,10 @@
 import { createLogger, logPerformance } from '../lib/logger'
+import {
+	buildErrorMessage,
+	createTimeoutHandler,
+	validateImagePaths,
+	validateProcessedImages,
+} from './baseAnalyzer'
 import { processImages } from './codeAnalyzer'
 import type { AnalysisRequest, GeneralAnalysisResponse } from './openrouter/service'
 import { analyzeGeneralWithProvider, type Provider } from './providers'
@@ -28,6 +34,13 @@ Respond ONLY in JSON with this exact shape:
   "test": "Detailed test plan, verification steps, or validation checklist to confirm correctness."
 }`.trim()
 
+// Default error response
+const ERROR_RESPONSE: GeneralAnalysisResult = {
+	answer: 'Analysis failed or timed out',
+	explanation: 'Unable to complete analysis',
+	test: 'No test generated',
+}
+
 function createErrorResponse(error: string, details: string): GeneralAnalysisResult {
 	return {
 		answer: error,
@@ -48,29 +61,17 @@ export async function analyzeGeneralContentFromImages(
 
 	const prompt = customPrompt || GENERAL_PROMPT
 
-	const defaultResponse: GeneralAnalysisResult = {
-		answer: 'Analysis failed or timed out',
-		explanation: 'Unable to complete analysis',
-		test: 'No test generated',
-	}
-
-	const timeoutDuration = 60000
-	const analysisTimeout = setTimeout(() => {
-		logger.warn(`General analysis timeout after ${timeoutDuration}ms`)
-		return defaultResponse
-	}, timeoutDuration)
+	const timer = createTimeoutHandler(ERROR_RESPONSE, 'General analysis')
 
 	try {
-		if (!imagePaths?.length) {
-			logger.error('No image paths provided for general analysis')
-			clearTimeout(analysisTimeout)
+		if (!validateImagePaths(imagePaths, timer)) {
+			timer.clear()
 			return createErrorResponse('No images provided', 'Capture at least one screenshot to analyze')
 		}
 
 		const imageContents = await processImages(imagePaths)
-		if (!imageContents.length) {
-			logger.error('General analysis image processing failed')
-			clearTimeout(analysisTimeout)
+		if (!validateProcessedImages(imageContents, timer, 'General analysis image processing failed')) {
+			timer.clear()
 			return createErrorResponse('Failed to process images', 'Verify screenshot files and try again')
 		}
 
@@ -83,7 +84,7 @@ export async function analyzeGeneralContentFromImages(
 		logger.info('Executing general analysis', { model, provider: providerOverride })
 		const result: GeneralAnalysisResponse = await analyzeGeneralWithProvider(analysisRequest, model, providerOverride)
 
-		clearTimeout(analysisTimeout)
+		timer.clear()
 		logPerformance('General analysis completed', startTime)
 
 		return {
@@ -92,13 +93,8 @@ export async function analyzeGeneralContentFromImages(
 			test: result.test,
 		}
 	} catch (error) {
-		logger.error('General analysis failed', { error: error instanceof Error ? error.message : String(error) })
-		clearTimeout(analysisTimeout)
-
-		const isServiceError = error instanceof Error && error.message.includes('API')
-		const errorMsg = isServiceError ? 'AI service unavailable' : 'Analysis failed'
-		const details = isServiceError ? 'Check your API key and provider availability' : 'Please try again'
-
-		return createErrorResponse(errorMsg, details)
+		timer.clear()
+		const { message, details } = buildErrorMessage(error)
+		return createErrorResponse(message, details)
 	}
 }
