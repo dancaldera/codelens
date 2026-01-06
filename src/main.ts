@@ -322,7 +322,9 @@ function registerShortcuts(): void {
 		mainWindow.setPosition(50, 50, false)
 		logger.info('Screenshots reset and window repositioned')
 		for (const filePath of pathsToRemove) {
-			void fsPromises.unlink(filePath).catch(() => {})
+			void fsPromises.unlink(filePath).catch((err) => {
+				logger.warn('Failed to delete screenshot file', { filePath, error: err })
+			})
 		}
 	})
 
@@ -520,7 +522,9 @@ async function takeScreenshot(): Promise<void> {
 						error: readError instanceof Error ? readError.message : String(readError),
 					})
 				}
-				void fsPromises.unlink(filePath).catch(() => {})
+				void fsPromises.unlink(filePath).catch((err) => {
+					logger.warn('Failed to delete temporary screenshot file', { filePath, error: err })
+				})
 			} catch (fallbackError) {
 				logger.error('Fallback screencapture failed', {
 					error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
@@ -577,7 +581,9 @@ async function saveScreenshot(buffer: Buffer, method: string): Promise<void> {
 	screenshotCount = nextSlot
 
 	if (previousPath && previousPath !== filePath) {
-		void fsPromises.unlink(previousPath).catch(() => {})
+		void fsPromises.unlink(previousPath).catch((err) => {
+			logger.warn('Failed to delete old screenshot file', { filePath: previousPath, error: err })
+		})
 	}
 
 	logger.info('Screenshot saved', {
@@ -617,7 +623,7 @@ async function triggerAnalysis(): Promise<void> {
 	}
 
 	if (!availableModels.length) {
-		initializeProvider()
+		await initializeProvider()
 	}
 
 	const currentModel = availableModels[currentModelIndex]
@@ -630,7 +636,6 @@ async function triggerAnalysis(): Promise<void> {
 		return
 	}
 
-	const prompt = undefined
 	isAnalysisRunning = true
 	pendingAnalysis = false
 
@@ -650,7 +655,7 @@ async function triggerAnalysis(): Promise<void> {
 			if (currentMode === 'code') {
 				const result = await analyzeContentFromImages(
 					screenshotPaths,
-					prompt,
+					undefined,
 					'code',
 					previousCodeAnalysis || undefined,
 					(detectedLanguage) => {
@@ -692,7 +697,7 @@ ${result.summary}
 			} else {
 				const result = await analyzeGeneralContentFromImages(
 					screenshotPaths,
-					prompt,
+					undefined,
 					previousGeneralAnalysis || undefined,
 					currentModel,
 					currentProvider,

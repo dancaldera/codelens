@@ -25,10 +25,21 @@ interface ModelInfo {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-	const screenshots = document.getElementById('screenshots') as HTMLDivElement
-	const result = document.getElementById('result') as HTMLDivElement
-	const loading = document.getElementById('loading') as HTMLDivElement
-	const modelInfo = document.getElementById('modelInfo') as HTMLDivElement
+	const screenshots = document.getElementById('screenshots')
+	const result = document.getElementById('result')
+	const loading = document.getElementById('loading')
+	const modelInfo = document.getElementById('modelInfo')
+
+	// Ensure all required DOM elements exist
+	if (!screenshots || !result || !loading || !modelInfo) {
+		console.error('Required DOM elements not found')
+		return
+	}
+
+	const screenshotsDiv = screenshots as HTMLDivElement
+	const resultDiv = result as HTMLDivElement
+	const loadingDiv = loading as HTMLDivElement
+	const modelInfoDiv = modelInfo as HTMLDivElement
 
 	const MAX_SCREENSHOTS = 2
 	const screenshotData = new Map<number, ScreenshotData>()
@@ -40,24 +51,24 @@ window.addEventListener('DOMContentLoaded', () => {
 	function updateModelInfoBadge(): void {
 		const label = currentModelLabel || 'Model'
 		const modeSuffix = currentAnalysisMode === 'general' ? ' • General' : ''
-		modelInfo.textContent = `${label}${modeSuffix}`
+		modelInfoDiv.textContent = `${label}${modeSuffix}`
 
 		if (currentModelDataset) {
-			modelInfo.dataset.model = currentModelDataset
+			modelInfoDiv.dataset.model = currentModelDataset
 		} else {
-			delete modelInfo.dataset.model
+			delete modelInfoDiv.dataset.model
 		}
 
-		modelInfo.dataset.mode = currentAnalysisMode
+		modelInfoDiv.dataset.mode = currentAnalysisMode
 	}
 
 	function flashModelInfoBadge(): void {
-		modelInfo.classList.add('show')
+		modelInfoDiv.classList.add('show')
 		if (modelInfoTimeout) {
 			clearTimeout(modelInfoTimeout)
 		}
 		modelInfoTimeout = setTimeout(() => {
-			modelInfo.classList.remove('show')
+			modelInfoDiv.classList.remove('show')
 			modelInfoTimeout = null
 		}, 3000)
 	}
@@ -80,7 +91,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			slot.className = 'screenshot'
 			slot.id = `screenshot${i}`
 			slot.textContent = i.toString()
-			screenshots.appendChild(slot)
+			screenshotsDiv.appendChild(slot)
 		}
 	}
 
@@ -97,23 +108,23 @@ window.addEventListener('DOMContentLoaded', () => {
 		slot.classList.add('active')
 	})
 
-	// Handle analysis results
+	// Handle analysis resultDivs
 	window.api.onAnalysisResult((markdown: string) => {
-		loading.classList.add('hidden')
-		result.innerHTML = marked.parse(markdown)
-		result.classList.add('visible')
+		loadingDiv.classList.add('hidden')
+		resultDiv.innerHTML = marked.parse(markdown)
+		resultDiv.classList.add('visible')
 
 		// Apply current mode class
 		if (currentAnalysisMode === 'general') {
-			result.classList.add('general-mode')
-			result.classList.remove('code-mode')
+			resultDiv.classList.add('general-mode')
+			resultDiv.classList.remove('code-mode')
 		} else {
-			result.classList.add('code-mode')
-			result.classList.remove('general-mode')
+			resultDiv.classList.add('code-mode')
+			resultDiv.classList.remove('general-mode')
 		}
 
 		// Highlight code blocks
-		result.querySelectorAll('pre code').forEach((block) => {
+		resultDiv.querySelectorAll('pre code').forEach((block) => {
 			hljs.highlightElement(block as HTMLElement)
 		})
 
@@ -149,30 +160,30 @@ window.addEventListener('DOMContentLoaded', () => {
 
 		currentAnalysisMode = mode === 'general' ? 'general' : 'code'
 
-		// Apply mode-specific class to result panel
+		// Apply mode-specific class to resultDiv panel
 		if (currentAnalysisMode === 'general') {
-			result.classList.add('general-mode')
-			result.classList.remove('code-mode')
+			resultDiv.classList.add('general-mode')
+			resultDiv.classList.remove('code-mode')
 		} else {
-			result.classList.add('code-mode')
-			result.classList.remove('general-mode')
+			resultDiv.classList.add('code-mode')
+			resultDiv.classList.remove('general-mode')
 		}
 
 		updateModelInfoBadge()
 		flashModelInfoBadge()
 	})
 
-	// Handle loading state
+	// Handle loadingDiv state
 	window.api.onShowLoading(() => {
-		loading.classList.remove('hidden')
+		loadingDiv.classList.remove('hidden')
 	})
 
 	// Handle context reset
 	window.api.onContextReset(() => {
-		result.innerHTML = ''
-		result.classList.remove('visible')
+		resultDiv.innerHTML = ''
+		resultDiv.classList.remove('visible')
 		screenshotData.clear()
-		screenshots.querySelectorAll('.screenshot').forEach((slot, i) => {
+		screenshotsDiv.querySelectorAll('.screenshot').forEach((slot, i) => {
 			const element = slot as HTMLDivElement
 			element.style.backgroundImage = ''
 			element.textContent = (i + 1).toString()
@@ -183,7 +194,7 @@ window.addEventListener('DOMContentLoaded', () => {
 	// Handle screenshot clear
 	window.api.onClearScreenshots(() => {
 		screenshotData.clear()
-		screenshots.querySelectorAll('.screenshot').forEach((slot, i) => {
+		screenshotsDiv.querySelectorAll('.screenshot').forEach((slot, i) => {
 			const element = slot as HTMLDivElement
 			element.style.backgroundImage = ''
 			element.textContent = (i + 1).toString()
