@@ -7,7 +7,7 @@
  */
 
 import { type ChildProcess, spawn } from "node:child_process";
-import { type FSWatcher, watch } from "node:fs";
+import { existsSync, type FSWatcher, mkdirSync, watch } from "node:fs";
 import path from "node:path";
 
 // Paths to watch
@@ -140,6 +140,11 @@ function shouldIgnoreFile(filename: string): boolean {
  */
 function startWatching(pathToWatch: string): FSWatcher {
 	const fullPath = path.resolve(pathToWatch);
+
+	if (!existsSync(fullPath)) {
+		mkdirSync(fullPath, { recursive: true });
+		console.log(`[dev-watcher] Created directory: ${pathToWatch}`);
+	}
 
 	console.log(`[dev-watcher] Watching: ${pathToWatch}`);
 
