@@ -132,7 +132,6 @@ The app has a fallback mechanism:
 - `npm start` - Build and run the application
 - `npm run typescript-check` - Type check without compilation
 - `npm run watch` - Watch TypeScript files for changes
-- `npm run electron-dev` - Run Electron with automatic restart
 
 **Code Quality:**
 - `npm run format` - Format code with Biome
