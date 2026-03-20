@@ -9,7 +9,6 @@ import { createLogger, suppressElectronErrors } from './lib'
 import { analyzeContentFromImages, analyzeGeneralContentFromImages } from './services'
 import {
 	getAvailableModels,
-	getAvailableModelsSync,
 	getCurrentProvider,
 	getProviderInfo,
 	isAnyProviderConfigured,
@@ -148,12 +147,10 @@ function createWindow(): void {
 	// Initialize opacity and model after window loads
 	mainWindow.webContents.once('dom-ready', () => {
 		updateOpacity()
-		// Initialize provider and models
-		initializeProvider()
-		// Send initial model state to renderer
-		const initialState = getInitialModelState()
-		mainWindow?.webContents.send('model-changed', initialState)
+		// Send analysis mode first
 		mainWindow?.webContents.send('analysis-mode-changed', currentMode)
+		// Initialize provider and models (will send model-changed when done)
+		void initializeProvider()
 	})
 
 	mainWindow.on('closed', () => {
@@ -182,38 +179,37 @@ function updateOpacity(): void {
 async function initializeProvider(): Promise<void> {
 	currentProvider = getCurrentProvider()
 
-	// Use sync version first for immediate availability, then fetch async
-	availableModels = getAvailableModelsSync(currentProvider)
-	currentModelIndex = 0
+	// Notify renderer that models are loading
+	if (mainWindow) {
+		mainWindow.webContents.send('models-loading')
+	}
 
-	logger.info('Provider initialized (sync)', {
-		provider: currentProvider,
-		models: availableModels,
-		defaultModel: availableModels[0],
-	})
-
-	// Fetch latest models from API in background
+	// Fetch models from API
 	try {
-		const latestModels = await getAvailableModels(currentProvider)
-		if (latestModels.length > 0) {
-			availableModels = latestModels
-			logger.info('Models updated from API', {
-				provider: currentProvider,
-				models: availableModels,
-				count: availableModels.length,
-			})
+		availableModels = await getAvailableModels(currentProvider)
+		currentModelIndex = 0
 
-			// Send updated model state to renderer
-			if (mainWindow) {
-				const modelInfo = {
-					provider: currentProvider,
-					model: availableModels[currentModelIndex],
-				}
-				mainWindow.webContents.send('model-changed', modelInfo)
+		logger.info('Provider initialized', {
+			provider: currentProvider,
+			models: availableModels,
+			count: availableModels.length,
+			defaultModel: availableModels[0],
+		})
+
+		// Send model state to renderer
+		if (mainWindow) {
+			const modelInfo = {
+				provider: currentProvider,
+				model: availableModels[currentModelIndex],
 			}
+			mainWindow.webContents.send('model-changed', modelInfo)
 		}
 	} catch (error) {
-		logger.error('Failed to fetch latest models, using fallback', { error })
+		logger.error('Failed to fetch models', { error })
+		// Send error state to renderer
+		if (mainWindow) {
+			mainWindow.webContents.send('model-changed', 'no-key')
+		}
 	}
 }
 
@@ -289,19 +285,6 @@ function cancelScheduledAnalysis(): void {
 		analysisTimer = null
 	}
 	pendingAnalysis = false
-}
-
-function getInitialModelState(): string | { provider: Provider; model: string } {
-	// Return appropriate initial state based on provider configuration
-	if (!isAnyProviderConfigured()) {
-		return 'no-key'
-	}
-
-	const providerInfo = getProviderInfo(currentProvider)
-	return {
-		provider: providerInfo.provider,
-		model: availableModels[currentModelIndex] ?? '',
-	}
 }
 
 function registerShortcuts(): void {

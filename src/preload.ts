@@ -15,6 +15,7 @@ interface ApiInterface {
 	onShowLoading: (callback: () => void) => void
 	onLanguageDetected: (callback: (language: string) => void) => void
 	onModelChanged: (callback: (model: string) => void) => void
+	onModelsLoading: (callback: () => void) => void
 	onAnalysisModeChanged: (callback: (mode: string) => void) => void
 	resizeWindow: (width: number, height: number) => void
 }
@@ -65,6 +66,8 @@ contextBridge.exposeInMainWorld('api', {
 	// Model change notification
 	onModelChanged: (callback: (model: string) => void) =>
 		ipcRenderer.on('model-changed', (_e: IpcRendererEvent, model: string) => callback(model)),
+	// Models loading notification
+	onModelsLoading: (callback: () => void) => ipcRenderer.on('models-loading', () => callback()),
 	// Window resizing
 	resizeWindow: (width: number, height: number) => ipcRenderer.send('resize-window', { width, height }),
 	// Analysis mode change notification

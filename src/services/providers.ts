@@ -11,7 +11,6 @@ const logger = createLogger('ProviderManager')
 
 // Cache for fetched models
 let cachedModels: ProgrammingModel[] | null = null
-let modelsFetchPromise: Promise<ProgrammingModel[]> | null = null
 
 export type Provider = 'openrouter'
 
@@ -84,44 +83,17 @@ export async function getAvailableModels(providerOverride?: Provider): Promise<s
 		return cachedModels.map((m) => m.id)
 	}
 
-	// If a fetch is already in progress, wait for it
-	if (modelsFetchPromise) {
-		logger.debug('Waiting for in-progress model fetch')
-		const models = await modelsFetchPromise
-		return models.map((m) => m.id)
-	}
-
-	// Start new fetch
+	// Fetch models from API
 	logger.debug('Fetching programming models with image support')
-	modelsFetchPromise = fetchProgrammingModels()
-
 	try {
-		const models = await modelsFetchPromise
+		const models = await fetchProgrammingModels()
 		cachedModels = models
-		modelsFetchPromise = null
 		return models.map((m) => m.id)
 	} catch (error) {
 		logger.error('Failed to fetch models, using fallback', { error })
-		modelsFetchPromise = null
 		cachedModels = FALLBACK_MODELS
 		return FALLBACK_MODELS.map((m) => m.id)
 	}
-}
-
-/**
- * Get available models synchronously (returns cached or fallback)
- * Use this when you need models immediately without waiting for API
- */
-export function getAvailableModelsSync(providerOverride?: Provider): string[] {
-	// Ensure provider is configured
-	getCurrentProvider(providerOverride)
-
-	if (cachedModels) {
-		return cachedModels.map((m) => m.id)
-	}
-
-	// Return fallback if no cache available
-	return FALLBACK_MODELS.map((m) => m.id)
 }
 
 /**
@@ -130,7 +102,6 @@ export function getAvailableModelsSync(providerOverride?: Provider): string[] {
 export async function refreshModelsCache(): Promise<void> {
 	logger.debug('Refreshing models cache')
 	cachedModels = null
-	modelsFetchPromise = null
 	await getAvailableModels()
 }
 

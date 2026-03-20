@@ -153,6 +153,14 @@ window.addEventListener('DOMContentLoaded', () => {
 		flashModelInfoBadge()
 	})
 
+	// Handle models loading state
+	window.api.onModelsLoading(() => {
+		currentModelLabel = 'Loading models...'
+		currentModelDataset = ''
+		updateModelInfoBadge()
+		modelInfoDiv.classList.add('show')
+	})
+
 	window.api.onAnalysisModeChanged((mode: string) => {
 		if (modelInfoTimeout) {
 			clearTimeout(modelInfoTimeout)
