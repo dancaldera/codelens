@@ -404,7 +404,7 @@ Keep the explanation concise and the test thorough enough to validate the answer
 	private extractComplexity(text: string, type: 'time' | 'space'): string | null {
 		const complexityRegex = new RegExp(`${type}\\s*complexity[\\s:]*([^\\n.]+)`, 'i')
 		const match = text.match(complexityRegex)
-		return match ? match[1].trim() : null
+		return match?.[1] ? match[1].trim() : null
 	}
 
 	/**

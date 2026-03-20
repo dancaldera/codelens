@@ -300,7 +300,7 @@ function getInitialModelState(): string | { provider: Provider; model: string } 
 	const providerInfo = getProviderInfo(currentProvider)
 	return {
 		provider: providerInfo.provider,
-		model: availableModels[currentModelIndex],
+		model: availableModels[currentModelIndex] ?? '',
 	}
 }
 
@@ -353,7 +353,7 @@ function registerShortcuts(): void {
 	function registerMoveShortcut(accelerator: string, deltaX: number, deltaY: number, distance: number): void {
 		globalShortcut.register(accelerator, () => {
 			if (!mainWindow) return
-			const [x, y] = mainWindow.getPosition()
+			const [x = 0, y = 0] = mainWindow.getPosition()
 			const newX = x + deltaX * distance
 			const newY = y + deltaY * distance
 			mainWindow.setPosition(newX, newY, false)
