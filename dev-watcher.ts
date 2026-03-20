@@ -6,9 +6,9 @@
  * No external dependencies - uses Node.js built-in fs.watch
  */
 
-import { type ChildProcess, spawn } from "node:child_process";
-import { existsSync, type FSWatcher, mkdirSync, watch } from "node:fs";
-import path from "node:path";
+import { type ChildProcess, spawn } from "child_process";
+import { existsSync, type FSWatcher, mkdirSync, watch } from "fs";
+import path from "path";
 
 // Paths to watch
 const WATCH_PATHS: readonly string[] = ["dist", "index.html", "styles"] as const;

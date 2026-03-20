@@ -6,7 +6,7 @@
  * Replaces concurrently with a vanilla Node.js solution
  */
 
-import { type ChildProcess, spawn } from "node:child_process";
+import { type ChildProcess, spawn } from "child_process";
 
 // ANSI color codes for better output readability
 const colors = {
