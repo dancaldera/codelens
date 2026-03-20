@@ -6,21 +6,24 @@
  * Replaces concurrently with a vanilla Node.js solution
  */
 
-import { type ChildProcess, spawn } from "child_process";
+{
+	const { spawn } = require('node:child_process') as typeof import('node:child_process')
 
-// ANSI color codes for better output readability
-const colors = {
-	reset: "\x1b[0m",
-	bright: "\x1b[1m",
-	cyan: "\x1b[36m",
-	yellow: "\x1b[33m",
-	red: "\x1b[31m",
-	green: "\x1b[32m",
-} as const;
+	type ChildProcess = import('node:child_process').ChildProcess;
 
-// Process management
-const processes: Map<string, ChildProcess> = new Map();
-let isShuttingDown = false;
+	// ANSI color codes for better output readability
+	const colors = {
+		reset: "\x1b[0m",
+		bright: "\x1b[1m",
+		cyan: "\x1b[36m",
+		yellow: "\x1b[33m",
+		red: "\x1b[31m",
+		green: "\x1b[32m",
+	} as const;
+
+	// Process management
+	const processes: Map<string, ChildProcess> = new Map();
+	let isShuttingDown = false;
 
 /**
  * Color a message for console output
@@ -148,7 +151,7 @@ function init(): void {
 	// Small delay to let TypeScript start first
 	setTimeout(() => {
 		// Start Electron development watcher
-		spawnProcess("electron-dev", "bun", ["run", "dev-watcher.ts"], "green");
+		spawnProcess("electron-dev", "npm", ["run", "electron-dev"], "green");
 	}, 1000);
 
 	// Handle process signals (only log once)
@@ -179,5 +182,6 @@ function init(): void {
 	});
 }
 
-// Start the development runner
-init();
+	// Start the development runner
+	init();
+}

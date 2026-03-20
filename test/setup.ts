@@ -1,5 +1,5 @@
-// Test setup file for Bun tests
-import { afterAll, beforeAll } from 'bun:test'
+// Test setup file for Vitest
+import { afterAll, beforeAll } from 'vitest'
 
 beforeAll(() => {
 	// Set test environment

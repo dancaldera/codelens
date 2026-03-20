@@ -1,11 +1,11 @@
-import { describe, expect, mock, test } from 'bun:test'
+import { describe, expect, test, vi } from 'vitest'
 
 const mockApp = {
 	isPackaged: false,
-	getPath: mock(() => '/tmp/test-logs'),
+	getPath: vi.fn(() => '/tmp/test-logs'),
 }
 
-mock.module('electron', () => ({ app: mockApp }))
+vi.mock('electron', () => ({ app: mockApp }))
 
 describe('General Analyzer', () => {
 	test('should return helpful error when no images provided', async () => {

@@ -1,15 +1,15 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 // Mock Electron app before importing the module
 const mockApp = {
 	isPackaged: false,
-	getPath: mock(() => '/tmp/test-logs'),
+	getPath: vi.fn(() => '/tmp/test-logs'),
 }
 
-mock.module('electron', () => ({ app: mockApp }))
+vi.mock('electron', () => ({ app: mockApp }))
 
 // Mock fetch for API calls
-const mockFetch = mock((url: string) => {
+const mockFetch = vi.fn((url: string) => {
 	if (url.includes('/api/v1/models?category=programming')) {
 		return Promise.resolve({
 			ok: true,
@@ -132,7 +132,7 @@ describe('Provider Management', () => {
 
 			// Mock a failed fetch
 			const originalFetch = global.fetch
-			global.fetch = mock(() => Promise.reject(new Error('API Error'))) as any
+			global.fetch = vi.fn(() => Promise.reject(new Error('API Error'))) as any
 
 			const models = await getAvailableModels()
 			expect(models).toContain('anthropic/claude-sonnet-4.5')

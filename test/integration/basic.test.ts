@@ -1,12 +1,12 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test'
+import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 // Mock Electron app to avoid import issues
 const mockApp = {
 	isPackaged: false,
-	getPath: mock(() => '/tmp/test-logs')
+	getPath: vi.fn(() => '/tmp/test-logs'),
 }
 
-mock.module('electron', () => ({ app: mockApp }))
+vi.mock('electron', () => ({ app: mockApp }))
 
 describe('Basic Integration Tests', () => {
 	beforeEach(() => {

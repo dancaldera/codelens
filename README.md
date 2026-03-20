@@ -17,7 +17,7 @@ AI-powered code analysis from screenshots. An Electron application that captures
 ## Installation
 
 1. Clone this repository
-2. Install dependencies: `bun install`
+2. Install dependencies: `npm install`
 3. **Set up OpenRouter API Key** (required for AI analysis):
    ```bash
    export OPENROUTER_API_KEY="sk-your-openrouter-api-key-here"
@@ -26,7 +26,7 @@ AI-powered code analysis from screenshots. An Electron application that captures
    ```
    OPENROUTER_API_KEY=sk-your-openrouter-api-key-here
    ```
-4. Start the application: `bun start`
+4. Start the application: `npm start`
 
 ## Configuration
 
@@ -127,28 +127,28 @@ The app has a fallback mechanism:
 ## Development
 
 **Development:**
-- `bun run dev` - Start development with hot reload
-- `bun run build` - Compile TypeScript to JavaScript
-- `bun start` - Build and run the application
-- `bun run typescript-check` - Type check without compilation
-- `bun run watch` - Watch TypeScript files for changes
-- `bun run electron-dev` - Run Electron with nodemon auto-restart
+- `npm run dev` - Start development with hot reload
+- `npm run build` - Compile TypeScript to JavaScript
+- `npm start` - Build and run the application
+- `npm run typescript-check` - Type check without compilation
+- `npm run watch` - Watch TypeScript files for changes
+- `npm run electron-dev` - Run Electron with automatic restart
 
 **Code Quality:**
-- `bun run format` - Format code with Biome
-- `bun run lint` - Lint and auto-fix with Biome
-- `bun run check` - Run both formatting and linting
+- `npm run format` - Format code with Biome
+- `npm run lint` - Lint and auto-fix with Biome
+- `npm run check` - Run both formatting and linting
 
 **Testing:**
-- `bun test` - Run all tests
-- `bun run test:watch` - Run tests in watch mode
-- `bun run test:coverage` - Run tests with coverage
+- `npm test` - Run all tests
+- `npm run test:watch` - Run tests in watch mode
+- `npm run test:coverage` - Run tests with coverage
 
 **Packaging:**
-- `bun run package` - Build macOS .dmg
-- `bun run package-win` - Build Windows installer
-- `bun run package-linux` - Build Linux AppImage
-- `bun run package-all` - Build for all platforms
+- `npm run package` - Build macOS .dmg
+- `npm run package-win` - Build Windows installer
+- `npm run package-linux` - Build Linux AppImage
+- `npm run package-all` - Build for all platforms
 
 ## Technical Details
 
@@ -192,7 +192,7 @@ The app has a fallback mechanism:
 **Development Stack:**
 - TypeScript with strict mode and ES2020 target
 - Biome for formatting and linting with consistent code style
-- Bun for package management and testing
+- npm for package management and Vitest for testing
 - Winston for structured logging with Electron error suppression
 - Unified CSS architecture (single app.css file)
 - Concurrent development workflow with hot reload

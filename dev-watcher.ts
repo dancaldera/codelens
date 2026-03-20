@@ -6,24 +6,28 @@
  * No external dependencies - uses Node.js built-in fs.watch
  */
 
-import { type ChildProcess, spawn } from "child_process";
-import { existsSync, type FSWatcher, mkdirSync, watch } from "fs";
-import path from "path";
+{
+	const { spawn } = require('node:child_process') as typeof import('node:child_process')
+	const { existsSync, mkdirSync, watch } = require('node:fs') as typeof import('node:fs')
+	const path = require('node:path') as typeof import('node:path')
 
-// Paths to watch
-const WATCH_PATHS: readonly string[] = ["dist", "index.html", "styles"] as const;
+	type ChildProcess = import('node:child_process').ChildProcess;
+	type FSWatcher = import('node:fs').FSWatcher;
 
-// Debounce delay in milliseconds
-const DEBOUNCE_DELAY = 300;
+	// Paths to watch
+	const WATCH_PATHS: readonly string[] = ["dist", "index.html", "styles"] as const;
 
-// Exit codes that shouldn't be logged as errors
-const EXPECTED_EXIT_CODES = [0, 143] as const;
+	// Debounce delay in milliseconds
+	const DEBOUNCE_DELAY = 300;
 
-let electronProcess: ChildProcess | null = null;
-let restartTimeout: NodeJS.Timeout | null = null;
-let autoRestartTimeout: NodeJS.Timeout | null = null;
-let restartRequested = false;
-let suppressAutoRestart = false;
+	// Exit codes that shouldn't be logged as errors
+	const EXPECTED_EXIT_CODES = [0, 143] as const;
+
+	let electronProcess: ChildProcess | null = null;
+	let restartTimeout: NodeJS.Timeout | null = null;
+	let autoRestartTimeout: NodeJS.Timeout | null = null;
+	let restartRequested = false;
+	let suppressAutoRestart = false;
 
 /**
  * Start the Electron process
@@ -194,5 +198,6 @@ function init(): void {
 	process.on("SIGTERM", () => handleShutdown("SIGTERM"));
 }
 
-// Start the watcher
-init();
+	// Start the watcher
+	init();
+}

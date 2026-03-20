@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'vitest'
 import { getMimeType, validateImageFile } from '../../../src/lib/utils/image'
 
 describe('Image utilities', () => {

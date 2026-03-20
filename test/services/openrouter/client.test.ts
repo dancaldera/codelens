@@ -1,12 +1,12 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 // Mock Electron app before importing the module
 const mockApp = {
 	isPackaged: false,
-	getPath: mock(() => '/tmp/test-logs')
+	getPath: vi.fn(() => '/tmp/test-logs'),
 }
 
-mock.module('electron', () => ({ app: mockApp }))
+vi.mock('electron', () => ({ app: mockApp }))
 
 describe('OpenRouter Client', () => {
 	let originalApiKey: string | undefined

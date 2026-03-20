@@ -1,12 +1,12 @@
-import { describe, expect, mock, test } from 'bun:test'
+import { describe, expect, test, vi } from 'vitest'
 
 // Mock Electron's app module
 const mockApp = {
 	isPackaged: false,
-	getPath: mock(() => '/tmp/test-logs')
+	getPath: vi.fn(() => '/tmp/test-logs'),
 }
 
-mock.module('electron', () => ({ app: mockApp }))
+vi.mock('electron', () => ({ app: mockApp }))
 
 describe('Logger utilities', () => {
 	describe('logPerformance', () => {
