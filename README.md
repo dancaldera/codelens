@@ -144,10 +144,13 @@ The app has a fallback mechanism:
 - `npm run test:coverage` - Run tests with coverage
 
 **Packaging:**
-- `npm run package` - Build macOS .dmg
+- `npm run package` - Build an unsigned local macOS `.dmg` (skips macOS code signing)
+- `npm run package-mac-signed` - Build a signed macOS `.dmg` when your Apple certificate/keychain setup is ready
 - `npm run package-win` - Build Windows installer
 - `npm run package-linux` - Build Linux AppImage
 - `npm run package-all` - Build for all platforms
+
+For local macOS packaging, the default script intentionally sets `mac.identity=null` to avoid Electron Builder auto-discovering a signing identity and stalling at the `signing` step. Use the signed variant only for release builds that are meant to go through Apple code signing.
 
 ## Technical Details
 
