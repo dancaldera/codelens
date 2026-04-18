@@ -11,7 +11,7 @@ test/
 │   │   └── image.test.ts       # Image utility function tests
 │   └── logger.test.ts          # Logger utility tests
 ├── services/
-│   ├── generalAnalyzer.test.ts # General analysis service tests
+│   ├── smartAnalyzer.test.ts   # Smart screenshot analysis service tests
 │   ├── providers.test.ts       # Provider management tests
 │   └── openrouter/
 │       └── client.test.ts      # OpenRouter client configuration tests

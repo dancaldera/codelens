@@ -1,11 +1,6 @@
 import { createLogger } from '../lib/logger'
 import { fetchProgrammingModels, isOpenRouterConfigured, type ProgrammingModel } from './openrouter/client'
-import {
-	type AnalysisRequest,
-	type AnalysisResponse,
-	type GeneralAnalysisResponse,
-	OpenRouterService,
-} from './openrouter/service'
+import { type AnalysisRequest, OpenRouterService } from './openrouter/service'
 
 const logger = createLogger('ProviderManager')
 
@@ -96,6 +91,16 @@ export async function getAvailableModels(providerOverride?: Provider): Promise<s
 	}
 }
 
+export function getAvailableModelsSync(): string[] {
+	if (cachedModels) {
+		logger.debug('Returning cached models synchronously', { count: cachedModels.length })
+		return cachedModels.map((m) => m.id)
+	}
+
+	logger.debug('Returning fallback models synchronously')
+	return FALLBACK_MODELS.map((m) => m.id)
+}
+
 /**
  * Refresh the models cache by fetching latest from API
  */
@@ -126,27 +131,15 @@ export function createAnalysisService(model?: string, providerOverride?: Provide
 }
 
 /**
- * Analyze code using the specified provider
+ * Analyze screenshot content using the specified provider
  */
-export async function analyzeCodeWithProvider(
+export async function analyzeWithProvider(
 	request: AnalysisRequest,
 	model?: string,
 	providerOverride?: Provider,
-): Promise<AnalysisResponse> {
+): Promise<string> {
 	const service = createAnalysisService(model, providerOverride)
-	return await service.analyzeCode(request)
-}
-
-/**
- * Analyze general content using the specified provider
- */
-export async function analyzeGeneralWithProvider(
-	request: AnalysisRequest,
-	model?: string,
-	providerOverride?: Provider,
-): Promise<GeneralAnalysisResponse> {
-	const service = createAnalysisService(model, providerOverride)
-	return await service.analyzeGeneral(request)
+	return await service.analyze(request)
 }
 
 /**
