@@ -46,21 +46,26 @@ window.addEventListener('DOMContentLoaded', () => {
 	let modelInfoTimeout: ReturnType<typeof setTimeout> | null = null
 	let currentModelLabel = ''
 	let currentModelDataset = ''
-	let currentAnalysisMode: 'code' | 'general' = 'code'
 
 	function updateModelInfoBadge(): void {
 		const label = currentModelLabel || 'Model'
-		const modeSuffix = currentAnalysisMode === 'general' ? ' • General' : ''
-		modelInfoDiv.textContent = `${label}${modeSuffix}`
+
+		modelInfoDiv.replaceChildren()
+
+		const modelLine = document.createElement('div')
+		modelLine.className = 'badge-model'
+		modelLine.textContent = label
+
+		modelInfoDiv.append(modelLine)
 
 		if (currentModelDataset) {
 			modelInfoDiv.dataset.model = currentModelDataset
 		} else {
 			delete modelInfoDiv.dataset.model
 		}
-
-		modelInfoDiv.dataset.mode = currentAnalysisMode
 	}
+
+	const BADGE_VISIBLE_MS = 3000
 
 	function flashModelInfoBadge(): void {
 		modelInfoDiv.classList.add('show')
@@ -70,7 +75,7 @@ window.addEventListener('DOMContentLoaded', () => {
 		modelInfoTimeout = setTimeout(() => {
 			modelInfoDiv.classList.remove('show')
 			modelInfoTimeout = null
-		}, 3000)
+		}, BADGE_VISIBLE_MS)
 	}
 
 	// Configure marked.js
@@ -96,6 +101,8 @@ window.addEventListener('DOMContentLoaded', () => {
 	}
 
 	initScreenshots()
+	updateModelInfoBadge()
+	flashModelInfoBadge()
 
 	// Handle screenshot images
 	window.api.onScreenshotImage((data: ScreenshotData) => {
@@ -113,15 +120,6 @@ window.addEventListener('DOMContentLoaded', () => {
 		loadingDiv.classList.add('hidden')
 		resultDiv.innerHTML = marked.parse(markdown)
 		resultDiv.classList.add('visible')
-
-		// Apply current mode class
-		if (currentAnalysisMode === 'general') {
-			resultDiv.classList.add('general-mode')
-			resultDiv.classList.remove('code-mode')
-		} else {
-			resultDiv.classList.add('code-mode')
-			resultDiv.classList.remove('general-mode')
-		}
 
 		// Highlight code blocks
 		resultDiv.querySelectorAll('pre code').forEach((block) => {
@@ -159,26 +157,6 @@ window.addEventListener('DOMContentLoaded', () => {
 		currentModelDataset = ''
 		updateModelInfoBadge()
 		modelInfoDiv.classList.add('show')
-	})
-
-	window.api.onAnalysisModeChanged((mode: string) => {
-		if (modelInfoTimeout) {
-			clearTimeout(modelInfoTimeout)
-		}
-
-		currentAnalysisMode = mode === 'general' ? 'general' : 'code'
-
-		// Apply mode-specific class to resultDiv panel
-		if (currentAnalysisMode === 'general') {
-			resultDiv.classList.add('general-mode')
-			resultDiv.classList.remove('code-mode')
-		} else {
-			resultDiv.classList.add('code-mode')
-			resultDiv.classList.remove('general-mode')
-		}
-
-		updateModelInfoBadge()
-		flashModelInfoBadge()
 	})
 
 	// Handle loadingDiv state
