@@ -364,16 +364,20 @@ window.addEventListener('DOMContentLoaded', () => {
 			message: 'Reading screenshots and building the answer.',
 		}
 
+		if (loadingDiv.parentElement !== resultDiv) {
+			resultDiv.prepend(loadingDiv)
+		}
+
+		const hasRenderedContent = Array.from(resultDiv.children).some((child) => child !== loadingDiv)
+
 		loadingDiv.replaceChildren()
 		loadingDiv.dataset.state = normalizedStatus.state
+		loadingDiv.classList.toggle('with-content', hasRenderedContent)
+		resultDiv.dataset.loadingState = normalizedStatus.state
 
-		const icon = document.createElement('div')
-		icon.className = 'loading-icon'
-		for (let i = 0; i < 3; i++) {
-			const dot = document.createElement('span')
-			dot.className = 'loading-dot'
-			icon.append(dot)
-		}
+		const pulse = document.createElement('span')
+		pulse.className = 'loading-pulse'
+		pulse.setAttribute('aria-hidden', 'true')
 
 		const copy = document.createElement('div')
 		copy.className = 'loading-copy'
@@ -387,8 +391,21 @@ window.addEventListener('DOMContentLoaded', () => {
 		message.textContent = normalizedStatus.message ?? 'Preparing the next step.'
 
 		copy.append(title, message)
-		loadingDiv.append(icon, copy)
+		loadingDiv.append(pulse, copy)
 		loadingDiv.classList.remove('hidden')
+		resultDiv.classList.add('visible', 'is-loading')
+		scheduleRenderedContentLayoutUpdate()
+	}
+
+	function hideLoadingStatus(): void {
+		loadingDiv.classList.add('hidden')
+		resultDiv.classList.remove('is-loading')
+		delete resultDiv.dataset.loadingState
+		delete loadingDiv.dataset.state
+
+		if (loadingDiv.parentElement === resultDiv && resultDiv.children.length === 1) {
+			resultDiv.classList.remove('visible')
+		}
 	}
 
 	function renderRecordingStatusCard(): void {
@@ -572,7 +589,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 			if (blob.size === 0) {
 				window.api.setVoiceCaptureState({ state: 'error' })
-				loadingDiv.classList.add('hidden')
+				hideLoadingStatus()
 				applyVoiceStatus('No audio recorded')
 				return
 			}
@@ -583,7 +600,7 @@ window.addEventListener('DOMContentLoaded', () => {
 		} catch (error) {
 			console.error('Voice audio processing failed:', error)
 			window.api.setVoiceCaptureState({ state: 'error' })
-			loadingDiv.classList.add('hidden')
+			hideLoadingStatus()
 			applyVoiceStatus('Voice recording failed')
 		} finally {
 			mediaRecorder = null
@@ -653,7 +670,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 	// Handle analysis resultDivs
 	window.api.onAnalysisResult((markdown: string) => {
-		loadingDiv.classList.add('hidden')
+		hideLoadingStatus()
 		renderSanitizedMarkdown(markdown)
 		resultDiv.classList.add('visible')
 
@@ -705,7 +722,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 	// Handle context reset
 	window.api.onContextReset(() => {
-		loadingDiv.classList.add('hidden')
+		hideLoadingStatus()
 		resultDiv.replaceChildren()
 		resultDiv.classList.remove('visible')
 		screenshotData.clear()

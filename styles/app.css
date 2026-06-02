@@ -465,8 +465,54 @@ body {
 	animation: panelIn 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-#result.visible {
+#result.visible,
+#result.is-loading {
 	display: block;
+}
+
+#result.is-loading {
+	--loading-accent: var(--accent-green);
+	--loading-glow: rgba(52, 211, 153, 0.2);
+	border-color: rgba(255, 255, 255, 0.08);
+	box-shadow: var(--shadow-lg), var(--ring), 0 0 24px var(--loading-glow);
+}
+
+#result.is-loading[data-loading-state='waiting'] {
+	--loading-accent: var(--accent-amber);
+	--loading-glow: rgba(251, 191, 36, 0.18);
+}
+
+#result.is-loading[data-loading-state='recording'] {
+	--loading-accent: var(--accent-pink);
+	--loading-glow: rgba(244, 114, 182, 0.2);
+}
+
+#result.is-loading[data-loading-state='transcribing'] {
+	--loading-accent: var(--accent-blue);
+	--loading-glow: rgba(96, 165, 250, 0.18);
+}
+
+@property --loading-angle {
+	syntax: '<angle>';
+	initial-value: 0deg;
+	inherits: false;
+}
+
+#result.is-loading::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	padding: 1px;
+	border-radius: inherit;
+	background: conic-gradient(from var(--loading-angle), transparent 0 34%, var(--loading-accent) 44%, transparent 58% 100%);
+	-webkit-mask:
+		linear-gradient(#000 0 0) content-box,
+		linear-gradient(#000 0 0);
+	-webkit-mask-composite: xor;
+	mask-composite: exclude;
+	opacity: 0.72;
+	pointer-events: none;
+	animation: loadingBorderRotate 4.2s linear infinite;
 }
 
 /* Subtle accent rail on the left edge */
@@ -650,129 +696,94 @@ body {
 	color: var(--fg);
 }
 
-/* ---------- Loading indicator ---------- */
+/* ---------- Lean in-card loading indicator ---------- */
 #loading {
-	position: fixed;
-	top: var(--overlay-padding);
-	left: var(--content-left);
-	z-index: 1000;
+	position: relative;
 	display: flex;
 	align-items: center;
-	gap: 12px;
-	width: min(360px, calc(100vw - var(--content-left) - var(--overlay-padding)));
-	min-height: 74px;
-	padding: 12px 14px;
-	background:
-		linear-gradient(var(--bg-elevated), var(--bg-elevated)) padding-box,
-		linear-gradient(135deg, rgba(52, 211, 153, 0.6), rgba(96, 165, 250, 0.45), rgba(192, 132, 252, 0.5)) border-box;
-	border: 1px solid transparent;
-	border-radius: var(--radius-lg);
-	color: var(--fg-dim);
-	backdrop-filter: blur(24px) saturate(170%);
-	-webkit-backdrop-filter: blur(24px) saturate(170%);
-	box-shadow: var(--shadow-md), var(--ring);
-	animation: fadeSlideIn 0.25s ease;
+	gap: 8px;
+	width: 100%;
+	min-width: 0;
+	padding: 1px 0;
+	color: var(--fg-muted);
+	animation: fadeSlideIn 0.2s ease;
+	z-index: 1;
 }
 
 #loading.hidden {
 	display: none;
 }
 
-#loading[data-state='waiting'] {
-	background:
-		linear-gradient(var(--bg-elevated), var(--bg-elevated)) padding-box,
-		linear-gradient(135deg, rgba(251, 191, 36, 0.65), rgba(96, 165, 250, 0.45)) border-box;
+#loading.with-content {
+	padding-bottom: calc(var(--spacing) * 1.25);
+	margin-bottom: calc(var(--spacing) * 1.25);
+	border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
-#loading[data-state='recording'] {
-	background:
-		linear-gradient(var(--bg-elevated), var(--bg-elevated)) padding-box,
-		linear-gradient(135deg, rgba(244, 114, 182, 0.75), rgba(192, 132, 252, 0.5)) border-box;
-}
-
-#loading[data-state='transcribing'] {
-	background:
-		linear-gradient(var(--bg-elevated), var(--bg-elevated)) padding-box,
-		linear-gradient(135deg, rgba(96, 165, 250, 0.7), rgba(52, 211, 153, 0.45)) border-box;
-}
-
-.loading-icon {
+.loading-pulse {
 	position: relative;
-	display: grid;
-	place-items: center;
-	width: 34px;
-	height: 34px;
-	flex-shrink: 0;
+	width: 7px;
+	height: 7px;
+	flex: 0 0 auto;
 	border-radius: 50%;
-	background: color-mix(in srgb, var(--accent-green) 16%, transparent);
-	box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+	background: var(--loading-accent, var(--accent-green));
+	box-shadow: 0 0 12px var(--loading-glow, rgba(52, 211, 153, 0.2));
 }
 
-.loading-icon::before {
+.loading-pulse::after {
 	content: '';
 	position: absolute;
-	inset: 5px;
-	border-radius: 50%;
-	border: 2px solid rgba(255, 255, 255, 0.12);
-	border-top-color: currentColor;
-	animation: spin 0.85s linear infinite;
+	inset: -4px;
+	border: 1px solid var(--loading-accent, var(--accent-green));
+	border-radius: inherit;
+	opacity: 0.28;
+	animation: loadingPulse 1.8s ease-in-out infinite;
 }
-
-.loading-dot {
-	position: absolute;
-	top: 15px;
-	width: 4px;
-	height: 4px;
-	border-radius: 50%;
-	background: currentColor;
-	opacity: 0.45;
-	animation: dotPulse 1.2s ease-in-out infinite;
-}
-
-.loading-dot:nth-child(1) { left: 9px; }
-.loading-dot:nth-child(2) { left: 15px; animation-delay: 0.15s; }
-.loading-dot:nth-child(3) { left: 21px; animation-delay: 0.3s; }
 
 .loading-copy {
-	display: grid;
-	gap: 2px;
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
 	min-width: 0;
 }
 
 .loading-title {
-	font-size: 12.5px;
+	font-size: 11.5px;
 	font-weight: 700;
 	line-height: 1.25;
 	color: var(--fg);
+	white-space: nowrap;
+}
+
+.loading-title::after {
+	content: '·';
+	margin-left: 6px;
+	color: var(--fg-muted);
+	font-weight: 500;
+}
+
+.loading-message {
+	min-width: 0;
+	font-size: 11.25px;
+	line-height: 1.35;
+	color: var(--fg-muted);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
-.loading-message {
-	font-size: 11.5px;
-	line-height: 1.35;
-	color: var(--fg-muted);
-	white-space: normal;
+@keyframes loadingBorderRotate {
+	to { --loading-angle: 360deg; }
 }
 
-#loading[data-state='waiting'] .loading-icon { color: var(--accent-amber); }
-#loading[data-state='recording'] .loading-icon { color: var(--accent-pink); }
-#loading[data-state='transcribing'] .loading-icon { color: var(--accent-blue); }
-#loading[data-state='analyzing'] .loading-icon { color: var(--accent-green); }
+@keyframes loadingPulse {
+	0%, 100% { transform: scale(0.8); opacity: 0.18; }
+	50% { transform: scale(1.45); opacity: 0.36; }
+}
 
 @keyframes fadeSlideIn {
-	from { opacity: 0; transform: translateY(-4px); }
+	from { opacity: 0; transform: translateY(-2px); }
 	to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes spin {
-	to { transform: rotate(360deg); }
-}
-
-@keyframes dotPulse {
-	0%, 100% { opacity: 0.28; transform: translateY(2px) scale(0.9); }
-	50% { opacity: 0.95; transform: translateY(-2px) scale(1.05); }
 }
 
 /* ---------- Scrollbars (hidden) ---------- */
