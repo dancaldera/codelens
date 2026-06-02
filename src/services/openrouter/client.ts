@@ -3,15 +3,53 @@ import { createLogger } from '../../lib/logger'
 
 const logger = createLogger('OpenRouterClient')
 
+const OPENROUTER_MODELS_ENDPOINT = 'https://openrouter.ai/api/v1/models'
+
+export const DEFAULT_PROGRAMMING_VISION_MODEL = 'anthropic/claude-sonnet-4.6'
+
+/**
+ * Preferred order for CodeLens screenshot analysis. The API result is still used as
+ * the source of truth; this list only keeps the strongest/cost-effective vision
+ * coding models near the front of the Cmd+M cycle.
+ */
+export const PREFERRED_PROGRAMMING_VISION_MODEL_IDS = [
+	'anthropic/claude-sonnet-4.6',
+	'google/gemini-3.5-flash',
+	'openai/gpt-5.5',
+	'google/gemini-3.1-pro-preview',
+	'openai/gpt-5.4',
+	'google/gemini-3-flash-preview',
+	'anthropic/claude-opus-4.7',
+	'anthropic/claude-opus-4.6',
+	'moonshotai/kimi-k2.6',
+	'mistralai/mistral-medium-3-5',
+]
+
+/**
+ * Offline/failure fallback, refreshed from OpenRouter's programming category on 2026-05-26.
+ */
+export const FALLBACK_PROGRAMMING_VISION_MODELS: ProgrammingModel[] = [
+	{ id: 'anthropic/claude-sonnet-4.6', name: 'Anthropic: Claude Sonnet 4.6', contextLength: 1000000 },
+	{ id: 'google/gemini-3.5-flash', name: 'Google: Gemini 3.5 Flash', contextLength: 1048576 },
+	{ id: 'openai/gpt-5.5', name: 'OpenAI: GPT-5.5', contextLength: 1050000 },
+	{ id: 'google/gemini-3.1-pro-preview', name: 'Google: Gemini 3.1 Pro Preview', contextLength: 1048576 },
+	{ id: 'openai/gpt-5.4', name: 'OpenAI: GPT-5.4', contextLength: 1050000 },
+	{ id: 'google/gemini-3-flash-preview', name: 'Google: Gemini 3 Flash Preview', contextLength: 1048576 },
+	{ id: 'anthropic/claude-opus-4.7', name: 'Anthropic: Claude Opus 4.7', contextLength: 1000000 },
+	{ id: 'anthropic/claude-opus-4.6', name: 'Anthropic: Claude Opus 4.6', contextLength: 1000000 },
+	{ id: 'moonshotai/kimi-k2.6', name: 'MoonshotAI: Kimi K2.6', contextLength: 262144 },
+	{ id: 'mistralai/mistral-medium-3-5', name: 'Mistral: Mistral Medium 3.5', contextLength: 262144 },
+]
+
 /**
  * OpenRouter model architecture information
  */
 export interface ModelArchitecture {
-	modality: string
+	modality: string | null
 	input_modalities: string[]
 	output_modalities: string[]
-	tokenizer: string
-	instruct_type: string | null
+	tokenizer?: string
+	instruct_type?: string | null
 }
 
 /**
@@ -20,13 +58,16 @@ export interface ModelArchitecture {
 export interface OpenRouterModel {
 	id: string
 	name: string
-	description: string
+	description?: string
 	architecture: ModelArchitecture
-	context_length: number
+	context_length: number | null
+	created?: number
 	pricing: {
 		prompt: string
 		completion: string
+		[key: string]: string | number | undefined
 	}
+	supported_parameters?: string[]
 }
 
 /**
@@ -35,6 +76,10 @@ export interface OpenRouterModel {
 export interface ProgrammingModel {
 	id: string
 	name: string
+	contextLength?: number | null
+	created?: number
+	promptPrice?: string
+	completionPrice?: string
 }
 
 /**
@@ -84,45 +129,76 @@ export function validateOpenRouterConfiguration(): void {
 
 /**
  * Fetch programming models that support image input from OpenRouter API
- * @returns Array of programming models with image support, ordered by name
+ * @returns Array of programming models with image support, ordered by CodeLens preference first
  */
 export async function fetchProgrammingModels(): Promise<ProgrammingModel[]> {
 	try {
 		logger.debug('Fetching programming models from OpenRouter API')
 
-		const response = await fetch('https://openrouter.ai/api/v1/models?category=programming', {
+		const url = new URL(OPENROUTER_MODELS_ENDPOINT)
+		url.searchParams.set('category', 'programming')
+		url.searchParams.set('output_modalities', 'text')
+
+		const headers: Record<string, string> = {
+			'HTTP-Referer': process.env.OPENROUTER_SITE_URL || 'https://codelens.app',
+			'X-Title': process.env.OPENROUTER_SITE_NAME || 'CodeLens',
+		}
+
+		if (process.env.OPENROUTER_API_KEY) {
+			headers.Authorization = `Bearer ${process.env.OPENROUTER_API_KEY}`
+		}
+
+		const response = await fetch(url, {
 			method: 'GET',
-			headers: {
-				Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-				'HTTP-Referer': process.env.OPENROUTER_SITE_URL || 'https://codelens.app',
-				'X-Title': process.env.OPENROUTER_SITE_NAME || 'CodeLens',
-			},
+			headers,
 		})
 
 		if (!response.ok) {
 			throw new Error(`OpenRouter API returned ${response.status}: ${response.statusText}`)
 		}
 
-		const data = (await response.json()) as { data: OpenRouterModel[] }
+		const data = (await response.json()) as { data?: OpenRouterModel[] }
 
-		// Filter models that support image input and map to simple format
-		const modelsWithImageSupport = data.data
-			.filter((model) => model.architecture.input_modalities.includes('image'))
-			.map((model) => ({
+		const modelsWithImageSupport = orderProgrammingModels(
+			(data.data ?? []).filter(isVisionTextModel).map((model) => ({
 				id: model.id,
 				name: model.name,
-			}))
+				contextLength: model.context_length,
+				created: model.created,
+				promptPrice: model.pricing.prompt,
+				completionPrice: model.pricing.completion,
+			})),
+		)
+
+		if (!modelsWithImageSupport.length) {
+			logger.warn('OpenRouter returned no programming vision models; using fallback catalog')
+			return FALLBACK_PROGRAMMING_VISION_MODELS
+		}
 
 		logger.debug(`Found ${modelsWithImageSupport.length} programming models with image support`)
 
 		return modelsWithImageSupport
 	} catch (error) {
 		logger.error('Failed to fetch programming models from OpenRouter', { error })
-		// Return fallback models if API fails
-		return [
-			{ id: 'anthropic/claude-sonnet-4.5', name: 'Anthropic: Claude Sonnet 4.5' },
-			{ id: 'google/gemini-2.5-pro', name: 'Google: Gemini 2.5 Pro' },
-			{ id: 'openai/gpt-5', name: 'OpenAI: GPT-5' },
-		]
+		return FALLBACK_PROGRAMMING_VISION_MODELS
 	}
+}
+
+function isVisionTextModel(model: OpenRouterModel): boolean {
+	const inputModalities = model.architecture?.input_modalities ?? []
+	const outputModalities = model.architecture?.output_modalities ?? []
+
+	return inputModalities.includes('image') && outputModalities.includes('text')
+}
+
+function orderProgrammingModels(models: ProgrammingModel[]): ProgrammingModel[] {
+	const modelsById = new Map(models.map((model) => [model.id, model]))
+	const preferredModels = PREFERRED_PROGRAMMING_VISION_MODEL_IDS.flatMap((id) => {
+		const model = modelsById.get(id)
+		return model ? [model] : []
+	})
+	const preferredIds = new Set(preferredModels.map((model) => model.id))
+	const remainingModels = models.filter((model) => !preferredIds.has(model.id))
+
+	return [...preferredModels, ...remainingModels]
 }

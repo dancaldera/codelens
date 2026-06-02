@@ -1,5 +1,11 @@
 import { createLogger } from '../lib/logger'
-import { fetchProgrammingModels, isOpenRouterConfigured, type ProgrammingModel } from './openrouter/client'
+import {
+	DEFAULT_PROGRAMMING_VISION_MODEL,
+	FALLBACK_PROGRAMMING_VISION_MODELS,
+	fetchProgrammingModels,
+	isOpenRouterConfigured,
+	type ProgrammingModel,
+} from './openrouter/client'
 import { type AnalysisRequest, OpenRouterService } from './openrouter/service'
 
 const logger = createLogger('ProviderManager')
@@ -21,18 +27,14 @@ export const PROVIDERS: Record<Provider, ProviderConfig> = {
 		name: 'openrouter',
 		displayName: 'OpenRouter',
 		isConfigured: isOpenRouterConfigured,
-		defaultModel: 'anthropic/claude-sonnet-4.5',
+		defaultModel: DEFAULT_PROGRAMMING_VISION_MODEL,
 	},
 }
 
 /**
  * Fallback models when API fetch fails
  */
-const FALLBACK_MODELS: ProgrammingModel[] = [
-	{ id: 'anthropic/claude-sonnet-4.5', name: 'Anthropic: Claude Sonnet 4.5' },
-	{ id: 'google/gemini-2.5-pro', name: 'Google: Gemini 2.5 Pro' },
-	{ id: 'openai/gpt-5', name: 'OpenAI: GPT-5' },
-]
+const FALLBACK_MODELS: ProgrammingModel[] = FALLBACK_PROGRAMMING_VISION_MODELS
 
 /**
  * Get the current provider based on environment configuration or override
