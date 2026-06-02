@@ -65,9 +65,10 @@ echo "OPENROUTER_API_KEY=sk-your-openrouter-api-key-here" > ~/.env
 ### Available Models
 
 **OpenRouter provides access to multiple AI models:**
-- `anthropic/claude-sonnet-4.5` ⭐ **(default)** - Latest Claude Sonnet, best for code
-- `google/gemini-2.5-pro` - Google's latest vision model
-- `openai/gpt-5` - OpenAI's GPT-5 via OpenRouter
+- `anthropic/claude-sonnet-4.6` ⭐ **(default)** - Current balanced Claude model for code screenshots
+- `google/gemini-3.5-flash` - Fast multimodal coding model
+- `openai/gpt-5.5` - OpenAI frontier vision/coding model
+- The app refreshes the full programming + vision catalog from OpenRouter at startup and falls back to a curated offline list if the API is unavailable.
 
 **Get API Key:** [OpenRouter](https://openrouter.ai/keys)
 
@@ -97,7 +98,7 @@ echo "OPENROUTER_API_KEY=sk-your-openrouter-api-key-here" > ~/.env
 - `Cmd+2` - Increase window opacity
 
 **Model Selection**
-- `Cmd+M` - Switch AI model (cycles through: Sonnet 4.5 → Gemini 2.5 → GPT-5)
+- `Cmd+M` - Switch AI model (cycles through the latest OpenRouter programming vision catalog)
 
 ## macOS Permissions Setup
 
@@ -168,7 +169,7 @@ For local macOS packaging, the default script intentionally sets `mac.identity=n
 
 **AI Analysis:**
 - OpenRouter integration with extended timeouts (60s total, 50s API)
-- Model switching with `Cmd+M` (3 models available)
+- Model switching with `Cmd+M` (latest OpenRouter programming vision models)
 - Auto-triggers analysis after capturing 2 screenshots
 - Manual trigger with `Cmd+Enter` for single screenshots
 
@@ -213,7 +214,7 @@ OpenRouter provides several advantages:
 - Access to multiple AI models through a single API
 - Competitive pricing compared to direct API access
 - No vendor lock-in - switch models easily
-- Support for latest models (Claude Sonnet 4.5, Gemini 2.5, GPT-5)
+- Support for latest programming vision models (Claude Sonnet/Opus, Gemini, GPT, Kimi, Mistral, and more as OpenRouter updates)
 - Simple API key management
 
 ## Contributing

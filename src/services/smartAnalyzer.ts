@@ -1,6 +1,7 @@
 import * as fs from 'node:fs'
 import { createLogger, logPerformance } from '../lib/logger'
 import { getMimeType, validateImageFile } from '../lib/utils'
+import { DEFAULT_PROGRAMMING_VISION_MODEL } from './openrouter/client'
 import type { ImageContent } from './openrouter/service'
 import { analyzeWithProvider, type Provider } from './providers'
 
@@ -127,7 +128,7 @@ export interface SmartAnalysisOptions {
 export async function analyzeImagesSmart({
 	imagePaths,
 	previousContext,
-	model = 'openai/gpt-4o',
+	model = DEFAULT_PROGRAMMING_VISION_MODEL,
 	provider,
 }: SmartAnalysisOptions): Promise<string> {
 	const startTime = Date.now()

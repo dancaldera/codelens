@@ -1,5 +1,5 @@
 import { createLogger, logApiCall } from '../../lib/logger'
-import { createOpenRouterClient, validateOpenRouterConfiguration } from './client'
+import { createOpenRouterClient, DEFAULT_PROGRAMMING_VISION_MODEL, validateOpenRouterConfiguration } from './client'
 
 const logger = createLogger('OpenRouterService')
 
@@ -26,7 +26,7 @@ export class OpenRouterService {
 
 	constructor(options: OpenRouterServiceOptions = {}) {
 		this.options = {
-			model: options.model || 'openai/gpt-4o',
+			model: options.model || DEFAULT_PROGRAMMING_VISION_MODEL,
 			maxTokens: options.maxTokens || 2000,
 			temperature: options.temperature || 0.2,
 			timeout: options.timeout || 50000,

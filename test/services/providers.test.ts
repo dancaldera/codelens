@@ -9,32 +9,40 @@ const mockApp = {
 vi.mock('electron', () => ({ app: mockApp }))
 
 // Mock fetch for API calls
-const mockFetch = vi.fn((url: string) => {
-	if (url.includes('/api/v1/models?category=programming')) {
+const mockFetch = vi.fn((url: string | URL) => {
+	if (String(url).includes('/api/v1/models?category=programming')) {
 		return Promise.resolve({
 			ok: true,
 			json: () =>
 				Promise.resolve({
 					data: [
 						{
-							id: 'anthropic/claude-sonnet-4.5',
-							name: 'Anthropic: Claude Sonnet 4.5',
-							architecture: { input_modalities: ['text', 'image'] },
+							id: 'anthropic/claude-sonnet-4.6',
+							name: 'Anthropic: Claude Sonnet 4.6',
+							architecture: { input_modalities: ['text', 'image'], output_modalities: ['text'] },
+							context_length: 1000000,
+							pricing: { prompt: '0.000003', completion: '0.000015' },
 						},
 						{
-							id: 'google/gemini-2.5-pro',
-							name: 'Google: Gemini 2.5 Pro',
-							architecture: { input_modalities: ['text', 'image'] },
+							id: 'google/gemini-3.5-flash',
+							name: 'Google: Gemini 3.5 Flash',
+							architecture: { input_modalities: ['text', 'image'], output_modalities: ['text'] },
+							context_length: 1048576,
+							pricing: { prompt: '0.0000015', completion: '0.000009' },
 						},
 						{
-							id: 'openai/gpt-5',
-							name: 'OpenAI: GPT-5',
-							architecture: { input_modalities: ['text', 'image'] },
+							id: 'openai/gpt-5.5',
+							name: 'OpenAI: GPT-5.5',
+							architecture: { input_modalities: ['text', 'image'], output_modalities: ['text'] },
+							context_length: 1050000,
+							pricing: { prompt: '0.000005', completion: '0.00003' },
 						},
 						{
 							id: 'text-only-model',
 							name: 'Text Only Model',
-							architecture: { input_modalities: ['text'] },
+							architecture: { input_modalities: ['text'], output_modalities: ['text'] },
+							context_length: 128000,
+							pricing: { prompt: '0.000001', completion: '0.000002' },
 						},
 					],
 				}),
@@ -108,9 +116,9 @@ describe('Provider Management', () => {
 			process.env.OPENROUTER_API_KEY = 'sk-test123'
 			await refreshModelsCache() // Clear cache first
 			const models = await getAvailableModels()
-			expect(models).toContain('anthropic/claude-sonnet-4.5')
-			expect(models).toContain('google/gemini-2.5-pro')
-			expect(models).toContain('openai/gpt-5')
+			expect(models).toContain('anthropic/claude-sonnet-4.6')
+			expect(models).toContain('google/gemini-3.5-flash')
+			expect(models).toContain('openai/gpt-5.5')
 			expect(models).not.toContain('text-only-model') // Should filter out text-only models
 		})
 
@@ -135,9 +143,9 @@ describe('Provider Management', () => {
 			global.fetch = vi.fn(() => Promise.reject(new Error('API Error'))) as any
 
 			const models = await getAvailableModels()
-			expect(models).toContain('anthropic/claude-sonnet-4.5')
-			expect(models).toContain('google/gemini-2.5-pro')
-			expect(models).toContain('openai/gpt-5')
+			expect(models).toContain('anthropic/claude-sonnet-4.6')
+			expect(models).toContain('google/gemini-3.5-flash')
+			expect(models).toContain('openai/gpt-5.5')
 
 			// Restore original fetch
 			global.fetch = originalFetch
@@ -149,7 +157,7 @@ describe('Provider Management', () => {
 			process.env.OPENROUTER_API_KEY = 'sk-test123'
 			const models = getAvailableModelsSync()
 			expect(models.length).toBeGreaterThan(0)
-			expect(models).toContain('anthropic/claude-sonnet-4.5')
+			expect(models).toContain('anthropic/claude-sonnet-4.6')
 		})
 
 		test('should return cached models if available', async () => {
@@ -159,8 +167,8 @@ describe('Provider Management', () => {
 			await getAvailableModels()
 
 			const models = getAvailableModelsSync()
-			expect(models).toContain('anthropic/claude-sonnet-4.5')
-			expect(models).toContain('google/gemini-2.5-pro')
+			expect(models).toContain('anthropic/claude-sonnet-4.6')
+			expect(models).toContain('google/gemini-3.5-flash')
 		})
 	})
 
@@ -180,9 +188,9 @@ describe('Provider Management', () => {
 	})
 
 	describe('getDefaultModel', () => {
-		test('should return anthropic/claude-sonnet-4.5 for OpenRouter', () => {
+		test('should return anthropic/claude-sonnet-4.6 for OpenRouter', () => {
 			process.env.OPENROUTER_API_KEY = 'sk-test123'
-			expect(getDefaultModel()).toBe('anthropic/claude-sonnet-4.5')
+			expect(getDefaultModel()).toBe('anthropic/claude-sonnet-4.6')
 		})
 	})
 
