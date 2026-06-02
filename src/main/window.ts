@@ -29,6 +29,7 @@ export function createOverlayWindow({ app, logger, preloadPath, indexPath }: Ove
 		webPreferences: {
 			nodeIntegration: false,
 			contextIsolation: true,
+			sandbox: false,
 			preload: preloadPath,
 		},
 	})

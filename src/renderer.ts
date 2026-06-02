@@ -49,7 +49,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
 	const MAX_SCREENSHOTS = 2
 	const screenshotData = new Map<number, ScreenshotData>()
-	let modelInfoTimeout: ReturnType<typeof setTimeout> | null = null
+	let modelInfoPulseTimeout: ReturnType<typeof setTimeout> | null = null
+	let modelInfoHideTimeout: ReturnType<typeof setTimeout> | null = null
 	let currentProviderLabel = 'OpenRouter'
 	let currentModelLabel = 'Model'
 	let currentModelVendor = ''
@@ -116,27 +117,40 @@ window.addEventListener('DOMContentLoaded', () => {
 	}
 
 	const BADGE_FLASH_MS = 450
+	const BADGE_VISIBLE_MS = 2500
 
-	function flashModelInfoBadge(): void {
+	function clearModelInfoTimers(): void {
+		if (modelInfoPulseTimeout) {
+			clearTimeout(modelInfoPulseTimeout)
+			modelInfoPulseTimeout = null
+		}
+		if (modelInfoHideTimeout) {
+			clearTimeout(modelInfoHideTimeout)
+			modelInfoHideTimeout = null
+		}
+	}
+
+	function flashModelInfoBadge(autoHide = true): void {
+		clearModelInfoTimers()
 		modelInfoDiv.classList.remove('is-updating')
 		void modelInfoDiv.offsetWidth
 		modelInfoDiv.classList.add('show', 'is-updating')
-		if (modelInfoTimeout) {
-			clearTimeout(modelInfoTimeout)
-		}
-		modelInfoTimeout = setTimeout(() => {
+		modelInfoPulseTimeout = setTimeout(() => {
 			modelInfoDiv.classList.remove('is-updating')
-			modelInfoTimeout = null
+			modelInfoPulseTimeout = null
 		}, BADGE_FLASH_MS)
+		if (autoHide) {
+			modelInfoHideTimeout = setTimeout(() => {
+				modelInfoDiv.classList.remove('show')
+				modelInfoHideTimeout = null
+			}, BADGE_VISIBLE_MS)
+		}
 	}
 
 	function applyModelInfo(info: string | ModelInfo | null): void {
 		if (!info) return
 
-		if (modelInfoTimeout) {
-			clearTimeout(modelInfoTimeout)
-			modelInfoTimeout = null
-		}
+		clearModelInfoTimers()
 
 		if (info === 'no-key') {
 			currentProviderLabel = 'OpenRouter'
@@ -240,7 +254,7 @@ window.addEventListener('DOMContentLoaded', () => {
 		currentModelTitle = 'Loading OpenRouter models'
 		currentModelPosition = ''
 		updateModelInfoBadge()
-		modelInfoDiv.classList.add('show')
+		flashModelInfoBadge(false)
 	})
 
 	void window.api.getCurrentModel().then(applyModelInfo).catch(console.error)

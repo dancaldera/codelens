@@ -79,11 +79,11 @@ export class AnalysisSession {
 
 			const modelInfo = this.getCurrentModelInfo()
 			if (modelInfo) {
-				this.publishModelChanged(modelInfo)
+				window?.webContents.send(IPC_CHANNELS.MODEL_CHANGED, modelInfo)
 			}
 		} catch (error) {
 			this.options.logger.error('Failed to fetch models', { error })
-			this.publishModelChanged('no-key')
+			window?.webContents.send(IPC_CHANNELS.MODEL_CHANGED, 'no-key')
 		}
 	}
 
@@ -110,51 +110,8 @@ export class AnalysisSession {
 			index: this.currentModelIndex,
 		})
 
-		this.publishModelChanged(modelInfo)
-		window?.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, `Model: ${this.currentProvider}:${modelInfo.model}`)
-	}
-
-	private publishModelChanged(modelInfo: ModelChangedPayload | 'no-key'): void {
-		const window = this.options.getWindow()
 		window?.webContents.send(IPC_CHANNELS.MODEL_CHANGED, modelInfo)
-		this.renderModelBadgeDirectly(modelInfo)
-	}
-
-	private renderModelBadgeDirectly(modelInfo: ModelChangedPayload | 'no-key'): void {
-		const window = this.options.getWindow()
-		if (!window || window.webContents.isDestroyed()) return
-
-		const script = `(() => {
-			const el = document.getElementById('modelInfo');
-			if (!el) return;
-			const info = ${JSON.stringify(modelInfo)};
-			const setText = (className, text) => {
-				const node = document.createElement('div');
-				node.className = className;
-				node.textContent = text;
-				return node;
-			};
-			el.replaceChildren();
-			el.classList.add('show');
-			if (info === 'no-key') {
-				el.dataset.model = 'no-key';
-				el.title = 'OpenRouter API key missing';
-				el.append(setText('badge-provider', 'OpenRouter'), setText('badge-model', 'No API Key'));
-				return;
-			}
-			const [vendor, ...nameParts] = info.model.split('/');
-			const name = nameParts.length ? nameParts.join('/') : info.model;
-			const count = Number.isInteger(info.index) && Number.isInteger(info.count) ? ' · ' + (info.index + 1) + '/' + info.count : '';
-			el.dataset.model = info.model.toLowerCase();
-			el.title = info.provider + ': ' + info.model;
-			el.append(setText('badge-provider', 'OpenRouter' + (vendor ? ' • ' + vendor : '') + count), setText('badge-model', name));
-		})()`
-
-		void window.webContents.executeJavaScript(script).catch((error) => {
-			this.options.logger.warn('Failed to render model badge directly', {
-				error: error instanceof Error ? error.message : String(error),
-			})
-		})
+		window?.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, `Model: ${this.currentProvider}:${modelInfo.model}`)
 	}
 
 	async triggerAnalysis(): Promise<void> {

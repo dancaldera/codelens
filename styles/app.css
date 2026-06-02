@@ -179,16 +179,19 @@ body {
 	letter-spacing: 0.01em;
 	text-align: left;
 	color: var(--fg-dim);
-	width: 100%;
-	max-width: 100%;
+	width: 120px;
+	max-width: 120px;
 	min-height: 54px;
 	line-height: 1.35;
 	word-break: normal;
 	overflow-wrap: anywhere;
 	white-space: normal;
-	opacity: 1;
-	transform: translateY(0) scale(1);
+	opacity: 0;
+	transform: translateY(-2px) scale(0.96);
+	pointer-events: none;
 	transition:
+		opacity 0.2s ease,
+		transform 0.2s ease,
 		border-color 0.25s ease,
 		color 0.25s ease,
 		box-shadow 0.25s ease,
@@ -201,6 +204,7 @@ body {
 .info-badge.show {
 	opacity: 1;
 	transform: translateY(0) scale(1);
+	pointer-events: auto;
 }
 
 .info-badge.is-updating {
