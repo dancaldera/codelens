@@ -22,6 +22,7 @@ interface ScreenshotLogger {
 export interface ScreenshotSessionOptions {
 	getWindow: () => BrowserWindow | null
 	hasContext: () => boolean
+	isWaitingForVoice?: () => boolean
 	onShouldAnalyze: () => void
 	logger: ScreenshotLogger
 }
@@ -122,7 +123,7 @@ export class ScreenshotSession {
 			path: filePath,
 			data: buffer.toString('base64'),
 		})
-		window?.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, `Screenshot ${this.screenshotCount} captured`)
+		window?.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, this.getCaptureStatusMessage())
 
 		if (this.shouldAnalyzeAfterSave()) {
 			this.options.onShouldAnalyze()
@@ -166,6 +167,18 @@ export class ScreenshotSession {
 
 	private shouldAnalyzeAfterSave(): boolean {
 		return this.screenshotCount === MAX_SCREENSHOTS || (this.screenshotCount === 1 && this.options.hasContext())
+	}
+
+	private getCaptureStatusMessage(): string {
+		if (this.screenshotCount === 1 && this.options.isWaitingForVoice?.()) {
+			return 'Screenshot 1 captured — keep speaking or capture one more'
+		}
+		if (this.screenshotCount === 1 && !this.options.hasContext()) return 'Screenshot 1 captured — need one more'
+		if (this.screenshotCount === MAX_SCREENSHOTS && this.options.isWaitingForVoice?.()) {
+			return 'Screenshot 2 captured — waiting for voice note'
+		}
+		if (this.screenshotCount === MAX_SCREENSHOTS) return 'Screenshot 2 captured — ready to analyze'
+		return `Screenshot ${this.screenshotCount} captured`
 	}
 
 	private async captureWithDesktopCapturer(): Promise<boolean> {

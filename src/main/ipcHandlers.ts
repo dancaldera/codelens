@@ -1,5 +1,11 @@
 import type { BrowserWindow, IpcMain, Shell } from 'electron'
-import { IPC_CHANNELS, isValidResizeWindowPayload, isValidScreenshotIndex, isValidVoiceAudioPayload } from '../ipc'
+import {
+	IPC_CHANNELS,
+	isValidResizeWindowPayload,
+	isValidScreenshotIndex,
+	isValidVoiceAudioPayload,
+	isValidVoiceCaptureStatePayload,
+} from '../ipc'
 import type { AnalysisSession } from './analysisSession'
 import type { ScreenshotSession } from './screenshotSession'
 import type { VoiceSession } from './voiceSession'
@@ -18,6 +24,7 @@ export interface RegisterIpcHandlersOptions {
 	analysisSession: AnalysisSession
 	voiceSession: VoiceSession
 	cancelScheduledAnalysis: () => void
+	scheduleAnalysis: (delay?: number, allowSingleScreenshot?: boolean) => void
 	logger: IpcLogger
 }
 
@@ -28,6 +35,7 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
 		IPC_CHANNELS.OPEN_SCREENSHOT,
 		IPC_CHANNELS.SUBMIT_PROMPT,
 		IPC_CHANNELS.VOICE_AUDIO_RECORDED,
+		IPC_CHANNELS.VOICE_CAPTURE_STATE,
 	]) {
 		options.ipcMain.removeAllListeners(channel)
 	}
@@ -80,6 +88,15 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
 		return options.voiceSession.getCurrentModelInfo()
 	})
 
+	options.ipcMain.on(IPC_CHANNELS.VOICE_CAPTURE_STATE, (_event, payload: unknown) => {
+		if (!isValidVoiceCaptureStatePayload(payload)) {
+			options.logger.warn('Rejected invalid voice capture state payload', { payload })
+			return
+		}
+
+		options.voiceSession.setCaptureState(payload)
+	})
+
 	options.ipcMain.on(IPC_CHANNELS.VOICE_AUDIO_RECORDED, (_event, payload: unknown) => {
 		if (!isValidVoiceAudioPayload(payload)) {
 			options.logger.warn('Rejected invalid voice audio payload')
@@ -98,16 +115,7 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
 		const window = options.getWindow()
 		if (!window) return
 
-		if (!options.analysisSession.hasAnalyzableContext()) {
-			window.webContents.send(
-				IPC_CHANNELS.ANALYSIS_RESULT,
-				'No screenshots or voice context available for analysis. Capture a screenshot or record a voice note first.',
-			)
-			return
-		}
-
 		options.cancelScheduledAnalysis()
-		window.webContents.send(IPC_CHANNELS.SHOW_LOADING)
-		await options.analysisSession.triggerAnalysis()
+		options.scheduleAnalysis()
 	})
 }

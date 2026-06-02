@@ -17,7 +17,7 @@ export interface RegisterShortcutsOptions {
 	screenshotSession: ScreenshotSession
 	analysisSession: AnalysisSession
 	voiceSession: VoiceSession
-	scheduleAnalysis: (delay?: number) => void
+	scheduleAnalysis: (delay?: number, allowSingleScreenshot?: boolean) => void
 	cancelScheduledAnalysis: () => void
 	onReset: () => Promise<void>
 	onQuit: () => void
@@ -68,21 +68,10 @@ export function registerShortcuts(options: RegisterShortcutsOptions): void {
 	register('Shift+CommandOrControl+M', () => options.voiceSession.switchModel())
 
 	register('CommandOrControl+Enter', () => {
-		const window = options.getWindow()
-		if (!window) return
-
-		if (!options.analysisSession.hasAnalyzableContext()) {
-			window.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, 'No screenshots or voice context available for analysis')
-			return
-		}
+		if (!options.getWindow()) return
 
 		options.cancelScheduledAnalysis()
-		window.webContents.send(IPC_CHANNELS.SHOW_LOADING)
-		void options.analysisSession.triggerAnalysis().catch((error) => {
-			options.logger.error('Manual analysis shortcut failed', {
-				error: error instanceof Error ? error.message : String(error),
-			})
-		})
+		options.scheduleAnalysis(0, true)
 	})
 }
 

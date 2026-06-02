@@ -32,6 +32,14 @@ interface ModelInfo {
 
 type RecordingStatusKind = 'recording' | 'processing' | 'ready' | 'error'
 
+type LoadingState = 'waiting' | 'recording' | 'transcribing' | 'analyzing'
+
+interface LoadingStatusPayload {
+	state: LoadingState
+	title: string
+	message?: string
+}
+
 window.addEventListener('DOMContentLoaded', () => {
 	const screenshots = document.getElementById('screenshots')
 	const result = document.getElementById('result')
@@ -54,6 +62,9 @@ window.addEventListener('DOMContentLoaded', () => {
 	const recordingStatusDiv = recordingStatus as HTMLDivElement
 
 	const MAX_SCREENSHOTS = 2
+	const MIN_OVERLAY_WIDTH = 600
+	const MIN_OVERLAY_HEIGHT = 400
+	const MAX_OVERLAY_SIZE = 4000
 	const screenshotData = new Map<number, ScreenshotData>()
 	let modelInfoPulseTimeout: ReturnType<typeof setTimeout> | null = null
 	let modelInfoHideTimeout: ReturnType<typeof setTimeout> | null = null
@@ -346,6 +357,57 @@ window.addEventListener('DOMContentLoaded', () => {
 		recordingStatusTimer = null
 	}
 
+	function renderLoadingStatus(status?: LoadingStatusPayload): void {
+		const normalizedStatus = status ?? {
+			state: 'analyzing' as const,
+			title: 'Analyzing context',
+			message: 'Reading screenshots and building the answer.',
+		}
+
+		if (loadingDiv.parentElement !== resultDiv) {
+			resultDiv.prepend(loadingDiv)
+		}
+
+		const hasRenderedContent = Array.from(resultDiv.children).some((child) => child !== loadingDiv)
+
+		loadingDiv.replaceChildren()
+		loadingDiv.dataset.state = normalizedStatus.state
+		loadingDiv.classList.toggle('with-content', hasRenderedContent)
+		resultDiv.dataset.loadingState = normalizedStatus.state
+
+		const pulse = document.createElement('span')
+		pulse.className = 'loading-pulse'
+		pulse.setAttribute('aria-hidden', 'true')
+
+		const copy = document.createElement('div')
+		copy.className = 'loading-copy'
+
+		const title = document.createElement('strong')
+		title.className = 'loading-title'
+		title.textContent = normalizedStatus.title
+
+		const message = document.createElement('span')
+		message.className = 'loading-message'
+		message.textContent = normalizedStatus.message ?? 'Preparing the next step.'
+
+		copy.append(title, message)
+		loadingDiv.append(pulse, copy)
+		loadingDiv.classList.remove('hidden')
+		resultDiv.classList.add('visible', 'is-loading')
+		scheduleRenderedContentLayoutUpdate()
+	}
+
+	function hideLoadingStatus(): void {
+		loadingDiv.classList.add('hidden')
+		resultDiv.classList.remove('is-loading')
+		delete resultDiv.dataset.loadingState
+		delete loadingDiv.dataset.state
+
+		if (loadingDiv.parentElement === resultDiv && resultDiv.children.length === 1) {
+			resultDiv.classList.remove('visible')
+		}
+	}
+
 	function renderRecordingStatusCard(): void {
 		recordingStatusDiv.replaceChildren()
 		recordingStatusDiv.dataset.status = currentRecordingStatusKind
@@ -426,6 +488,38 @@ window.addEventListener('DOMContentLoaded', () => {
 		resultDiv.replaceChildren(...Array.from(parsedDocument.body.childNodes))
 	}
 
+	function clampOverlaySize(value: number, min: number): number {
+		return Math.min(Math.max(Math.ceil(value), min), MAX_OVERLAY_SIZE)
+	}
+
+	function measureRenderedOverlayHeight(): number {
+		const app = document.getElementById('app')
+		return Math.max(
+			window.innerHeight,
+			document.documentElement.scrollHeight,
+			document.body.scrollHeight,
+			app?.scrollHeight ?? 0,
+		)
+	}
+
+	function resizeOverlayToRenderedContent(): void {
+		const width = clampOverlaySize(window.innerWidth, MIN_OVERLAY_WIDTH)
+		const height = clampOverlaySize(measureRenderedOverlayHeight(), MIN_OVERLAY_HEIGHT)
+		window.api.resizeWindow(width, height)
+	}
+
+	function scheduleRenderedContentLayoutUpdate(scrollToTop = false): void {
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				if (scrollToTop) {
+					const app = document.getElementById('app')
+					if (app) app.scrollTop = 0
+				}
+				resizeOverlayToRenderedContent()
+			})
+		})
+	}
+
 	function getSupportedAudioMimeType(): string {
 		const preferredTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']
 		return preferredTypes.find((type) => MediaRecorder.isTypeSupported(type)) ?? 'audio/webm'
@@ -452,9 +546,16 @@ window.addEventListener('DOMContentLoaded', () => {
 			})
 
 			mediaRecorder.start()
+			window.api.setVoiceCaptureState({ state: 'recording' })
+			renderLoadingStatus({
+				state: 'recording',
+				title: 'Recording voice context',
+				message: 'Capture screenshots while speaking, or stop recording to analyze.',
+			})
 			applyVoiceStatus('Recording…')
 		} catch (error) {
 			console.error('Voice recording failed:', error)
+			window.api.setVoiceCaptureState({ state: 'error' })
 			applyVoiceStatus('Microphone unavailable')
 			stopVoiceStream()
 		}
@@ -462,7 +563,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
 	function stopVoiceRecording(): void {
 		if (!mediaRecorder || mediaRecorder.state === 'inactive') return
+		window.api.setVoiceCaptureState({ state: 'processing' })
 		mediaRecorder.stop()
+		renderLoadingStatus({
+			state: 'transcribing',
+			title: 'Preparing voice context',
+			message: 'Transcribing your note before starting analysis.',
+		})
 		applyVoiceStatus('Preparing voice note…')
 	}
 
@@ -481,6 +588,8 @@ window.addEventListener('DOMContentLoaded', () => {
 			voiceChunks = []
 
 			if (blob.size === 0) {
+				window.api.setVoiceCaptureState({ state: 'error' })
+				hideLoadingStatus()
 				applyVoiceStatus('No audio recorded')
 				return
 			}
@@ -490,6 +599,8 @@ window.addEventListener('DOMContentLoaded', () => {
 			applyVoiceStatus('Transcribing…')
 		} catch (error) {
 			console.error('Voice audio processing failed:', error)
+			window.api.setVoiceCaptureState({ state: 'error' })
+			hideLoadingStatus()
 			applyVoiceStatus('Voice recording failed')
 		} finally {
 			mediaRecorder = null
@@ -559,7 +670,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 	// Handle analysis resultDivs
 	window.api.onAnalysisResult((markdown: string) => {
-		loadingDiv.classList.add('hidden')
+		hideLoadingStatus()
 		renderSanitizedMarkdown(markdown)
 		resultDiv.classList.add('visible')
 
@@ -568,7 +679,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			hljs.highlightElement(block as HTMLElement)
 		})
 
-		// Content will naturally overflow the window - no auto-resize
+		scheduleRenderedContentLayoutUpdate(true)
 	})
 
 	// Handle model changes
@@ -607,12 +718,11 @@ window.addEventListener('DOMContentLoaded', () => {
 	window.api.onVoiceTranscriptReady(() => applyVoiceStatus('Voice context ready'))
 
 	// Handle loadingDiv state
-	window.api.onShowLoading(() => {
-		loadingDiv.classList.remove('hidden')
-	})
+	window.api.onShowLoading(renderLoadingStatus)
 
 	// Handle context reset
 	window.api.onContextReset(() => {
+		hideLoadingStatus()
 		resultDiv.replaceChildren()
 		resultDiv.classList.remove('visible')
 		screenshotData.clear()
@@ -622,6 +732,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			element.textContent = (i + 1).toString()
 			element.classList.remove('active')
 		})
+		scheduleRenderedContentLayoutUpdate(true)
 	})
 
 	// Handle screenshot clear
@@ -633,6 +744,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			element.textContent = (i + 1).toString()
 			element.classList.remove('active')
 		})
+		scheduleRenderedContentLayoutUpdate()
 	})
 
 	// Unused handlers (for compatibility)

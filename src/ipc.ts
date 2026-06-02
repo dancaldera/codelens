@@ -22,9 +22,24 @@ export const IPC_CHANNELS = {
 	VOICE_AUDIO_RECORDED: 'voice-audio-recorded',
 	VOICE_STATUS: 'voice-status',
 	VOICE_TRANSCRIPT_READY: 'voice-transcript-ready',
+	VOICE_CAPTURE_STATE: 'voice-capture-state',
 	RESIZE_WINDOW: 'resize-window',
 	TRIGGER_SCREENSHOT: 'trigger-screenshot',
 } as const
+
+export type LoadingState = 'waiting' | 'recording' | 'transcribing' | 'analyzing'
+
+export interface LoadingStatusPayload {
+	state: LoadingState
+	title: string
+	message?: string
+}
+
+export type VoiceCaptureState = 'idle' | 'recording' | 'processing' | 'error'
+
+export interface VoiceCaptureStatePayload {
+	state: VoiceCaptureState
+}
 
 export interface ResizeWindowPayload {
 	width: number
@@ -68,6 +83,26 @@ export function isValidScreenshotIndex(index: unknown, maxScreenshots = 2): inde
 	return Number.isInteger(index) && Number(index) >= 1 && Number(index) <= maxScreenshots
 }
 
+export function isValidLoadingStatusPayload(payload: unknown): payload is LoadingStatusPayload {
+	if (!payload || typeof payload !== 'object') return false
+
+	const { state, title, message } = payload as Partial<LoadingStatusPayload>
+	return (
+		isLoadingState(state) &&
+		typeof title === 'string' &&
+		title.trim().length > 0 &&
+		title.length <= 120 &&
+		(typeof message === 'undefined' || (typeof message === 'string' && message.length <= 240))
+	)
+}
+
+export function isValidVoiceCaptureStatePayload(payload: unknown): payload is VoiceCaptureStatePayload {
+	if (!payload || typeof payload !== 'object') return false
+
+	const { state } = payload as Partial<VoiceCaptureStatePayload>
+	return state === 'idle' || state === 'recording' || state === 'processing' || state === 'error'
+}
+
 export function isValidVoiceAudioPayload(payload: unknown): payload is VoiceAudioPayload {
 	if (!payload || typeof payload !== 'object') return false
 
@@ -97,6 +132,10 @@ export function isValidVoiceAudioPayload(payload: unknown): payload is VoiceAudi
 		durationMs > 0 &&
 		durationMs <= 120_000
 	)
+}
+
+function isLoadingState(value: unknown): value is LoadingState {
+	return value === 'waiting' || value === 'recording' || value === 'transcribing' || value === 'analyzing'
 }
 
 function isFinitePositiveNumber(value: unknown): value is number {

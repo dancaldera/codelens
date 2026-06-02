@@ -1,5 +1,5 @@
 import type { BrowserWindow } from 'electron'
-import { IPC_CHANNELS, type ModelChangedPayload, type VoiceAudioPayload } from '../ipc'
+import { IPC_CHANNELS, type ModelChangedPayload, type VoiceAudioPayload, type VoiceCaptureStatePayload } from '../ipc'
 import { fetchTranscriptionModels, isOpenRouterConfigured } from '../services/openrouter/client'
 import { transcribeAudio } from '../services/stt'
 
@@ -12,6 +12,7 @@ interface VoiceLogger {
 
 export interface VoiceSessionOptions {
 	getWindow: () => BrowserWindow | null
+	onVoiceSettled?: () => void
 	logger: VoiceLogger
 }
 
@@ -21,6 +22,7 @@ export class VoiceSession {
 	private availableModels: string[] = []
 	private modelInitializationPromise: Promise<void> | null = null
 	private isTranscribing = false
+	private captureState: VoiceCaptureStatePayload['state'] = 'idle'
 
 	constructor(private readonly options: VoiceSessionOptions) {}
 
@@ -28,8 +30,30 @@ export class VoiceSession {
 		return this.latestTranscript || undefined
 	}
 
+	hasTranscript(): boolean {
+		return !!this.latestTranscript?.trim()
+	}
+
+	isVoiceBusy(): boolean {
+		return this.captureState === 'recording' || this.captureState === 'processing' || this.isTranscribing
+	}
+
+	isRecording(): boolean {
+		return this.captureState === 'recording'
+	}
+
+	setCaptureState(payload: VoiceCaptureStatePayload): void {
+		this.captureState = payload.state
+		this.options.logger.debug('Voice capture state updated', { state: payload.state })
+		if (payload.state === 'idle' || payload.state === 'error') {
+			this.options.onVoiceSettled?.()
+		}
+	}
+
 	reset(): void {
 		this.latestTranscript = null
+		this.captureState = 'idle'
+		this.isTranscribing = false
 		this.options.getWindow()?.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'Voice context cleared')
 	}
 
@@ -94,6 +118,7 @@ export class VoiceSession {
 		}
 
 		this.isTranscribing = true
+		this.captureState = 'processing'
 		window.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'Transcribing voice note…')
 
 		try {
@@ -133,6 +158,8 @@ export class VoiceSession {
 			window.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'Voice transcription failed')
 		} finally {
 			this.isTranscribing = false
+			this.captureState = 'idle'
+			this.options.onVoiceSettled?.()
 		}
 	}
 

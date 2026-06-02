@@ -1,12 +1,16 @@
 import { contextBridge, type IpcRendererEvent, ipcRenderer } from 'electron'
 import {
 	IPC_CHANNELS,
+	isValidLoadingStatusPayload,
 	isValidResizeWindowPayload,
 	isValidScreenshotIndex,
 	isValidVoiceAudioPayload,
+	isValidVoiceCaptureStatePayload,
+	type LoadingStatusPayload,
 	type ModelChangedPayload,
 	type ScreenshotImagePayload,
 	type VoiceAudioPayload,
+	type VoiceCaptureStatePayload,
 } from './ipc'
 
 type Unsubscribe = () => void
@@ -22,7 +26,7 @@ interface ApiInterface {
 	onClearScreenshots: (callback: () => void) => Unsubscribe
 	openScreenshot: (index: number) => void
 	onGetPrompt: (callback: () => string) => Unsubscribe
-	onShowLoading: (callback: () => void) => Unsubscribe
+	onShowLoading: (callback: (status?: LoadingStatusPayload) => void) => Unsubscribe
 	onLanguageDetected: (callback: (language: string) => void) => Unsubscribe
 	onModelChanged: (callback: (model: string | ModelChangedPayload) => void) => Unsubscribe
 	onModelsLoading: (callback: () => void) => Unsubscribe
@@ -32,6 +36,7 @@ interface ApiInterface {
 	getCurrentSttModel: () => Promise<ModelChangedPayload | null>
 	onToggleVoiceRecording: (callback: () => void) => Unsubscribe
 	sendVoiceAudio: (payload: VoiceAudioPayload) => void
+	setVoiceCaptureState: (payload: VoiceCaptureStatePayload) => void
 	onVoiceStatus: (callback: (status: string) => void) => Unsubscribe
 	onVoiceTranscriptReady: (callback: () => void) => Unsubscribe
 	resizeWindow: (width: number, height: number) => void
@@ -73,7 +78,15 @@ contextBridge.exposeInMainWorld('api', {
 		ipcRenderer.on(IPC_CHANNELS.GET_PROMPT, listener)
 		return () => ipcRenderer.removeListener(IPC_CHANNELS.GET_PROMPT, listener)
 	},
-	onShowLoading: (callback: () => void) => onIpcSignal(IPC_CHANNELS.SHOW_LOADING, callback),
+	onShowLoading: (callback: (status?: LoadingStatusPayload) => void) => {
+		const listener = (_event: IpcRendererEvent, payload?: LoadingStatusPayload) => {
+			if (typeof payload === 'undefined' || isValidLoadingStatusPayload(payload)) {
+				callback(payload)
+			}
+		}
+		ipcRenderer.on(IPC_CHANNELS.SHOW_LOADING, listener)
+		return () => ipcRenderer.removeListener(IPC_CHANNELS.SHOW_LOADING, listener)
+	},
 	onLanguageDetected: (callback: (language: string) => void) => onIpc(IPC_CHANNELS.LANGUAGE_DETECTED, callback),
 	onModelChanged: (callback: (model: string | ModelChangedPayload) => void) =>
 		onIpc(IPC_CHANNELS.MODEL_CHANGED, callback),
@@ -90,6 +103,13 @@ contextBridge.exposeInMainWorld('api', {
 			return
 		}
 		ipcRenderer.send(IPC_CHANNELS.VOICE_AUDIO_RECORDED, payload)
+	},
+	setVoiceCaptureState: (payload: VoiceCaptureStatePayload) => {
+		if (!isValidVoiceCaptureStatePayload(payload)) {
+			console.warn('Rejected invalid voice capture state payload')
+			return
+		}
+		ipcRenderer.send(IPC_CHANNELS.VOICE_CAPTURE_STATE, payload)
 	},
 	onVoiceStatus: (callback: (status: string) => void) => onIpc(IPC_CHANNELS.VOICE_STATUS, callback),
 	onVoiceTranscriptReady: (callback: () => void) => onIpcSignal(IPC_CHANNELS.VOICE_TRANSCRIPT_READY, callback),
