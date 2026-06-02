@@ -13,6 +13,10 @@ declare const hljs: {
 	getLanguage: (name: string) => unknown
 }
 
+declare const DOMPurify: {
+	sanitize: (html: string, config?: Record<string, unknown>) => string
+}
+
 interface ScreenshotData {
 	index: number
 	path: string
@@ -78,6 +82,16 @@ window.addEventListener('DOMContentLoaded', () => {
 		}, BADGE_VISIBLE_MS)
 	}
 
+	function renderSanitizedMarkdown(markdown: string): void {
+		const unsafeHtml = marked.parse(markdown)
+		const safeHtml = DOMPurify.sanitize(unsafeHtml, {
+			USE_PROFILES: { html: true },
+			ADD_ATTR: ['class'],
+		})
+		const parsedDocument = new DOMParser().parseFromString(safeHtml, 'text/html')
+		resultDiv.replaceChildren(...Array.from(parsedDocument.body.childNodes))
+	}
+
 	// Configure marked.js
 	marked.setOptions({
 		highlight: (code: string, lang: string): string => {
@@ -118,7 +132,7 @@ window.addEventListener('DOMContentLoaded', () => {
 	// Handle analysis resultDivs
 	window.api.onAnalysisResult((markdown: string) => {
 		loadingDiv.classList.add('hidden')
-		resultDiv.innerHTML = marked.parse(markdown)
+		renderSanitizedMarkdown(markdown)
 		resultDiv.classList.add('visible')
 
 		// Highlight code blocks
@@ -166,7 +180,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 	// Handle context reset
 	window.api.onContextReset(() => {
-		resultDiv.innerHTML = ''
+		resultDiv.replaceChildren()
 		resultDiv.classList.remove('visible')
 		screenshotData.clear()
 		screenshotsDiv.querySelectorAll('.screenshot').forEach((slot, i) => {

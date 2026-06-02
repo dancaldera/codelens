@@ -8,25 +8,25 @@ AI-powered code analysis from screenshots. An Electron application that captures
 - **Screenshot Capture**: Press `Cmd+H` to capture code screenshots (cycles between 2 slots)
 - **Auto-Analysis**: Automatically analyzes after capturing 2 screenshots
 - **Manual Analysis**: Press `Cmd+Enter` to trigger analysis at any time
-- **Code Analysis Mode**: Extracts and formats code with syntax highlighting, complexity analysis, and language detection
-- **General Analysis Mode**: Analyzes any content (non-code screenshots, documents, error messages) with explanations and summaries
-- **Analysis Mode Toggle**: Press `Shift+Cmd/Ctrl+A` or `Cmd/Ctrl+A` to switch between Code and General modes
+- **Smart Analysis**: Automatically detects code problems, snippets, errors, documents, UI designs, charts, and general questions
+- **Code-Aware Output**: Extracts code, explains behavior, suggests fixes, and includes complexity analysis when relevant
 - **Always-on-top overlay**: Stays visible on all workspaces and fullscreen apps
 - **Multi-screen support**: Works across all displays and virtual desktops
 
 ## Installation
 
 1. Clone this repository
-2. Install dependencies: `npm install`
+2. Install dependencies: `bun install`
 3. **Set up OpenRouter API Key** (required for AI analysis):
    ```bash
    export OPENROUTER_API_KEY="sk-your-openrouter-api-key-here"
    ```
-   Or create a `.env` file in the project root:
+   Or copy `.env.example` to `.env` in the project root:
+   ```bash
+   cp .env.example .env
+   # then edit OPENROUTER_API_KEY
    ```
-   OPENROUTER_API_KEY=sk-your-openrouter-api-key-here
-   ```
-4. Start the application: `npm start`
+4. Start the application: `bun start`
 
 ## Configuration
 
@@ -85,9 +85,6 @@ echo "OPENROUTER_API_KEY=sk-your-openrouter-api-key-here" > ~/.env
 - `Cmd+H` - Take screenshot (cycles between slots 1-2, auto-analyzes after 2nd screenshot)
 - `Cmd+Enter` - Manually trigger analysis at any time
 
-**Analysis Mode**
-- `Shift+Cmd+A` or `Cmd+A` - Toggle between Code Analysis and General Analysis modes
-
 **Window Management**
 - `Cmd+G` - Reset screenshots, clear analysis, and reposition window to (50,50)
 - `Cmd+B` - Hide/show window
@@ -128,28 +125,28 @@ The app has a fallback mechanism:
 ## Development
 
 **Development:**
-- `npm run dev` - Start development with hot reload
-- `npm run build` - Compile TypeScript to JavaScript
-- `npm start` - Build and run the application
-- `npm run typescript-check` - Type check without compilation
-- `npm run watch` - Watch TypeScript files for changes
+- `bun run dev` - Start development with hot reload
+- `bun run build` - Compile TypeScript to JavaScript
+- `bun start` - Build and run the application
+- `bun run typescript-check` - Type check without compilation
+- `bun run watch` - Watch TypeScript files for changes
 
 **Code Quality:**
-- `npm run format` - Format code with Biome
-- `npm run lint` - Lint and auto-fix with Biome
-- `npm run check` - Run both formatting and linting
+- `bun run format` - Format code with Biome
+- `bun run lint` - Lint and auto-fix with Biome
+- `bun run check` - Run both formatting and linting
 
 **Testing:**
-- `npm test` - Run all tests
-- `npm run test:watch` - Run tests in watch mode
-- `npm run test:coverage` - Run tests with coverage
+- `bun run test` - Run all tests
+- `bun run test:watch` - Run tests in watch mode
+- `bun run test:coverage` - Run tests with coverage
 
 **Packaging:**
-- `npm run package` - Build an unsigned local macOS `.dmg` (skips macOS code signing)
-- `npm run package-mac-signed` - Build a signed macOS `.dmg` when your Apple certificate/keychain setup is ready
-- `npm run package-win` - Build Windows installer
-- `npm run package-linux` - Build Linux AppImage
-- `npm run package-all` - Build for all platforms
+- `bun run package` - Build an unsigned local macOS `.dmg` (skips macOS code signing)
+- `bun run package-mac-signed` - Build a signed macOS `.dmg` when your Apple certificate/keychain setup is ready
+- `bun run package-win` - Build Windows installer
+- `bun run package-linux` - Build Linux AppImage
+- `bun run package-all` - Build for all platforms
 
 For local macOS packaging, the default script intentionally sets `mac.identity=null` to avoid Electron Builder auto-discovering a signing identity and stalling at the `signing` step. Use the signed variant only for release builds that are meant to go through Apple code signing.
 
@@ -164,6 +161,7 @@ For local macOS packaging, the default script intentionally sets `mac.identity=n
 **Screenshot Workflow:**
 - Uses Electron's `desktopCapturer` API for individual window capture
 - Falls back to macOS native `screencapture` command
+- Stores temporary screenshots under the OS temp directory in `codelens-screenshots/` and cleans session files on reset/quit
 - Two-screenshot workflow with automatic analysis after second capture
 - Subsequent screenshots use previous analysis as context for incremental updates
 
@@ -173,19 +171,16 @@ For local macOS packaging, the default script intentionally sets `mac.identity=n
 - Auto-triggers analysis after capturing 2 screenshots
 - Manual trigger with `Cmd+Enter` for single screenshots
 
-**Analysis Modes:**
-- **Code Mode**: Extracts code with language detection, complexity analysis (O-notation), best practices, and test suggestions
-- **General Mode**: Provides explanations, summaries, and answers for non-code content (documents, error messages, UI designs)
-- Toggle modes with `Shift+Cmd+A` or `Cmd+A`
-
+**Smart Analysis:**
+- Automatically detects the screenshot type and formats the answer for code, errors, documents, UI designs, charts, and general questions.
 - Uses previous analysis as context for new screenshots (contextual analysis)
-- Extracts code with language detection and problem solving
-- Provides complexity analysis (time/space) and best practices
+- Extracts code with language detection and problem-solving guidance when relevant
+- Provides complexity analysis (time/space) for algorithmic solutions
 - Structured output with markdown formatting and syntax highlighting
 - Smart API key detection with model status display
 
 **UI/UX:**
-- Modern, clean interface with 800x600 default window
+- Modern, clean interface with 1400x2000 default overlay and 600x400 minimum size
 - Sidebar with screenshot thumbnails and model indicator
 - Color-coded model badges (Purple for Claude, Blue for Gemini, Green for GPT)
 - Dark theme optimized for code visibility
@@ -195,14 +190,15 @@ For local macOS packaging, the default script intentionally sets `mac.identity=n
 **Development Stack:**
 - TypeScript with strict mode and ES2020 target
 - Biome for formatting and linting with consistent code style
-- npm for package management and Vitest for testing
+- Bun for package management and script execution, with Vitest for testing
 - Winston for structured logging with Electron error suppression
 - Unified CSS architecture (single app.css file)
+- Local renderer vendor assets with a restrictive Content Security Policy
 - Concurrent development workflow with hot reload
 
 **File Structure:**
 - `src/main.ts` - Electron main process
-- `src/renderer.js` - Frontend renderer script
+- `src/renderer.ts` - Frontend renderer script
 - `src/services/` - OpenRouter service and providers
 - `src/lib/` - Utilities and logging
 - `styles/app.css` - Unified stylesheet

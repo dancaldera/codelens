@@ -6,10 +6,16 @@ This directory contains tests for the CodeLens application using Vitest.
 
 ```
 test/
+├── ipc.test.ts                 # IPC payload validation tests
 ├── lib/
 │   ├── utils/
 │   │   └── image.test.ts       # Image utility function tests
 │   └── logger.test.ts          # Logger utility tests
+├── main/
+│   ├── analysisSession.test.ts # Analysis queue behavior tests
+│   └── screenshotSession.test.ts # Screenshot slot lifecycle tests
+├── renderer/
+│   └── sanitization.test.ts    # Markdown/XSS sanitization tests
 ├── services/
 │   ├── smartAnalyzer.test.ts   # Smart screenshot analysis service tests
 │   ├── providers.test.ts       # Provider management tests
@@ -25,13 +31,13 @@ test/
 
 ```bash
 # Run all tests
-npm test
+bun run test
 
 # Run tests in watch mode
-npm run test:watch
+bun run test:watch
 
 # Run tests with coverage
-npm run test:coverage
+bun run test:coverage
 ```
 
 ## Test Categories
@@ -57,6 +63,9 @@ The test suite covers:
 - ✅ Logger functionality (performance and API call logging)
 - ✅ Provider and model selection behavior
 - ✅ Error pattern matching
+- ✅ IPC payload validation
+- ✅ Screenshot slot lifecycle and analysis queue behavior
+- ✅ Markdown sanitization against executable HTML
 - ✅ Basic module imports and integration
 
 ## Notes
