@@ -6,6 +6,7 @@ import { loadEnvironment } from './main/env'
 import { registerIpcHandlers } from './main/ipcHandlers'
 import { ScreenshotSession } from './main/screenshotSession'
 import { registerShortcuts } from './main/shortcuts'
+import { VoiceSession } from './main/voiceSession'
 import { createOverlayWindow, resolveRendererPaths } from './main/window'
 
 const logger = createLogger('Main')
@@ -15,6 +16,7 @@ suppressElectronErrors()
 let mainWindow: BrowserWindow | null = null
 let screenshotSession: ScreenshotSession | null = null
 let analysisSession: AnalysisSession | null = null
+let voiceSession: VoiceSession | null = null
 let currentOpacity = 0.8
 let analysisTimer: NodeJS.Timeout | null = null
 let isQuitting = false
@@ -30,9 +32,15 @@ function createWindow(): void {
 		logger,
 	})
 
+	voiceSession = new VoiceSession({
+		getWindow: () => mainWindow,
+		logger,
+	})
+
 	analysisSession = new AnalysisSession({
 		getWindow: () => mainWindow,
 		getImagePaths: () => screenshotSession?.paths ?? [],
+		getVoiceContext: () => voiceSession?.getTranscript(),
 		logger,
 	})
 
@@ -43,6 +51,7 @@ function createWindow(): void {
 	mainWindow.webContents.once('dom-ready', () => {
 		updateOpacity()
 		void analysisSession?.initializeProvider()
+		void voiceSession?.initializeModels()
 	})
 
 	mainWindow.on('closed', () => {
@@ -51,7 +60,7 @@ function createWindow(): void {
 }
 
 function registerApplicationShortcuts(): void {
-	if (!screenshotSession || !analysisSession) return
+	if (!screenshotSession || !analysisSession || !voiceSession) return
 
 	globalShortcut.unregisterAll()
 	registerShortcuts({
@@ -59,6 +68,7 @@ function registerApplicationShortcuts(): void {
 		getWindow: () => mainWindow,
 		screenshotSession,
 		analysisSession,
+		voiceSession,
 		scheduleAnalysis,
 		cancelScheduledAnalysis,
 		onReset: resetSession,
@@ -70,7 +80,7 @@ function registerApplicationShortcuts(): void {
 }
 
 function registerApplicationIpcHandlers(): void {
-	if (!screenshotSession || !analysisSession) return
+	if (!screenshotSession || !analysisSession || !voiceSession) return
 
 	registerIpcHandlers({
 		ipcMain,
@@ -78,6 +88,7 @@ function registerApplicationIpcHandlers(): void {
 		getWindow: () => mainWindow,
 		screenshotSession,
 		analysisSession,
+		voiceSession,
 		cancelScheduledAnalysis,
 		logger,
 	})
@@ -88,6 +99,7 @@ async function resetSession(): Promise<void> {
 
 	cancelScheduledAnalysis()
 	analysisSession.resetContext()
+	voiceSession?.reset()
 	await screenshotSession.reset()
 
 	mainWindow.webContents.send(IPC_CHANNELS.CLEAR_SCREENSHOTS)

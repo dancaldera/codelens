@@ -15,6 +15,13 @@ export const IPC_CHANNELS = {
 	MODEL_CHANGED: 'model-changed',
 	MODELS_LOADING: 'models-loading',
 	GET_CURRENT_MODEL: 'get-current-model',
+	STT_MODEL_CHANGED: 'stt-model-changed',
+	STT_MODELS_LOADING: 'stt-models-loading',
+	GET_CURRENT_STT_MODEL: 'get-current-stt-model',
+	TOGGLE_VOICE_RECORDING: 'toggle-voice-recording',
+	VOICE_AUDIO_RECORDED: 'voice-audio-recorded',
+	VOICE_STATUS: 'voice-status',
+	VOICE_TRANSCRIPT_READY: 'voice-transcript-ready',
 	RESIZE_WINDOW: 'resize-window',
 	TRIGGER_SCREENSHOT: 'trigger-screenshot',
 } as const
@@ -28,6 +35,12 @@ export interface ScreenshotImagePayload {
 	index: number
 	data: string
 	path: string
+}
+
+export interface VoiceAudioPayload {
+	data: string
+	mimeType: string
+	durationMs: number
 }
 
 export interface ModelChangedPayload {
@@ -53,6 +66,37 @@ export function isValidResizeWindowPayload(payload: unknown): payload is ResizeW
 
 export function isValidScreenshotIndex(index: unknown, maxScreenshots = 2): index is number {
 	return Number.isInteger(index) && Number(index) >= 1 && Number(index) <= maxScreenshots
+}
+
+export function isValidVoiceAudioPayload(payload: unknown): payload is VoiceAudioPayload {
+	if (!payload || typeof payload !== 'object') return false
+
+	const { data, mimeType, durationMs } = payload as Partial<VoiceAudioPayload>
+	const allowedMimeTypes = new Set([
+		'audio/aac',
+		'audio/flac',
+		'audio/m4a',
+		'audio/mp3',
+		'audio/mp4',
+		'audio/mpeg',
+		'audio/ogg',
+		'audio/wav',
+		'audio/webm',
+		'audio/webm;codecs=opus',
+	])
+
+	return (
+		typeof data === 'string' &&
+		data.length > 0 &&
+		data.length <= 35_000_000 &&
+		/^[A-Za-z0-9+/]+={0,2}$/.test(data) &&
+		typeof mimeType === 'string' &&
+		allowedMimeTypes.has(mimeType.toLowerCase()) &&
+		typeof durationMs === 'number' &&
+		Number.isFinite(durationMs) &&
+		durationMs > 0 &&
+		durationMs <= 120_000
+	)
 }
 
 function isFinitePositiveNumber(value: unknown): value is number {

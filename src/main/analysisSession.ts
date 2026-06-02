@@ -13,6 +13,7 @@ interface AnalysisLogger {
 export interface AnalysisSessionOptions {
 	getWindow: () => BrowserWindow | null
 	getImagePaths: () => string[]
+	getVoiceContext?: () => string | undefined
 	logger: AnalysisLogger
 }
 
@@ -30,6 +31,10 @@ export class AnalysisSession {
 
 	hasPreviousAnalysis(): boolean {
 		return !!this.previousAnalysis
+	}
+
+	hasAnalyzableContext(): boolean {
+		return this.options.getImagePaths().length > 0 || !!this.options.getVoiceContext?.()?.trim()
 	}
 
 	resetContext(): void {
@@ -116,9 +121,7 @@ export class AnalysisSession {
 
 	async triggerAnalysis(): Promise<void> {
 		const window = this.options.getWindow()
-		const imagePaths = this.options.getImagePaths()
-
-		if (!window || imagePaths.length === 0) return
+		if (!window || !this.hasAnalyzableContext()) return
 
 		if (this.isAnalysisRunning) {
 			this.pendingAnalysis = true
@@ -154,7 +157,7 @@ export class AnalysisSession {
 			this.isAnalysisRunning = false
 			this.analysisPromise = null
 
-			if (this.pendingAnalysis && this.options.getWindow() && this.options.getImagePaths().length > 0) {
+			if (this.pendingAnalysis && this.options.getWindow() && this.hasAnalyzableContext()) {
 				this.pendingAnalysis = false
 				await this.triggerAnalysis()
 			}
@@ -164,8 +167,10 @@ export class AnalysisSession {
 	private async runAnalysis(currentModel: string): Promise<void> {
 		try {
 			const imagePaths = this.options.getImagePaths()
+			const voiceContext = this.options.getVoiceContext?.()
 			this.options.logger.info('Starting analysis', {
 				imageCount: imagePaths.length,
+				hasVoiceContext: !!voiceContext?.trim(),
 				hasPreviousAnalysis: !!this.previousAnalysis,
 				model: currentModel,
 				provider: this.currentProvider,
@@ -174,6 +179,7 @@ export class AnalysisSession {
 			const markdownResult = await analyzeImagesSmart({
 				imagePaths,
 				previousContext: this.previousAnalysis || undefined,
+				voiceContext,
 				model: currentModel,
 				provider: this.currentProvider,
 			})

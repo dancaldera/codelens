@@ -2,6 +2,7 @@ import type { BrowserWindow, GlobalShortcut } from 'electron'
 import { IPC_CHANNELS } from '../ipc'
 import type { AnalysisSession } from './analysisSession'
 import type { ScreenshotSession } from './screenshotSession'
+import type { VoiceSession } from './voiceSession'
 
 interface ShortcutLogger {
 	debug: (message: string, meta?: Record<string, unknown>) => void
@@ -15,6 +16,7 @@ export interface RegisterShortcutsOptions {
 	getWindow: () => BrowserWindow | null
 	screenshotSession: ScreenshotSession
 	analysisSession: AnalysisSession
+	voiceSession: VoiceSession
 	scheduleAnalysis: (delay?: number) => void
 	cancelScheduledAnalysis: () => void
 	onReset: () => Promise<void>
@@ -34,6 +36,12 @@ export function registerShortcuts(options: RegisterShortcutsOptions): void {
 
 	register('CommandOrControl+H', () => {
 		void options.screenshotSession.capture()
+	})
+
+	register('Shift+CommandOrControl+H', () => {
+		const window = options.getWindow()
+		if (!window) return
+		window.webContents.send(IPC_CHANNELS.TOGGLE_VOICE_RECORDING)
 	})
 
 	register('CommandOrControl+G', () => {
@@ -57,13 +65,14 @@ export function registerShortcuts(options: RegisterShortcutsOptions): void {
 	register('CommandOrControl+1', options.decreaseOpacity)
 	register('CommandOrControl+2', options.increaseOpacity)
 	register('CommandOrControl+M', () => options.analysisSession.switchModel())
+	register('Shift+CommandOrControl+M', () => options.voiceSession.switchModel())
 
 	register('CommandOrControl+Enter', () => {
 		const window = options.getWindow()
 		if (!window) return
 
-		if (options.screenshotSession.paths.length === 0) {
-			window.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, 'No screenshots available for analysis')
+		if (!options.analysisSession.hasAnalyzableContext()) {
+			window.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, 'No screenshots or voice context available for analysis')
 			return
 		}
 

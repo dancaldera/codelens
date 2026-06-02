@@ -59,6 +59,58 @@ describe('AnalysisSession', () => {
 		})
 	})
 
+	test('passes voice context into smart analysis', async () => {
+		analyzeImagesSmart.mockResolvedValueOnce('voice-aware result')
+
+		const send = vi.fn()
+		const executeJavaScript = vi.fn(async () => undefined)
+		const window = { webContents: { send, executeJavaScript, isDestroyed: () => false } } as never
+		const { AnalysisSession } = await import('../../src/main/analysisSession')
+		const session = new AnalysisSession({
+			getWindow: () => window,
+			getImagePaths: () => ['screen.png'],
+			getVoiceContext: () => 'Please explain this with a recursive approach.',
+			logger,
+		})
+
+		await session.triggerAnalysis()
+
+		expect(analyzeImagesSmart).toHaveBeenCalledWith({
+			imagePaths: ['screen.png'],
+			previousContext: undefined,
+			voiceContext: 'Please explain this with a recursive approach.',
+			model: 'model-a',
+			provider: 'openrouter',
+		})
+	})
+
+	test('runs analysis with voice-only context', async () => {
+		analyzeImagesSmart.mockResolvedValueOnce('voice-only result')
+
+		const send = vi.fn()
+		const executeJavaScript = vi.fn(async () => undefined)
+		const window = { webContents: { send, executeJavaScript, isDestroyed: () => false } } as never
+		const { AnalysisSession } = await import('../../src/main/analysisSession')
+		const session = new AnalysisSession({
+			getWindow: () => window,
+			getImagePaths: () => [],
+			getVoiceContext: () => 'Explain binary search in TypeScript.',
+			logger,
+		})
+
+		expect(session.hasAnalyzableContext()).toBe(true)
+		await session.triggerAnalysis()
+
+		expect(analyzeImagesSmart).toHaveBeenCalledWith({
+			imagePaths: [],
+			previousContext: undefined,
+			voiceContext: 'Explain binary search in TypeScript.',
+			model: 'model-a',
+			provider: 'openrouter',
+		})
+		expect(send).toHaveBeenCalledWith('analysis-result', 'voice-only result')
+	})
+
 	test('queues one pending analysis when a request arrives while analysis is running', async () => {
 		const first = deferred<string>()
 		const second = deferred<string>()

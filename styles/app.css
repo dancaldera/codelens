@@ -278,14 +278,27 @@ body {
 	color: var(--accent-blue);
 }
 
-#modelInfo[data-model*='gpt'] {
+#modelInfo[data-model*='gpt'],
+#sttModelInfo[data-model*='gpt'],
+#sttModelInfo[data-model*='whisper'] {
 	border-color: rgba(52, 211, 153, 0.45);
 	color: var(--accent-green);
 }
 
-#modelInfo[data-model='no-key'] {
+#modelInfo[data-model='no-key'],
+#sttModelInfo[data-model='no-key'] {
 	border-color: rgba(251, 191, 36, 0.55);
 	color: var(--accent-amber);
+}
+
+#sttModelInfo[data-model='recording'] {
+	border-color: rgba(244, 114, 182, 0.55);
+	color: var(--accent-pink);
+}
+
+#sttModelInfo[data-model='ready'] {
+	border-color: rgba(96, 165, 250, 0.5);
+	color: var(--accent-blue);
 }
 
 /* ---------- Result panel ---------- */

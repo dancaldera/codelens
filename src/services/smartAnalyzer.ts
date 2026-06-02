@@ -121,6 +121,7 @@ GENERAL RULES
 export interface SmartAnalysisOptions {
 	imagePaths: string[]
 	previousContext?: string
+	voiceContext?: string
 	model?: string
 	provider?: Provider
 }
@@ -128,13 +129,15 @@ export interface SmartAnalysisOptions {
 export async function analyzeImagesSmart({
 	imagePaths,
 	previousContext,
+	voiceContext,
 	model = DEFAULT_PROGRAMMING_VISION_MODEL,
 	provider,
 }: SmartAnalysisOptions): Promise<string> {
 	const startTime = Date.now()
 
-	if (!imagePaths?.length) {
-		return '## No screenshots\nCapture at least one screenshot to analyze.'
+	const hasVoiceContext = !!voiceContext?.trim()
+	if (!imagePaths?.length && !hasVoiceContext) {
+		return '## No screenshots or voice context\nCapture at least one screenshot or record a voice note to analyze.'
 	}
 
 	const timeout = setTimeout(() => {
@@ -142,14 +145,23 @@ export async function analyzeImagesSmart({
 	}, TIMEOUT_MS)
 
 	try {
-		const images = await processImages(imagePaths)
-		if (!images.length) {
+		const images = imagePaths.length ? await processImages(imagePaths) : []
+		if (imagePaths.length > 0 && !images.length) {
 			return '## Failed to read screenshots\nVerify the screenshot files and try again.'
 		}
 
-		logger.info('Executing smart analysis', { model, provider, images: images.length })
+		logger.info('Executing smart analysis', {
+			model,
+			provider,
+			images: images.length,
+			hasVoiceContext,
+		})
 
-		const markdown = await analyzeWithProvider({ images, prompt: SMART_PROMPT, previousContext }, model, provider)
+		const markdown = await analyzeWithProvider(
+			{ images, prompt: buildAnalysisPrompt(voiceContext, images.length > 0), previousContext },
+			model,
+			provider,
+		)
 
 		logPerformance('Smart analysis completed', startTime)
 		return markdown.trim() || '## Empty response\nThe model returned no content. Try again.'
@@ -160,6 +172,31 @@ export async function analyzeImagesSmart({
 	} finally {
 		clearTimeout(timeout)
 	}
+}
+
+function buildAnalysisPrompt(voiceContext?: string, hasImages = true): string {
+	const trimmedVoiceContext = voiceContext?.trim()
+	if (!trimmedVoiceContext) return SMART_PROMPT
+
+	if (!hasImages) {
+		return `You are CodeLens, an expert coding and technical assistant. The user provided a spoken request but no screenshots.
+
+Respond directly in Markdown based only on the spoken context. Be concise but complete. If the request is ambiguous, state the likely interpretation and answer that. Do not mention screenshots unless the user asked about them.
+
+USER SPOKEN CONTEXT
+"""
+${trimmedVoiceContext}
+"""`
+	}
+
+	return `${SMART_PROMPT}
+
+USER SPOKEN CONTEXT
+The user recorded this voice note to guide the screenshot analysis. Treat it as the user's intent, constraints, and preferred approach. If it conflicts with the screenshot, explain the conflict briefly and prioritize facts visible in the screenshot.
+
+"""
+${trimmedVoiceContext}
+"""`
 }
 
 async function processImages(imagePaths: string[]): Promise<ImageContent[]> {
