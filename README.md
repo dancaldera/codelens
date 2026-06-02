@@ -6,8 +6,9 @@ AI-powered code analysis from screenshots. An Electron application that captures
 
 - **OpenRouter AI Integration**: Access multiple AI vision models through OpenRouter
 - **Screenshot Capture**: Press `Cmd+H` to capture code screenshots (cycles between 2 slots)
+- **Voice Context**: Press `Shift+Cmd+H` to record a short voice note that guides the next analysis
 - **Auto-Analysis**: Automatically analyzes after capturing 2 screenshots
-- **Manual Analysis**: Press `Cmd+Enter` to trigger analysis at any time
+- **Manual Analysis**: Press `Cmd+Enter` to analyze screenshots, voice-only context, or both
 - **Smart Analysis**: Automatically detects code problems, snippets, errors, documents, UI designs, charts, and general questions
 - **Code-Aware Output**: Extracts code, explains behavior, suggests fixes, and includes complexity analysis when relevant
 - **Always-on-top overlay**: Stays visible on all workspaces and fullscreen apps
@@ -32,7 +33,7 @@ AI-powered code analysis from screenshots. An Electron application that captures
 
 ### OpenRouter Setup
 
-CodeLens uses OpenRouter for AI-powered code analysis.
+CodeLens uses OpenRouter for AI-powered screenshot analysis and speech-to-text voice context. No separate STT API key is required.
 
 **Method 1: Environment Variables (Recommended for development)**
 ```bash
@@ -73,17 +74,19 @@ echo "OPENROUTER_API_KEY=sk-your-openrouter-api-key-here" > ~/.env
 **Get API Key:** [OpenRouter](https://openrouter.ai/keys)
 
 **Model Switching:**
-- Use `Cmd+M` to cycle between available models during runtime
-- Current model displayed in the sidebar with color-coded badge
+- Use `Cmd+M` to cycle between available analysis models during runtime
+- Use `Shift+Cmd+M` to cycle between OpenRouter speech-to-text models
+- Current analysis and voice models are displayed in the sidebar with color-coded badges
 - No API key? The app will show "No API Key" indicator
 
 > **Note:** An OpenRouter API key is required for AI analysis. Get one at [openrouter.ai](https://openrouter.ai/keys).
 
 ## Keyboard Shortcuts
 
-**Screenshot & Analysis**
+**Screenshot, Voice & Analysis**
 - `Cmd+H` - Take screenshot (cycles between slots 1-2, auto-analyzes after 2nd screenshot)
-- `Cmd+Enter` - Manually trigger analysis at any time
+- `Shift+Cmd+H` - Start/stop voice recording; transcript is added as context to analysis
+- `Cmd+Enter` - Manually trigger analysis with screenshots, voice-only context, or both
 
 **Window Management**
 - `Cmd+G` - Reset screenshots, clear analysis, and reposition window to (50,50)
@@ -96,10 +99,13 @@ echo "OPENROUTER_API_KEY=sk-your-openrouter-api-key-here" > ~/.env
 
 **Model Selection**
 - `Cmd+M` - Switch AI model (cycles through the latest OpenRouter programming vision catalog)
+- `Shift+Cmd+M` - Switch STT model (cycles through the latest OpenRouter transcription catalog)
 
 ## macOS Permissions Setup
 
 ### For Individual Window Capture (Recommended)
+
+CodeLens also requests microphone permission when using voice context (`Shift+Cmd+H`).
 
 To capture individual application windows instead of just desktop screenshots:
 
@@ -169,7 +175,7 @@ For local macOS packaging, the default script intentionally sets `mac.identity=n
 - OpenRouter integration with extended timeouts (60s total, 50s API)
 - Model switching with `Cmd+M` (latest OpenRouter programming vision models)
 - Auto-triggers analysis after capturing 2 screenshots
-- Manual trigger with `Cmd+Enter` for single screenshots
+- Manual trigger with `Cmd+Enter` for screenshots, voice-only context, or both
 
 **Smart Analysis:**
 - Automatically detects the screenshot type and formats the answer for code, errors, documents, UI designs, charts, and general questions.

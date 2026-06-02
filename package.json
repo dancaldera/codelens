@@ -74,7 +74,10 @@
 			"entitlements": "entitlements.mac.plist",
 			"entitlementsInherit": "entitlements.mac.plist",
 			"hardenedRuntime": true,
-			"gatekeeperAssess": false
+			"gatekeeperAssess": false,
+			"extendInfo": {
+				"NSMicrophoneUsageDescription": "CodeLens records short voice notes to add context to screenshot analysis."
+			}
 		},
 		"win": {
 			"target": [

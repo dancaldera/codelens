@@ -31,6 +31,9 @@
 
 	/* Shape */
 	--spacing: 8px;
+	--overlay-padding: calc(var(--spacing) * 1.5);
+	--sidebar-width: 132px;
+	--content-left: calc(var(--overlay-padding) + var(--sidebar-width) + var(--spacing) * 1.5);
 	--radius-sm: 6px;
 	--radius: 10px;
 	--radius-lg: 14px;
@@ -66,8 +69,9 @@ body {
 
 #app {
 	display: flex;
+	align-items: flex-start;
 	gap: calc(var(--spacing) * 1.5);
-	padding: calc(var(--spacing) * 1.5);
+	padding: var(--overlay-padding);
 	width: 100%;
 	min-height: 100%;
 	overflow-y: auto;
@@ -80,7 +84,16 @@ body {
 	flex-direction: column;
 	gap: var(--spacing);
 	flex-shrink: 0;
-	width: 180px;
+	width: var(--sidebar-width);
+}
+
+.content {
+	position: relative;
+	flex: 1 1 0;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
 }
 
 #screenshots {
@@ -164,7 +177,19 @@ body {
 	pointer-events: none;
 }
 
-/* ---------- Model badge ---------- */
+/* ---------- Status dock / model cards ---------- */
+.status-dock {
+	position: fixed;
+	top: var(--overlay-padding);
+	left: var(--content-left);
+	z-index: 1001;
+	display: flex;
+	align-items: flex-start;
+	gap: var(--spacing);
+	max-width: min(460px, calc(100vw - var(--content-left) - var(--overlay-padding)));
+	pointer-events: none;
+}
+
 .info-badge {
 	position: relative;
 	display: grid;
@@ -179,9 +204,9 @@ body {
 	letter-spacing: 0.01em;
 	text-align: left;
 	color: var(--fg-dim);
-	width: 120px;
-	max-width: 120px;
-	min-height: 54px;
+	width: 220px;
+	max-width: min(220px, calc((100vw - var(--content-left) - var(--overlay-padding) - var(--spacing)) / 2));
+	min-height: 58px;
 	line-height: 1.35;
 	word-break: normal;
 	overflow-wrap: anywhere;
@@ -278,14 +303,141 @@ body {
 	color: var(--accent-blue);
 }
 
-#modelInfo[data-model*='gpt'] {
+#modelInfo[data-model*='gpt'],
+#sttModelInfo[data-model*='gpt'],
+#sttModelInfo[data-model*='whisper'] {
 	border-color: rgba(52, 211, 153, 0.45);
 	color: var(--accent-green);
 }
 
-#modelInfo[data-model='no-key'] {
+#modelInfo[data-model='no-key'],
+#sttModelInfo[data-model='no-key'] {
 	border-color: rgba(251, 191, 36, 0.55);
 	color: var(--accent-amber);
+}
+
+#sttModelInfo[data-model='recording'] {
+	border-color: rgba(244, 114, 182, 0.55);
+	color: var(--accent-pink);
+}
+
+#sttModelInfo[data-model='ready'] {
+	border-color: rgba(96, 165, 250, 0.5);
+	color: var(--accent-blue);
+}
+
+/* ---------- Recording card ---------- */
+.recording-card {
+	position: fixed;
+	top: var(--overlay-padding);
+	right: var(--overlay-padding);
+	z-index: 1002;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 220px;
+	max-width: min(340px, calc(100vw - var(--content-left) - var(--overlay-padding)));
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	padding: 10px 12px;
+	color: var(--fg-dim);
+	backdrop-filter: blur(22px) saturate(170%);
+	-webkit-backdrop-filter: blur(22px) saturate(170%);
+	box-shadow: var(--shadow-md), var(--ring);
+	opacity: 0;
+	transform: translateY(-4px) scale(0.98);
+	pointer-events: none;
+	transition:
+		opacity 0.2s ease,
+		transform 0.2s ease,
+		border-color 0.25s ease,
+		color 0.25s ease,
+		box-shadow 0.25s ease;
+}
+
+.recording-card.hidden {
+	display: none;
+}
+
+.recording-card.show {
+	opacity: 1;
+	transform: translateY(0) scale(1);
+	pointer-events: auto;
+}
+
+.recording-card[data-status='recording'] {
+	border-color: rgba(244, 114, 182, 0.6);
+	color: var(--accent-pink);
+	box-shadow:
+		0 0 0 1px rgba(244, 114, 182, 0.2),
+		0 10px 28px rgba(244, 114, 182, 0.12),
+		var(--shadow-md);
+}
+
+.recording-card[data-status='processing'] {
+	border-color: rgba(96, 165, 250, 0.5);
+	color: var(--accent-blue);
+}
+
+.recording-card[data-status='ready'] {
+	border-color: rgba(52, 211, 153, 0.5);
+	color: var(--accent-green);
+}
+
+.recording-card[data-status='error'] {
+	border-color: rgba(251, 191, 36, 0.55);
+	color: var(--accent-amber);
+}
+
+.recording-dot {
+	width: 9px;
+	height: 9px;
+	flex-shrink: 0;
+	border-radius: 50%;
+	background: currentColor;
+	box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.recording-card[data-status='recording'] .recording-dot {
+	animation: recordPulse 1.15s ease-in-out infinite;
+}
+
+.recording-copy {
+	display: grid;
+	gap: 1px;
+	min-width: 0;
+}
+
+.recording-label {
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 1.25;
+	color: var(--fg);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.recording-meta {
+	font-family: var(--font-mono);
+	font-size: 10px;
+	line-height: 1.35;
+	color: var(--fg-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+@keyframes recordPulse {
+	0%, 100% {
+		transform: scale(1);
+		opacity: 0.8;
+	}
+	50% {
+		transform: scale(1.35);
+		opacity: 1;
+	}
 }
 
 /* ---------- Result panel ---------- */
@@ -493,8 +645,8 @@ body {
 /* ---------- Loading indicator ---------- */
 #loading {
 	position: fixed;
-	top: calc(var(--spacing) * 1.5);
-	left: calc(180px + var(--spacing) * 3);
+	top: calc(var(--overlay-padding) + 74px);
+	left: var(--content-left);
 	background: var(--bg-elevated);
 	border: 1px solid var(--border);
 	padding: 10px 14px;

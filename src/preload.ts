@@ -3,8 +3,10 @@ import {
 	IPC_CHANNELS,
 	isValidResizeWindowPayload,
 	isValidScreenshotIndex,
+	isValidVoiceAudioPayload,
 	type ModelChangedPayload,
 	type ScreenshotImagePayload,
+	type VoiceAudioPayload,
 } from './ipc'
 
 type Unsubscribe = () => void
@@ -25,6 +27,13 @@ interface ApiInterface {
 	onModelChanged: (callback: (model: string | ModelChangedPayload) => void) => Unsubscribe
 	onModelsLoading: (callback: () => void) => Unsubscribe
 	getCurrentModel: () => Promise<ModelChangedPayload | null>
+	onSttModelChanged: (callback: (model: string | ModelChangedPayload) => void) => Unsubscribe
+	onSttModelsLoading: (callback: () => void) => Unsubscribe
+	getCurrentSttModel: () => Promise<ModelChangedPayload | null>
+	onToggleVoiceRecording: (callback: () => void) => Unsubscribe
+	sendVoiceAudio: (payload: VoiceAudioPayload) => void
+	onVoiceStatus: (callback: (status: string) => void) => Unsubscribe
+	onVoiceTranscriptReady: (callback: () => void) => Unsubscribe
 	resizeWindow: (width: number, height: number) => void
 }
 
@@ -70,6 +79,20 @@ contextBridge.exposeInMainWorld('api', {
 		onIpc(IPC_CHANNELS.MODEL_CHANGED, callback),
 	onModelsLoading: (callback: () => void) => onIpcSignal(IPC_CHANNELS.MODELS_LOADING, callback),
 	getCurrentModel: () => ipcRenderer.invoke(IPC_CHANNELS.GET_CURRENT_MODEL),
+	onSttModelChanged: (callback: (model: string | ModelChangedPayload) => void) =>
+		onIpc(IPC_CHANNELS.STT_MODEL_CHANGED, callback),
+	onSttModelsLoading: (callback: () => void) => onIpcSignal(IPC_CHANNELS.STT_MODELS_LOADING, callback),
+	getCurrentSttModel: () => ipcRenderer.invoke(IPC_CHANNELS.GET_CURRENT_STT_MODEL),
+	onToggleVoiceRecording: (callback: () => void) => onIpcSignal(IPC_CHANNELS.TOGGLE_VOICE_RECORDING, callback),
+	sendVoiceAudio: (payload: VoiceAudioPayload) => {
+		if (!isValidVoiceAudioPayload(payload)) {
+			console.warn('Rejected invalid voice audio payload')
+			return
+		}
+		ipcRenderer.send(IPC_CHANNELS.VOICE_AUDIO_RECORDED, payload)
+	},
+	onVoiceStatus: (callback: (status: string) => void) => onIpc(IPC_CHANNELS.VOICE_STATUS, callback),
+	onVoiceTranscriptReady: (callback: () => void) => onIpcSignal(IPC_CHANNELS.VOICE_TRANSCRIPT_READY, callback),
 	resizeWindow: (width: number, height: number) => {
 		const payload = { width, height }
 		if (!isValidResizeWindowPayload(payload)) {

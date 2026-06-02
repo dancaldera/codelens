@@ -4,3 +4,4 @@ export { createOpenRouterClient, isOpenRouterConfigured, validateOpenRouterConfi
 export { OpenRouterService } from './openrouter/service'
 export * from './providers'
 export * from './smartAnalyzer'
+export * from './stt'

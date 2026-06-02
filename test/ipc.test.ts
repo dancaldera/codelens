@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { isValidResizeWindowPayload, isValidScreenshotIndex } from '../src/ipc'
+import { isValidResizeWindowPayload, isValidScreenshotIndex, isValidVoiceAudioPayload } from '../src/ipc'
 
 describe('IPC payload validation', () => {
 	test('accepts bounded resize payloads', () => {
@@ -17,5 +17,12 @@ describe('IPC payload validation', () => {
 		expect(isValidScreenshotIndex(2)).toBe(true)
 		expect(isValidScreenshotIndex(0)).toBe(false)
 		expect(isValidScreenshotIndex(3)).toBe(false)
+	})
+
+	test('validates voice audio payloads', () => {
+		expect(isValidVoiceAudioPayload({ data: 'UklGRg==', mimeType: 'audio/webm', durationMs: 1000 })).toBe(true)
+		expect(isValidVoiceAudioPayload({ data: 'UklGRg==', mimeType: 'text/plain', durationMs: 1000 })).toBe(false)
+		expect(isValidVoiceAudioPayload({ data: 'not base64!', mimeType: 'audio/webm', durationMs: 1000 })).toBe(false)
+		expect(isValidVoiceAudioPayload({ data: 'UklGRg==', mimeType: 'audio/webm', durationMs: 0 })).toBe(false)
 	})
 })

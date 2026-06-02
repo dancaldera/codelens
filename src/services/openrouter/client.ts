@@ -6,6 +6,7 @@ const logger = createLogger('OpenRouterClient')
 const OPENROUTER_MODELS_ENDPOINT = 'https://openrouter.ai/api/v1/models'
 
 export const DEFAULT_PROGRAMMING_VISION_MODEL = 'anthropic/claude-sonnet-4.6'
+export const DEFAULT_TRANSCRIPTION_MODEL = 'openai/gpt-4o-mini-transcribe'
 
 /**
  * Preferred order for CodeLens screenshot analysis. The API result is still used as
@@ -39,6 +40,12 @@ export const FALLBACK_PROGRAMMING_VISION_MODELS: ProgrammingModel[] = [
 	{ id: 'anthropic/claude-opus-4.6', name: 'Anthropic: Claude Opus 4.6', contextLength: 1000000 },
 	{ id: 'moonshotai/kimi-k2.6', name: 'MoonshotAI: Kimi K2.6', contextLength: 262144 },
 	{ id: 'mistralai/mistral-medium-3-5', name: 'Mistral: Mistral Medium 3.5', contextLength: 262144 },
+]
+
+export const FALLBACK_TRANSCRIPTION_MODELS: ProgrammingModel[] = [
+	{ id: 'openai/gpt-4o-mini-transcribe', name: 'OpenAI: GPT-4o Mini Transcribe' },
+	{ id: 'openai/gpt-4o-transcribe', name: 'OpenAI: GPT-4o Transcribe' },
+	{ id: 'openai/whisper-1', name: 'OpenAI: Whisper' },
 ]
 
 /**
@@ -184,11 +191,67 @@ export async function fetchProgrammingModels(): Promise<ProgrammingModel[]> {
 	}
 }
 
+export async function fetchTranscriptionModels(): Promise<ProgrammingModel[]> {
+	try {
+		logger.debug('Fetching transcription models from OpenRouter API')
+
+		const url = new URL(OPENROUTER_MODELS_ENDPOINT)
+		url.searchParams.set('output_modalities', 'transcription')
+
+		const headers: Record<string, string> = {
+			'HTTP-Referer': process.env.OPENROUTER_SITE_URL || 'https://codelens.app',
+			'X-Title': process.env.OPENROUTER_SITE_NAME || 'CodeLens',
+		}
+
+		if (process.env.OPENROUTER_API_KEY) {
+			headers.Authorization = `Bearer ${process.env.OPENROUTER_API_KEY}`
+		}
+
+		const response = await fetch(url, {
+			method: 'GET',
+			headers,
+		})
+
+		if (!response.ok) {
+			throw new Error(`OpenRouter API returned ${response.status}: ${response.statusText}`)
+		}
+
+		const data = (await response.json()) as { data?: OpenRouterModel[] }
+		const transcriptionModels = orderTranscriptionModels(
+			(data.data ?? []).filter(isTranscriptionModel).map((model) => ({
+				id: model.id,
+				name: model.name,
+				contextLength: model.context_length,
+				created: model.created,
+				promptPrice: model.pricing.prompt,
+				completionPrice: model.pricing.completion,
+			})),
+		)
+
+		if (!transcriptionModels.length) {
+			logger.warn('OpenRouter returned no transcription models; using fallback catalog')
+			return FALLBACK_TRANSCRIPTION_MODELS
+		}
+
+		logger.debug(`Found ${transcriptionModels.length} transcription models`)
+		return transcriptionModels
+	} catch (error) {
+		logger.error('Failed to fetch transcription models from OpenRouter', { error })
+		return FALLBACK_TRANSCRIPTION_MODELS
+	}
+}
+
 function isVisionTextModel(model: OpenRouterModel): boolean {
 	const inputModalities = model.architecture?.input_modalities ?? []
 	const outputModalities = model.architecture?.output_modalities ?? []
 
 	return inputModalities.includes('image') && outputModalities.includes('text')
+}
+
+function isTranscriptionModel(model: OpenRouterModel): boolean {
+	const outputModalities = model.architecture?.output_modalities ?? []
+	const id = model.id.toLowerCase()
+	return outputModalities.includes('transcription') || id.includes('transcribe') || id.includes('whisper')
 }
 
 function orderProgrammingModels(models: ProgrammingModel[]): ProgrammingModel[] {
@@ -201,4 +264,12 @@ function orderProgrammingModels(models: ProgrammingModel[]): ProgrammingModel[] 
 	const remainingModels = models.filter((model) => !preferredIds.has(model.id))
 
 	return [...preferredModels, ...remainingModels]
+}
+
+function orderTranscriptionModels(models: ProgrammingModel[]): ProgrammingModel[] {
+	return [...models].sort((a, b) => {
+		if (a.id === DEFAULT_TRANSCRIPTION_MODEL) return -1
+		if (b.id === DEFAULT_TRANSCRIPTION_MODEL) return 1
+		return (b.created ?? 0) - (a.created ?? 0)
+	})
 }
