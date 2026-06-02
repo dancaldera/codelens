@@ -1,5 +1,5 @@
 import { app, BrowserWindow, globalShortcut, ipcMain, shell } from 'electron'
-import { IPC_CHANNELS } from './ipc'
+import { IPC_CHANNELS, type LoadingStatusPayload } from './ipc'
 import { createLogger, suppressElectronErrors } from './lib'
 import { AnalysisSession } from './main/analysisSession'
 import { loadEnvironment } from './main/env'
@@ -20,6 +20,8 @@ let voiceSession: VoiceSession | null = null
 let currentOpacity = 0.8
 let analysisTimer: NodeJS.Timeout | null = null
 let isQuitting = false
+let pendingAnalysisRequest = false
+let pendingSingleScreenshotAnalysis = false
 
 function createWindow(): void {
 	const rendererPaths = resolveRendererPaths(__dirname)
@@ -28,12 +30,14 @@ function createWindow(): void {
 	screenshotSession = new ScreenshotSession({
 		getWindow: () => mainWindow,
 		hasContext: () => analysisSession?.hasPreviousAnalysis() ?? false,
+		isWaitingForVoice: () => voiceSession?.isVoiceBusy() ?? false,
 		onShouldAnalyze: () => scheduleAnalysis(500),
 		logger,
 	})
 
 	voiceSession = new VoiceSession({
 		getWindow: () => mainWindow,
+		onVoiceSettled: handleVoiceSettled,
 		logger,
 	})
 
@@ -90,6 +94,7 @@ function registerApplicationIpcHandlers(): void {
 		analysisSession,
 		voiceSession,
 		cancelScheduledAnalysis,
+		scheduleAnalysis,
 		logger,
 	})
 }
@@ -100,6 +105,8 @@ async function resetSession(): Promise<void> {
 	cancelScheduledAnalysis()
 	analysisSession.resetContext()
 	voiceSession?.reset()
+	pendingAnalysisRequest = false
+	pendingSingleScreenshotAnalysis = false
 	await screenshotSession.reset()
 
 	mainWindow.webContents.send(IPC_CHANNELS.CLEAR_SCREENSHOTS)
@@ -127,22 +134,102 @@ function updateOpacity(): void {
 	logger.info('Opacity changed', { opacity: currentOpacity })
 }
 
-function scheduleAnalysis(delay = 0): void {
+function scheduleAnalysis(delay = 0, allowSingleScreenshot = false): void {
+	pendingAnalysisRequest = true
+	pendingSingleScreenshotAnalysis = pendingSingleScreenshotAnalysis || allowSingleScreenshot
 	if (analysisTimer) {
 		clearTimeout(analysisTimer)
 	}
 
 	analysisTimer = setTimeout(() => {
 		analysisTimer = null
-		if (!mainWindow || !analysisSession || !screenshotSession?.paths.length) return
-
-		mainWindow.webContents.send(IPC_CHANNELS.SHOW_LOADING)
-		void analysisSession.triggerAnalysis().catch((error) => {
-			logger.error('Scheduled analysis failed', {
-				error: error instanceof Error ? error.message : String(error),
-			})
-		})
+		flushPendingAnalysisRequest()
 	}, delay)
+}
+
+function flushPendingAnalysisRequest(): void {
+	if (!pendingAnalysisRequest || !mainWindow || !analysisSession || !screenshotSession || !voiceSession) return
+
+	if (voiceSession.isVoiceBusy()) {
+		showLoadingStatus(getWaitingForVoiceStatus())
+		return
+	}
+
+	if (!canStartAnalysisNow(pendingSingleScreenshotAnalysis)) {
+		showLoadingStatus(getWaitingForContextStatus())
+		return
+	}
+
+	pendingAnalysisRequest = false
+	pendingSingleScreenshotAnalysis = false
+	showLoadingStatus({
+		state: 'analyzing',
+		title: 'Analyzing context',
+		message: getAnalysisLoadingMessage(),
+	})
+
+	void analysisSession.triggerAnalysis().catch((error) => {
+		logger.error('Scheduled analysis failed', {
+			error: error instanceof Error ? error.message : String(error),
+		})
+	})
+}
+
+function canStartAnalysisNow(allowSingleScreenshot = false): boolean {
+	if (!analysisSession || !screenshotSession || !voiceSession || voiceSession.isVoiceBusy()) return false
+
+	const imageCount = screenshotSession.paths.length
+	return (
+		imageCount >= 2 ||
+		voiceSession.hasTranscript() ||
+		(imageCount >= 1 && (analysisSession.hasPreviousAnalysis() || allowSingleScreenshot))
+	)
+}
+
+function getWaitingForVoiceStatus(): LoadingStatusPayload {
+	return voiceSession?.isRecording()
+		? {
+				state: 'recording',
+				title: 'Recording voice context',
+				message: 'Capture screenshots while speaking, or stop recording to analyze.',
+			}
+		: {
+				state: 'transcribing',
+				title: 'Preparing voice context',
+				message: 'Transcribing your note before starting analysis.',
+			}
+}
+
+function getWaitingForContextStatus(): LoadingStatusPayload {
+	const imageCount = screenshotSession?.paths.length ?? 0
+	const remainingScreenshots = Math.max(2 - imageCount, 0)
+
+	return {
+		state: 'waiting',
+		title: imageCount > 0 ? 'Waiting for more context' : 'Ready when you are',
+		message:
+			imageCount > 0
+				? `${imageCount}/2 screenshots captured. Capture ${remainingScreenshots} more or record a voice note.`
+				: 'Capture 2 screenshots or record a voice note to start analysis.',
+	}
+}
+
+function getAnalysisLoadingMessage(): string {
+	const imageCount = screenshotSession?.paths.length ?? 0
+	const hasVoice = voiceSession?.hasTranscript() ?? false
+	if (imageCount && hasVoice) return 'Combining screenshots with your voice note.'
+	if (hasVoice) return 'Using your voice note as the full prompt.'
+	return 'Reading screenshots and building the answer.'
+}
+
+function showLoadingStatus(status: LoadingStatusPayload): void {
+	mainWindow?.webContents.send(IPC_CHANNELS.SHOW_LOADING, status)
+}
+
+function handleVoiceSettled(): void {
+	if (voiceSession?.hasTranscript() || pendingAnalysisRequest || screenshotSession?.paths.length) {
+		scheduleAnalysis(250)
+	}
 }
 
 function cancelScheduledAnalysis(): void {
@@ -150,6 +237,8 @@ function cancelScheduledAnalysis(): void {
 		clearTimeout(analysisTimer)
 		analysisTimer = null
 	}
+	pendingAnalysisRequest = false
+	pendingSingleScreenshotAnalysis = false
 }
 
 app.whenReady().then(async () => {
