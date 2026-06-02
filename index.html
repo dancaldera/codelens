@@ -14,10 +14,15 @@
   <div id="app">
     <div class="sidebar">
       <div id="screenshots"></div>
-      <div id="modelInfo" class="info-badge">OpenRouter</div>
-      <div id="sttModelInfo" class="info-badge stt-badge">Voice</div>
     </div>
-    <div id="result"></div>
+    <div class="content">
+      <div class="status-dock" aria-label="Model status">
+        <div id="modelInfo" class="info-badge model-card">OpenRouter</div>
+        <div id="sttModelInfo" class="info-badge model-card stt-badge">Voice</div>
+      </div>
+      <div id="recordingStatus" class="recording-card hidden" aria-live="polite"></div>
+      <div id="result"></div>
+    </div>
     <div id="loading" class="hidden">
       <div class="spinner"></div>
       <span>Analyzing...</span>

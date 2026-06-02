@@ -30,15 +30,18 @@ interface ModelInfo {
 	count?: number
 }
 
+type RecordingStatusKind = 'recording' | 'processing' | 'ready' | 'error'
+
 window.addEventListener('DOMContentLoaded', () => {
 	const screenshots = document.getElementById('screenshots')
 	const result = document.getElementById('result')
 	const loading = document.getElementById('loading')
 	const modelInfo = document.getElementById('modelInfo')
 	const sttModelInfo = document.getElementById('sttModelInfo')
+	const recordingStatus = document.getElementById('recordingStatus')
 
 	// Ensure all required DOM elements exist
-	if (!screenshots || !result || !loading || !modelInfo || !sttModelInfo) {
+	if (!screenshots || !result || !loading || !modelInfo || !sttModelInfo || !recordingStatus) {
 		console.error('Required DOM elements not found')
 		return
 	}
@@ -48,6 +51,7 @@ window.addEventListener('DOMContentLoaded', () => {
 	const loadingDiv = loading as HTMLDivElement
 	const modelInfoDiv = modelInfo as HTMLDivElement
 	const sttModelInfoDiv = sttModelInfo as HTMLDivElement
+	const recordingStatusDiv = recordingStatus as HTMLDivElement
 
 	const MAX_SCREENSHOTS = 2
 	const screenshotData = new Map<number, ScreenshotData>()
@@ -71,6 +75,10 @@ window.addEventListener('DOMContentLoaded', () => {
 	let mediaStream: MediaStream | null = null
 	let voiceChunks: Blob[] = []
 	let recordingStartedAt = 0
+	let recordingStatusHideTimeout: ReturnType<typeof setTimeout> | null = null
+	let recordingStatusTimer: ReturnType<typeof setInterval> | null = null
+	let currentRecordingStatus = ''
+	let currentRecordingStatusKind: RecordingStatusKind = 'ready'
 
 	function formatProviderLabel(provider: string): string {
 		if (provider.toLowerCase() === 'openrouter') return 'OpenRouter'
@@ -292,19 +300,120 @@ window.addEventListener('DOMContentLoaded', () => {
 		flashSttModelInfoBadge()
 	}
 
+	function formatDuration(ms: number): string {
+		const totalSeconds = Math.max(Math.floor(ms / 1000), 0)
+		const minutes = Math.floor(totalSeconds / 60)
+		const seconds = totalSeconds % 60
+		return `${minutes}:${seconds.toString().padStart(2, '0')}`
+	}
+
+	function classifyVoiceStatus(status: string): RecordingStatusKind | 'model' {
+		const normalized = status.toLowerCase()
+
+		if (normalized.startsWith('voice model:')) return 'model'
+		if (normalized.includes('recording') && !normalized.includes('failed')) return 'recording'
+		if (
+			normalized.includes('preparing') ||
+			normalized.includes('transcribing') ||
+			normalized.includes('loading') ||
+			normalized.includes('still loading')
+		) {
+			return 'processing'
+		}
+		if (
+			normalized.includes('unavailable') ||
+			normalized.includes('failed') ||
+			normalized.includes('invalid') ||
+			normalized.includes('no audio') ||
+			normalized.includes('no stt') ||
+			normalized.includes('no model')
+		) {
+			return 'error'
+		}
+
+		return 'ready'
+	}
+
+	function clearRecordingStatusHideTimer(): void {
+		if (!recordingStatusHideTimeout) return
+		clearTimeout(recordingStatusHideTimeout)
+		recordingStatusHideTimeout = null
+	}
+
+	function clearRecordingStatusTimer(): void {
+		if (!recordingStatusTimer) return
+		clearInterval(recordingStatusTimer)
+		recordingStatusTimer = null
+	}
+
+	function renderRecordingStatusCard(): void {
+		recordingStatusDiv.replaceChildren()
+		recordingStatusDiv.dataset.status = currentRecordingStatusKind
+
+		const dot = document.createElement('span')
+		dot.className = 'recording-dot'
+		dot.setAttribute('aria-hidden', 'true')
+
+		const copy = document.createElement('div')
+		copy.className = 'recording-copy'
+
+		const label = document.createElement('span')
+		label.className = 'recording-label'
+		label.textContent = currentRecordingStatus
+
+		const meta = document.createElement('span')
+		meta.className = 'recording-meta'
+		if (currentRecordingStatusKind === 'recording') {
+			meta.textContent = `${formatDuration(Date.now() - recordingStartedAt)} • Shift+Cmd/Ctrl+H to stop`
+		} else if (currentRecordingStatusKind === 'processing') {
+			meta.textContent = 'Processing voice context'
+		} else if (currentRecordingStatusKind === 'error') {
+			meta.textContent = 'Check microphone or model setup'
+		} else {
+			meta.textContent = 'Voice context updated'
+		}
+
+		copy.append(label, meta)
+		recordingStatusDiv.append(dot, copy)
+	}
+
+	function hideRecordingStatusCard(): void {
+		clearRecordingStatusHideTimer()
+		clearRecordingStatusTimer()
+		recordingStatusDiv.classList.remove('show')
+		recordingStatusDiv.classList.add('hidden')
+	}
+
+	function showRecordingStatusCard(status: string, kind: RecordingStatusKind): void {
+		clearRecordingStatusHideTimer()
+		currentRecordingStatus = status
+		currentRecordingStatusKind = kind
+
+		if (kind === 'recording' && recordingStartedAt <= 0) {
+			recordingStartedAt = Date.now()
+		}
+
+		renderRecordingStatusCard()
+		recordingStatusDiv.classList.remove('hidden')
+		void recordingStatusDiv.offsetWidth
+		recordingStatusDiv.classList.add('show')
+
+		if (kind === 'recording') {
+			clearRecordingStatusTimer()
+			recordingStatusTimer = setInterval(renderRecordingStatusCard, 500)
+		} else {
+			clearRecordingStatusTimer()
+		}
+
+		if (kind === 'ready' || kind === 'error') {
+			recordingStatusHideTimeout = setTimeout(hideRecordingStatusCard, kind === 'error' ? 3600 : 2500)
+		}
+	}
+
 	function applyVoiceStatus(status: string): void {
-		currentSttProviderLabel = 'Voice'
-		currentSttModelLabel = status
-		currentSttModelVendor = ''
-		currentSttModelPosition = ''
-		currentSttModelTitle = status
-		currentSttModelDataset = status.toLowerCase().includes('recording')
-			? 'recording'
-			: status.toLowerCase().includes('ready')
-				? 'ready'
-				: currentSttModelDataset
-		updateSttModelInfoBadge()
-		flashSttModelInfoBadge(!status.toLowerCase().includes('recording'))
+		const kind = classifyVoiceStatus(status)
+		if (kind === 'model') return
+		showRecordingStatusCard(status, kind)
 	}
 
 	function renderSanitizedMarkdown(markdown: string): void {
