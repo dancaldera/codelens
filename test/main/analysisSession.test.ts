@@ -32,13 +32,41 @@ describe('AnalysisSession', () => {
 		vi.clearAllMocks()
 	})
 
+	test('exposes current model info after provider initialization', async () => {
+		const send = vi.fn()
+		const executeJavaScript = vi.fn(async () => undefined)
+		const window = { webContents: { send, executeJavaScript, isDestroyed: () => false } } as never
+		const { AnalysisSession } = await import('../../src/main/analysisSession')
+		const session = new AnalysisSession({
+			getWindow: () => window,
+			getImagePaths: () => [],
+			logger,
+		})
+
+		await session.initializeProvider()
+
+		expect(session.getCurrentModelInfo()).toEqual({
+			provider: 'openrouter',
+			model: 'model-a',
+			index: 0,
+			count: 1,
+		})
+		expect(send).toHaveBeenCalledWith('model-changed', {
+			provider: 'openrouter',
+			model: 'model-a',
+			index: 0,
+			count: 1,
+		})
+	})
+
 	test('queues one pending analysis when a request arrives while analysis is running', async () => {
 		const first = deferred<string>()
 		const second = deferred<string>()
 		analyzeImagesSmart.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise)
 
 		const send = vi.fn()
-		const window = { webContents: { send } } as never
+		const executeJavaScript = vi.fn(async () => undefined)
+		const window = { webContents: { send, executeJavaScript, isDestroyed: () => false } } as never
 		const { AnalysisSession } = await import('../../src/main/analysisSession')
 		const session = new AnalysisSession({
 			getWindow: () => window,

@@ -24,6 +24,7 @@ interface ApiInterface {
 	onLanguageDetected: (callback: (language: string) => void) => Unsubscribe
 	onModelChanged: (callback: (model: string | ModelChangedPayload) => void) => Unsubscribe
 	onModelsLoading: (callback: () => void) => Unsubscribe
+	getCurrentModel: () => Promise<ModelChangedPayload | null>
 	resizeWindow: (width: number, height: number) => void
 }
 
@@ -68,6 +69,7 @@ contextBridge.exposeInMainWorld('api', {
 	onModelChanged: (callback: (model: string | ModelChangedPayload) => void) =>
 		onIpc(IPC_CHANNELS.MODEL_CHANGED, callback),
 	onModelsLoading: (callback: () => void) => onIpcSignal(IPC_CHANNELS.MODELS_LOADING, callback),
+	getCurrentModel: () => ipcRenderer.invoke(IPC_CHANNELS.GET_CURRENT_MODEL),
 	resizeWindow: (width: number, height: number) => {
 		const payload = { width, height }
 		if (!isValidResizeWindowPayload(payload)) {

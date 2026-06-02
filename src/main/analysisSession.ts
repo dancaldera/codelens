@@ -1,5 +1,5 @@
 import type { BrowserWindow } from 'electron'
-import { IPC_CHANNELS } from '../ipc'
+import { IPC_CHANNELS, type ModelChangedPayload } from '../ipc'
 import { analyzeImagesSmart } from '../services'
 import { getAvailableModels, getCurrentProvider, isAnyProviderConfigured, type Provider } from '../services/providers'
 
@@ -24,6 +24,7 @@ export class AnalysisSession {
 	private isAnalysisRunning = false
 	private pendingAnalysis = false
 	private analysisPromise: Promise<void> | null = null
+	private providerInitializationPromise: Promise<void> | null = null
 
 	constructor(private readonly options: AnalysisSessionOptions) {}
 
@@ -37,6 +38,29 @@ export class AnalysisSession {
 	}
 
 	async initializeProvider(): Promise<void> {
+		if (this.providerInitializationPromise) return this.providerInitializationPromise
+
+		this.providerInitializationPromise = this.loadProvider()
+		try {
+			await this.providerInitializationPromise
+		} finally {
+			this.providerInitializationPromise = null
+		}
+	}
+
+	getCurrentModelInfo(): ModelChangedPayload | null {
+		const currentModel = this.availableModels[this.currentModelIndex]
+		if (!currentModel) return null
+
+		return {
+			provider: this.currentProvider,
+			model: currentModel,
+			index: this.currentModelIndex,
+			count: this.availableModels.length,
+		}
+	}
+
+	private async loadProvider(): Promise<void> {
 		this.currentProvider = getCurrentProvider()
 		const window = this.options.getWindow()
 
@@ -53,13 +77,13 @@ export class AnalysisSession {
 				defaultModel: this.availableModels[0],
 			})
 
-			window?.webContents.send(IPC_CHANNELS.MODEL_CHANGED, {
-				provider: this.currentProvider,
-				model: this.availableModels[this.currentModelIndex],
-			})
+			const modelInfo = this.getCurrentModelInfo()
+			if (modelInfo) {
+				this.publishModelChanged(modelInfo)
+			}
 		} catch (error) {
 			this.options.logger.error('Failed to fetch models', { error })
-			window?.webContents.send(IPC_CHANNELS.MODEL_CHANGED, 'no-key')
+			this.publishModelChanged('no-key')
 		}
 	}
 
@@ -77,16 +101,60 @@ export class AnalysisSession {
 		}
 
 		this.currentModelIndex = (this.currentModelIndex + 1) % this.availableModels.length
-		const currentModel = this.availableModels[this.currentModelIndex]
+		const modelInfo = this.getCurrentModelInfo()
+		if (!modelInfo) return
 
 		this.options.logger.info('Model switched', {
 			provider: this.currentProvider,
-			model: currentModel,
+			model: modelInfo.model,
 			index: this.currentModelIndex,
 		})
 
-		window?.webContents.send(IPC_CHANNELS.MODEL_CHANGED, { provider: this.currentProvider, model: currentModel })
-		window?.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, `Model: ${this.currentProvider}:${currentModel}`)
+		this.publishModelChanged(modelInfo)
+		window?.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, `Model: ${this.currentProvider}:${modelInfo.model}`)
+	}
+
+	private publishModelChanged(modelInfo: ModelChangedPayload | 'no-key'): void {
+		const window = this.options.getWindow()
+		window?.webContents.send(IPC_CHANNELS.MODEL_CHANGED, modelInfo)
+		this.renderModelBadgeDirectly(modelInfo)
+	}
+
+	private renderModelBadgeDirectly(modelInfo: ModelChangedPayload | 'no-key'): void {
+		const window = this.options.getWindow()
+		if (!window || window.webContents.isDestroyed()) return
+
+		const script = `(() => {
+			const el = document.getElementById('modelInfo');
+			if (!el) return;
+			const info = ${JSON.stringify(modelInfo)};
+			const setText = (className, text) => {
+				const node = document.createElement('div');
+				node.className = className;
+				node.textContent = text;
+				return node;
+			};
+			el.replaceChildren();
+			el.classList.add('show');
+			if (info === 'no-key') {
+				el.dataset.model = 'no-key';
+				el.title = 'OpenRouter API key missing';
+				el.append(setText('badge-provider', 'OpenRouter'), setText('badge-model', 'No API Key'));
+				return;
+			}
+			const [vendor, ...nameParts] = info.model.split('/');
+			const name = nameParts.length ? nameParts.join('/') : info.model;
+			const count = Number.isInteger(info.index) && Number.isInteger(info.count) ? ' · ' + (info.index + 1) + '/' + info.count : '';
+			el.dataset.model = info.model.toLowerCase();
+			el.title = info.provider + ': ' + info.model;
+			el.append(setText('badge-provider', 'OpenRouter' + (vendor ? ' • ' + vendor : '') + count), setText('badge-model', name));
+		})()`
+
+		void window.webContents.executeJavaScript(script).catch((error) => {
+			this.options.logger.warn('Failed to render model badge directly', {
+				error: error instanceof Error ? error.message : String(error),
+			})
+		})
 	}
 
 	async triggerAnalysis(): Promise<void> {

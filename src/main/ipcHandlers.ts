@@ -28,6 +28,7 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
 	]) {
 		options.ipcMain.removeAllListeners(channel)
 	}
+	options.ipcMain.removeHandler(IPC_CHANNELS.GET_CURRENT_MODEL)
 
 	options.ipcMain.on(IPC_CHANNELS.RESIZE_WINDOW, (_event, payload: unknown) => {
 		const window = options.getWindow()
@@ -63,6 +64,11 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
 				options.logger.warn('Failed to open screenshot', { screenshotPath, errorMessage })
 			}
 		})
+	})
+
+	options.ipcMain.handle(IPC_CHANNELS.GET_CURRENT_MODEL, async () => {
+		await options.analysisSession.initializeProvider()
+		return options.analysisSession.getCurrentModelInfo()
 	})
 
 	options.ipcMain.on(IPC_CHANNELS.SUBMIT_PROMPT, async () => {

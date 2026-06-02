@@ -14,6 +14,7 @@ export const IPC_CHANNELS = {
 	LANGUAGE_DETECTED: 'language-detected',
 	MODEL_CHANGED: 'model-changed',
 	MODELS_LOADING: 'models-loading',
+	GET_CURRENT_MODEL: 'get-current-model',
 	RESIZE_WINDOW: 'resize-window',
 	TRIGGER_SCREENSHOT: 'trigger-screenshot',
 } as const
@@ -32,6 +33,8 @@ export interface ScreenshotImagePayload {
 export interface ModelChangedPayload {
 	provider: string
 	model: string
+	index?: number
+	count?: number
 }
 
 export function isValidResizeWindowPayload(payload: unknown): payload is ResizeWindowPayload {

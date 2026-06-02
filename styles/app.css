@@ -167,30 +167,32 @@ body {
 /* ---------- Model badge ---------- */
 .info-badge {
 	position: relative;
+	display: grid;
+	gap: 3px;
 	background: var(--bg-elevated);
 	border: 1px solid var(--border);
 	border-radius: var(--radius);
-	padding: 8px 12px;
+	padding: 9px 10px;
 	font-size: 11px;
 	font-weight: 500;
 	font-family: var(--font-mono);
 	letter-spacing: 0.01em;
-	text-align: center;
+	text-align: left;
 	color: var(--fg-dim);
 	width: 100%;
 	max-width: 100%;
-	line-height: 1.45;
-	word-break: break-word;
+	min-height: 54px;
+	line-height: 1.35;
+	word-break: normal;
 	overflow-wrap: anywhere;
 	white-space: normal;
-	opacity: 0;
-	transform: translateY(-2px) scale(0.96);
+	opacity: 1;
+	transform: translateY(0) scale(1);
 	transition:
-		opacity 0.25s ease,
-		transform 0.25s ease,
 		border-color 0.25s ease,
 		color 0.25s ease,
-		box-shadow 0.25s ease;
+		box-shadow 0.25s ease,
+		background 0.25s ease;
 	backdrop-filter: blur(20px) saturate(160%);
 	-webkit-backdrop-filter: blur(20px) saturate(160%);
 	box-shadow: var(--shadow-sm), var(--ring);
@@ -201,13 +203,64 @@ body {
 	transform: translateY(0) scale(1);
 }
 
+.info-badge.is-updating {
+	animation: badgePulse 0.45s ease;
+}
+
+.badge-provider {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 6px;
+	min-width: 0;
+	font-family: var(--font-sans);
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	line-height: 1.2;
+	text-transform: uppercase;
+	color: var(--fg-muted);
+}
+
+.badge-provider-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.badge-count {
+	flex-shrink: 0;
+	font-family: var(--font-mono);
+	font-size: 9px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	color: var(--fg-muted);
+}
+
 .badge-model {
 	display: block;
-	font-size: 11px;
-	font-weight: 500;
+	font-size: 11.5px;
+	font-weight: 600;
+	line-height: 1.28;
 	color: inherit;
-	word-break: break-word;
+	word-break: normal;
 	overflow-wrap: anywhere;
+}
+
+@keyframes badgePulse {
+	0% {
+		box-shadow: var(--shadow-sm), var(--ring);
+	}
+	45% {
+		box-shadow:
+			0 0 0 1px currentColor,
+			0 8px 24px rgba(255, 255, 255, 0.08),
+			var(--shadow-md);
+	}
+	100% {
+		box-shadow: var(--shadow-sm), var(--ring);
+	}
 }
 
 /* Model-specific overrides win over mode tint */
