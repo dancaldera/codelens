@@ -1,149 +1,100 @@
-import { execFile } from 'node:child_process'
-import * as fs from 'node:fs'
-import * as fsPromises from 'node:fs/promises'
-import * as os from 'node:os'
-import * as path from 'node:path'
-import * as util from 'node:util'
-import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain } from 'electron'
+import { app, BrowserWindow, globalShortcut, ipcMain, shell } from 'electron'
+import { IPC_CHANNELS } from './ipc'
 import { createLogger, suppressElectronErrors } from './lib'
-import { analyzeImagesSmart } from './services'
-import { getAvailableModels, getCurrentProvider, isAnyProviderConfigured, type Provider } from './services/providers'
-
-// Load environment variables from .env file
-;(async () => {
-	try {
-		const dotenv = await import('dotenv')
-		// In packaged app, look for .env in the app's directory and user's home
-		const appPath = app.isPackaged ? path.dirname(process.execPath) : process.cwd()
-		const homePath = os.homedir()
-
-		// Try multiple locations for .env file
-		const envPaths = [
-			path.join(appPath, '.env'),
-			path.join(homePath, '.env'),
-			path.join(process.cwd(), '.env'),
-			path.join(__dirname, '..', '..', '.env'),
-		]
-
-		let envLoaded = false
-		for (const envPath of envPaths) {
-			if (fs.existsSync(envPath)) {
-				dotenv.config({ path: envPath })
-				console.log(`Loaded environment variables from: ${envPath}`)
-				envLoaded = true
-				break
-			}
-		}
-
-		if (!envLoaded) {
-			console.log('No .env file found, using system environment variables only')
-			console.log(`Searched paths: ${envPaths.join(', ')}`)
-		}
-	} catch (error) {
-		console.warn('dotenv loading failed:', error)
-	}
-})()
+import { AnalysisSession } from './main/analysisSession'
+import { loadEnvironment } from './main/env'
+import { registerIpcHandlers } from './main/ipcHandlers'
+import { ScreenshotSession } from './main/screenshotSession'
+import { registerShortcuts } from './main/shortcuts'
+import { createOverlayWindow, resolveRendererPaths } from './main/window'
 
 const logger = createLogger('Main')
 
-// Suppress common Electron console errors
 suppressElectronErrors()
 
 let mainWindow: BrowserWindow | null = null
-let screenshotCount = 0
-let screenshotPaths: string[] = []
-let previousAnalysis: string | null = null
-const MAX_SCREENSHOTS = 2
+let screenshotSession: ScreenshotSession | null = null
+let analysisSession: AnalysisSession | null = null
 let currentOpacity = 0.8
-let currentModelIndex = 0 // Current model index for cycling
-let availableModels: string[] = []
-let currentProvider: Provider = 'openrouter'
-let isAnalysisRunning = false
-let pendingAnalysis = false
-let analysisPromise: Promise<void> | null = null
 let analysisTimer: NodeJS.Timeout | null = null
+let isQuitting = false
 
 function createWindow(): void {
-	mainWindow = new BrowserWindow({
-		width: 1400,
-		height: 2000,
-		minWidth: 600,
-		minHeight: 400,
-		frame: false,
-		opacity: 0.8,
-		alwaysOnTop: true,
-		transparent: true,
-		resizable: true,
-		movable: true,
-		enableLargerThanScreen: true,
-		skipTaskbar: true,
-		webPreferences: {
-			nodeIntegration: false,
-			contextIsolation: true,
-			preload: path.join(__dirname, 'preload.js'),
-		},
+	const rendererPaths = resolveRendererPaths(__dirname)
+	mainWindow = createOverlayWindow({ app, logger, ...rendererPaths })
+
+	screenshotSession = new ScreenshotSession({
+		getWindow: () => mainWindow,
+		hasContext: () => analysisSession?.hasPreviousAnalysis() ?? false,
+		onShouldAnalyze: () => scheduleAnalysis(500),
+		logger,
 	})
 
-	// Disable automatic bounds adjustment - critical for unlimited movement
-	if (mainWindow.setBounds) {
-		const originalSetBounds = mainWindow.setBounds.bind(mainWindow)
-		mainWindow.setBounds = (bounds, _animate) => {
-			// Call original setBounds without any bounds checking
-			return originalSetBounds(bounds, false)
-		}
-	}
-
-	// Make the window visible on all workspaces and screens
-	mainWindow.setVisibleOnAllWorkspaces(true, {
-		visibleOnFullScreen: true,
+	analysisSession = new AnalysisSession({
+		getWindow: () => mainWindow,
+		getImagePaths: () => screenshotSession?.paths ?? [],
+		logger,
 	})
 
-	// Set the always on top level - this ensures it stays above everything
-	mainWindow.setAlwaysOnTop(true, 'floating')
+	void screenshotSession.cleanupStaleFiles()
+	registerApplicationShortcuts()
+	registerApplicationIpcHandlers()
 
-	// Prevent fullscreen mode to keep it working across spaces
-	mainWindow.setFullScreenable(false)
-
-	// Move to top Z-order
-	mainWindow.moveTop()
-
-	// Make window click-through (ignores mouse events)
-	mainWindow.setIgnoreMouseEvents(true)
-
-	// Additional security: exclude from screen capture and sharing
-	if (process.platform === 'darwin') {
-		// On macOS, set the window level to prevent screen capture
-		mainWindow.setWindowButtonVisibility(false)
-		// Set content protection to exclude from screen recordings
-		try {
-			mainWindow.setContentProtection(true)
-		} catch (error) {
-			logger.warn('Failed to set content protection', { error })
-		}
-	}
-
-	mainWindow.loadFile(path.join(__dirname, '../../index.html'))
-	// Set initial position without bounds checking
-	mainWindow.setPosition(50, 50, false)
-
-	// Hide from dock on macOS
-	if (process.platform === 'darwin' && app.dock) {
-		app.dock.hide()
-	}
-
-	// Register shortcuts
-	registerShortcuts()
-
-	// Initialize opacity and model after window loads
 	mainWindow.webContents.once('dom-ready', () => {
 		updateOpacity()
-		// Initialize provider and models (will send model-changed when done)
-		void initializeProvider()
+		void analysisSession?.initializeProvider()
 	})
 
 	mainWindow.on('closed', () => {
 		mainWindow = null
 	})
+}
+
+function registerApplicationShortcuts(): void {
+	if (!screenshotSession || !analysisSession) return
+
+	globalShortcut.unregisterAll()
+	registerShortcuts({
+		globalShortcut,
+		getWindow: () => mainWindow,
+		screenshotSession,
+		analysisSession,
+		scheduleAnalysis,
+		cancelScheduledAnalysis,
+		onReset: resetSession,
+		onQuit: () => app.quit(),
+		increaseOpacity,
+		decreaseOpacity,
+		logger,
+	})
+}
+
+function registerApplicationIpcHandlers(): void {
+	if (!screenshotSession || !analysisSession) return
+
+	registerIpcHandlers({
+		ipcMain,
+		shell,
+		getWindow: () => mainWindow,
+		screenshotSession,
+		analysisSession,
+		cancelScheduledAnalysis,
+		logger,
+	})
+}
+
+async function resetSession(): Promise<void> {
+	if (!mainWindow || !screenshotSession || !analysisSession) return
+
+	cancelScheduledAnalysis()
+	analysisSession.resetContext()
+	await screenshotSession.reset()
+
+	mainWindow.webContents.send(IPC_CHANNELS.CLEAR_SCREENSHOTS)
+	mainWindow.webContents.send(IPC_CHANNELS.CONTEXT_RESET)
+	mainWindow.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, 'Screenshots cleared')
+	mainWindow.setPosition(50, 50, false)
+	logger.info('Screenshots reset and window repositioned')
 }
 
 function increaseOpacity(): void {
@@ -164,74 +115,6 @@ function updateOpacity(): void {
 	logger.info('Opacity changed', { opacity: currentOpacity })
 }
 
-async function initializeProvider(): Promise<void> {
-	currentProvider = getCurrentProvider()
-
-	// Notify renderer that models are loading
-	if (mainWindow) {
-		mainWindow.webContents.send('models-loading')
-	}
-
-	// Fetch models from API
-	try {
-		availableModels = await getAvailableModels(currentProvider)
-		currentModelIndex = 0
-
-		logger.info('Provider initialized', {
-			provider: currentProvider,
-			models: availableModels,
-			count: availableModels.length,
-			defaultModel: availableModels[0],
-		})
-
-		// Send model state to renderer
-		if (mainWindow) {
-			const modelInfo = {
-				provider: currentProvider,
-				model: availableModels[currentModelIndex],
-			}
-			mainWindow.webContents.send('model-changed', modelInfo)
-		}
-	} catch (error) {
-		logger.error('Failed to fetch models', { error })
-		// Send error state to renderer
-		if (mainWindow) {
-			mainWindow.webContents.send('model-changed', 'no-key')
-		}
-	}
-}
-
-function switchModel(): void {
-	// Check if any provider is configured
-	if (!isAnyProviderConfigured()) {
-		logger.warn('Attempted to switch model without any provider configured')
-		if (mainWindow) {
-			mainWindow.webContents.send('screenshot-status', 'No API key configured')
-		}
-		return
-	}
-
-	// Cycle through available models
-	currentModelIndex = (currentModelIndex + 1) % availableModels.length
-	const currentModel = availableModels[currentModelIndex]
-
-	logger.info('Model switched', {
-		provider: currentProvider,
-		model: currentModel,
-		index: currentModelIndex,
-	})
-
-	if (mainWindow) {
-		// Send model change to renderer with provider info
-		const modelInfo = {
-			provider: currentProvider,
-			model: currentModel,
-		}
-		mainWindow.webContents.send('model-changed', modelInfo)
-		mainWindow.webContents.send('screenshot-status', `Model: ${currentProvider}:${currentModel}`)
-	}
-}
-
 function scheduleAnalysis(delay = 0): void {
 	if (analysisTimer) {
 		clearTimeout(analysisTimer)
@@ -239,11 +122,10 @@ function scheduleAnalysis(delay = 0): void {
 
 	analysisTimer = setTimeout(() => {
 		analysisTimer = null
-		if (!mainWindow || screenshotPaths.length === 0) {
-			return
-		}
-		mainWindow.webContents.send('show-loading')
-		void triggerAnalysis().catch((error) => {
+		if (!mainWindow || !analysisSession || !screenshotSession?.paths.length) return
+
+		mainWindow.webContents.send(IPC_CHANNELS.SHOW_LOADING)
+		void analysisSession.triggerAnalysis().catch((error) => {
 			logger.error('Scheduled analysis failed', {
 				error: error instanceof Error ? error.message : String(error),
 			})
@@ -256,373 +138,12 @@ function cancelScheduledAnalysis(): void {
 		clearTimeout(analysisTimer)
 		analysisTimer = null
 	}
-	pendingAnalysis = false
 }
 
-function registerShortcuts(): void {
-	// Screenshot shortcut
-	globalShortcut.register('CommandOrControl+H', takeScreenshot)
-
-	// Reset screenshots shortcut
-	globalShortcut.register('CommandOrControl+G', () => {
-		if (!mainWindow) return
-		cancelScheduledAnalysis()
-		const pathsToRemove = [...screenshotPaths]
-		screenshotCount = 0
-		screenshotPaths = []
-		previousAnalysis = null
-		mainWindow.webContents.send('clear-screenshots')
-		mainWindow.webContents.send('context-reset')
-		mainWindow.webContents.send('screenshot-status', 'Screenshots cleared')
-		// Reset window position to initial coordinates
-		mainWindow.setPosition(50, 50, false)
-		logger.info('Screenshots reset and window repositioned')
-		for (const filePath of pathsToRemove) {
-			void fsPromises.unlink(filePath).catch((err) => {
-				logger.warn('Failed to delete screenshot file', { filePath, error: err })
-			})
-		}
-	})
-
-	// Quit shortcut
-	globalShortcut.register('CommandOrControl+Q', () => app.quit())
-
-	// Hide/show shortcut
-	globalShortcut.register('CommandOrControl+B', () => {
-		if (!mainWindow) return
-		if (mainWindow.isVisible()) {
-			mainWindow.hide()
-		} else {
-			mainWindow.show()
-		}
-	})
-
-	// Move window with command+arrow keys - unlimited movement across screens
-	const moveDistance = 50
-	const fastMoveDistance = 200
-
-	/**
-	 * Register a window movement shortcut
-	 */
-	function registerMoveShortcut(accelerator: string, deltaX: number, deltaY: number, distance: number): void {
-		globalShortcut.register(accelerator, () => {
-			if (!mainWindow) return
-			const [x = 0, y = 0] = mainWindow.getPosition()
-			const newX = x + deltaX * distance
-			const newY = y + deltaY * distance
-			mainWindow.setPosition(newX, newY, false)
-			logger.debug('Window moved', { accelerator, x: newX, y: newY })
-		})
-	}
-
-	// Normal movement (50px)
-	registerMoveShortcut('CommandOrControl+Up', 0, -1, moveDistance)
-	registerMoveShortcut('CommandOrControl+Down', 0, 1, moveDistance)
-	registerMoveShortcut('CommandOrControl+Left', -1, 0, moveDistance)
-	registerMoveShortcut('CommandOrControl+Right', 1, 0, moveDistance)
-
-	// Fast movement (200px)
-	registerMoveShortcut('Shift+CommandOrControl+Up', 0, -1, fastMoveDistance)
-	registerMoveShortcut('Shift+CommandOrControl+Down', 0, 1, fastMoveDistance)
-	registerMoveShortcut('Shift+CommandOrControl+Left', -1, 0, fastMoveDistance)
-	registerMoveShortcut('Shift+CommandOrControl+Right', 1, 0, fastMoveDistance)
-
-	// Opacity control shortcuts
-	globalShortcut.register('CommandOrControl+1', () => {
-		if (!mainWindow) return
-		decreaseOpacity()
-	})
-
-	globalShortcut.register('CommandOrControl+2', () => {
-		if (!mainWindow) return
-		increaseOpacity()
-	})
-
-	// Model switching shortcut
-	globalShortcut.register('CommandOrControl+M', () => {
-		switchModel()
-	})
-
-	// Manual analysis trigger shortcut
-	globalShortcut.register('CommandOrControl+Enter', () => {
-		if (!mainWindow) return
-
-		if (screenshotPaths.length === 0) {
-			mainWindow.webContents.send('screenshot-status', 'No screenshots available for analysis')
-			return
-		}
-
-		cancelScheduledAnalysis()
-		mainWindow.webContents.send('show-loading')
-		void triggerAnalysis().catch((error) => {
-			logger.error('Manual analysis shortcut failed', {
-				error: error instanceof Error ? error.message : String(error),
-			})
-		})
-	})
-}
-
-async function takeScreenshot(): Promise<void> {
-	if (!mainWindow) return
-
-	try {
-		// Hide window temporarily
-		const wasVisible = mainWindow.isVisible()
-		if (wasVisible) mainWindow.hide()
-
-		// Wait a moment
-		await new Promise((resolve) => setTimeout(resolve, 300))
-
-		let success = false
-
-		// Try desktopCapturer first (for individual windows)
-		try {
-			const sources = await desktopCapturer.getSources({
-				types: ['window', 'screen'],
-				thumbnailSize: { width: 1920, height: 1080 },
-			})
-
-			logger.debug('Desktop sources found', { count: sources.length })
-
-			// Find the first non-electron window
-			const source =
-				sources.find(
-					(s) =>
-						!s.name.toLowerCase().includes('electron') &&
-						!s.name.toLowerCase().includes('visual-context') &&
-						!s.name.toLowerCase().includes('vca') &&
-						s.name !== '' &&
-						s.name !== 'Unknown',
-				) || sources[0]
-
-			if (source) {
-				const buffer = source.thumbnail.toPNG()
-				if (buffer.length > 1000) {
-					await saveScreenshot(buffer, 'desktopCapturer')
-					success = true
-				}
-			}
-		} catch (desktopError) {
-			logger.warn('desktopCapturer failed', {
-				error: desktopError instanceof Error ? desktopError.message : String(desktopError),
-			})
-		}
-
-		// Fallback to macOS screencapture if desktopCapturer failed
-		if (!success && process.platform === 'darwin') {
-			try {
-				logger.info('Using fallback screencapture method')
-				const tempDir = path.join(os.tmpdir(), 'screenshots')
-				await fsPromises.mkdir(tempDir, { recursive: true })
-
-				const timestamp = Date.now()
-				const filePath = path.join(tempDir, `fallback-screenshot-${timestamp}.png`)
-
-				const execFilePromise = util.promisify(execFile)
-				await execFilePromise('/usr/sbin/screencapture', ['-x', '-T', '0', filePath])
-
-				try {
-					const buffer = await fsPromises.readFile(filePath)
-					await saveScreenshot(buffer, 'screencapture')
-					success = true
-				} catch (readError) {
-					logger.error('Failed to process fallback screenshot', {
-						error: readError instanceof Error ? readError.message : String(readError),
-					})
-				}
-				void fsPromises.unlink(filePath).catch((err) => {
-					logger.warn('Failed to delete temporary screenshot file', { filePath, error: err })
-				})
-			} catch (fallbackError) {
-				logger.error('Fallback screencapture failed', {
-					error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
-				})
-			}
-		}
-
-		if (!success) {
-			logger.error('All screenshot methods failed')
-			if (mainWindow) {
-				mainWindow.webContents.send('screenshot-status', 'Screenshot failed')
-			}
-		}
-
-		// Restore window
-		if (wasVisible && mainWindow) {
-			mainWindow.show()
-		}
-	} catch (error) {
-		logger.error('Screenshot operation failed', {
-			error: error instanceof Error ? error.message : String(error),
-		})
-		if (mainWindow) {
-			mainWindow.show()
-		}
-	}
-}
-
-async function saveScreenshot(buffer: Buffer, method: string): Promise<void> {
-	const tempDir = path.join(os.tmpdir(), 'screenshots')
-	await fsPromises.mkdir(tempDir, { recursive: true })
-
-	const nextSlot = screenshotCount >= MAX_SCREENSHOTS ? 1 : screenshotCount + 1
-	const slotIndex = nextSlot - 1
-	const timestamp = Date.now()
-	const filePath = path.join(tempDir, `screenshot-${nextSlot}-${timestamp}.png`)
-	await fsPromises.writeFile(filePath, buffer)
-
-	let previousPath: string | undefined
-
-	// Store screenshot path for analysis - replace at the current index for cycling
-	if (screenshotPaths.length < MAX_SCREENSHOTS) {
-		if (slotIndex < screenshotPaths.length) {
-			previousPath = screenshotPaths[slotIndex]
-			screenshotPaths[slotIndex] = filePath
-		} else {
-			screenshotPaths.push(filePath)
-		}
-	} else {
-		previousPath = screenshotPaths[slotIndex]
-		screenshotPaths[slotIndex] = filePath
-	}
-
-	screenshotCount = nextSlot
-
-	if (previousPath && previousPath !== filePath) {
-		void fsPromises.unlink(previousPath).catch((err) => {
-			logger.warn('Failed to delete old screenshot file', { filePath: previousPath, error: err })
-		})
-	}
-
-	logger.info('Screenshot saved', {
-		screenshotCount,
-		method,
-		filePath,
-		fileSize: buffer.length,
-	})
-
-	if (mainWindow) {
-		// Send screenshot-image event that the UI expects
-		mainWindow.webContents.send('screenshot-image', {
-			index: screenshotCount,
-			path: filePath,
-			data: buffer.toString('base64'),
-		})
-
-		// Send status update
-		mainWindow.webContents.send('screenshot-status', `Screenshot ${screenshotCount} captured`)
-
-		// Auto-trigger analysis when we have 2 screenshots or when adding to existing analysis
-		const hasContext = !!previousAnalysis
-		if (screenshotCount === MAX_SCREENSHOTS || (screenshotCount === 1 && hasContext)) {
-			scheduleAnalysis(500)
-		}
-	}
-}
-
-async function triggerAnalysis(): Promise<void> {
-	if (!mainWindow || screenshotPaths.length === 0) {
-		return
-	}
-
-	if (isAnalysisRunning) {
-		pendingAnalysis = true
-		return analysisPromise ?? Promise.resolve()
-	}
-
-	if (!availableModels.length) {
-		await initializeProvider()
-	}
-
-	const currentModel = availableModels[currentModelIndex]
-
-	if (!currentModel) {
-		logger.warn('No model available for analysis', {
-			modelIndex: currentModelIndex,
-			models: availableModels,
-		})
-		return
-	}
-
-	isAnalysisRunning = true
-	pendingAnalysis = false
-
-	const currentPromise = (async () => {
-		try {
-			logger.info('Starting analysis', {
-				imageCount: screenshotPaths.length,
-				hasPreviousAnalysis: !!previousAnalysis,
-				model: currentModel,
-				provider: currentProvider,
-			})
-
-			const markdownResult = await analyzeImagesSmart({
-				imagePaths: screenshotPaths,
-				previousContext: previousAnalysis || undefined,
-				model: currentModel,
-				provider: currentProvider,
-			})
-
-			previousAnalysis = markdownResult
-
-			mainWindow?.webContents.send('analysis-result', markdownResult)
-			mainWindow?.webContents.send('screenshot-status', 'Analysis completed')
-
-			logger.info('Analysis completed successfully')
-		} catch (error) {
-			logger.error('Analysis failed', {
-				error: error instanceof Error ? error.message : String(error),
-			})
-
-			const errorMessage = `# Analysis Failed
-
-An error occurred during screenshot analysis: ${error instanceof Error ? error.message : 'Unknown error'}
-
-Please try again or check your OpenAI API key configuration.`
-
-			mainWindow?.webContents.send('analysis-result', errorMessage)
-			mainWindow?.webContents.send('screenshot-status', 'Analysis failed')
-		} finally {
-			isAnalysisRunning = false
-			analysisPromise = null
-
-			if (pendingAnalysis && mainWindow && screenshotPaths.length > 0) {
-				pendingAnalysis = false
-				await triggerAnalysis()
-			}
-		}
-	})()
-
-	analysisPromise = currentPromise
-	await currentPromise
-}
-
-// Handle window resizing
-ipcMain.on('resize-window', (_event, { width, height }) => {
-	if (!mainWindow) return
-	mainWindow.setSize(Math.round(width), Math.round(height))
-	logger.info('Window resized', { width, height })
+app.whenReady().then(async () => {
+	await loadEnvironment(app, logger)
+	createWindow()
 })
-
-// Handle manual analysis trigger (kept for compatibility)
-ipcMain.on('submit-prompt', async (_event, _prompt: string) => {
-	if (!mainWindow) return
-
-	if (screenshotPaths.length === 0) {
-		mainWindow.webContents.send(
-			'analysis-result',
-			'No screenshots available for analysis. Please take screenshots first.',
-		)
-		return
-	}
-
-	cancelScheduledAnalysis()
-	mainWindow.webContents.send('show-loading')
-	await triggerAnalysis()
-})
-
-// App events
-app.whenReady().then(createWindow)
 
 app.on('window-all-closed', () => {
 	globalShortcut.unregisterAll()
@@ -635,6 +156,16 @@ app.on('activate', () => {
 	if (BrowserWindow.getAllWindows().length === 0) {
 		createWindow()
 	}
+})
+
+app.on('before-quit', (event) => {
+	if (isQuitting) return
+
+	event.preventDefault()
+	isQuitting = true
+	globalShortcut.unregisterAll()
+	const cleanup = screenshotSession?.cleanupSessionFiles() ?? Promise.resolve()
+	void cleanup.finally(() => app.quit())
 })
 
 app.on('will-quit', () => {
