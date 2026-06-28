@@ -65,7 +65,7 @@ describe('VoiceSession', () => {
 		})
 		expect(session.getTranscript()).toBe('Please solve this in TypeScript.')
 		expect(send).toHaveBeenCalledWith('voice-transcript-ready')
-		expect(send).toHaveBeenCalledWith('voice-status', 'Voice context ready')
+		expect(send).toHaveBeenCalledWith('voice-status', 'Ready')
 	})
 
 	test('cycles STT models like analysis model cycling', async () => {

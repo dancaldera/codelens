@@ -330,23 +330,18 @@ body {
 
 /* ---------- Recording card ---------- */
 .recording-card {
-	position: fixed;
-	top: var(--overlay-padding);
-	right: var(--overlay-padding);
-	z-index: 1002;
 	display: flex;
-	align-items: center;
-	gap: 10px;
-	min-width: 220px;
-	max-width: min(340px, calc(100vw - var(--content-left) - var(--overlay-padding)));
+	align-items: flex-start;
+	gap: 8px;
+	width: 120px;
 	background: var(--bg-elevated);
 	border: 1px solid var(--border);
-	border-radius: var(--radius-lg);
-	padding: 10px 12px;
+	border-radius: var(--radius);
+	padding: 9px 10px;
 	color: var(--fg-dim);
 	backdrop-filter: blur(22px) saturate(170%);
 	-webkit-backdrop-filter: blur(22px) saturate(170%);
-	box-shadow: var(--shadow-md), var(--ring);
+	box-shadow: var(--shadow-sm), var(--ring);
 	opacity: 0;
 	transform: translateY(-4px) scale(0.98);
 	pointer-events: none;
@@ -395,6 +390,7 @@ body {
 .recording-dot {
 	width: 9px;
 	height: 9px;
+	margin-top: 3px;
 	flex-shrink: 0;
 	border-radius: 50%;
 	background: currentColor;
@@ -416,19 +412,17 @@ body {
 	font-weight: 700;
 	line-height: 1.25;
 	color: var(--fg);
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+	white-space: normal;
+	overflow-wrap: anywhere;
 }
 
 .recording-meta {
 	font-family: var(--font-mono);
 	font-size: 10px;
-	line-height: 1.35;
+	line-height: 1.4;
 	color: var(--fg-muted);
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+	white-space: normal;
+	overflow-wrap: anywhere;
 }
 
 @keyframes recordPulse {

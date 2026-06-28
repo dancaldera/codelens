@@ -101,6 +101,44 @@ echo "OPENROUTER_API_KEY=sk-your-openrouter-api-key-here" > ~/.env
 - `Cmd+M` - Switch AI model (cycles through the latest OpenRouter programming vision catalog)
 - `Shift+Cmd+M` - Switch STT model (cycles through the latest OpenRouter transcription catalog)
 
+## Using Voice Context
+
+Voice context lets you record a short spoken note that CodeLens transcribes with OpenRouter speech-to-text and injects into the next analysis as `USER SPOKEN CONTEXT`. It's the fastest way to tell the model what you actually want from a screenshot.
+
+> On Windows/Linux, use `Ctrl` instead of `Cmd` in the shortcuts below.
+
+**Quick start:**
+
+1. Press `Shift+Cmd+H` to start recording. A card appears in the top-right corner with a live timer.
+2. Speak your intent — for example, "explain this error and suggest a fix."
+3. Press `Shift+Cmd+H` again to stop. CodeLens transcribes the note and **automatically triggers analysis** — no extra keypress needed.
+4. The result appears in the overlay.
+
+**Two ways to use it:**
+
+- **Voice + screenshots** — capture screenshots (`Cmd+H`), and your voice note guides how they're interpreted. If the note conflicts with what's on screen, the model favors what's visible and notes the conflict.
+- **Voice-only** — record without any screenshots; the transcript becomes the full prompt. You can also keep recording while you capture screenshots to combine both.
+
+**Choosing the transcription model:**
+
+- Press `Shift+Cmd+M` to cycle the STT model. The active model is shown as a color-coded badge in the sidebar.
+- Available models: `openai/gpt-4o-mini-transcribe` (default), `openai/gpt-4o-transcribe`, and `openai/whisper-1`.
+- The app refreshes the transcription catalog from OpenRouter at startup and falls back to this curated list if the API is unavailable.
+
+**Good to know:**
+
+- Voice uses the same `OPENROUTER_API_KEY` as analysis — no separate STT key is required.
+- Microphone permission is requested the first time you record (see [macOS Permissions Setup](#macos-permissions-setup)).
+- Recordings are capped at 120 seconds; keep notes short for the fastest turnaround.
+
+### Troubleshooting Voice Issues
+
+If voice recording or transcription fails, the recording card surfaces the problem:
+
+- **"No API Key"** — set `OPENROUTER_API_KEY` (see [Configuration](#configuration)) and restart the app.
+- **"Check microphone or model setup"** / no audio recorded — grant microphone access (System Settings > Privacy & Security > Microphone), confirm the correct input device is selected, then try a different STT model with `Shift+Cmd+M`.
+- **Transcript is empty or inaccurate** — speak clearly, keep the note under the 120-second cap, and switch STT models with `Shift+Cmd+M`.
+
 ## macOS Permissions Setup
 
 ### For Individual Window Capture (Recommended)

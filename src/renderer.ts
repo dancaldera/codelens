@@ -337,7 +337,9 @@ window.addEventListener('DOMContentLoaded', () => {
 			normalized.includes('invalid') ||
 			normalized.includes('no audio') ||
 			normalized.includes('no stt') ||
-			normalized.includes('no model')
+			normalized.includes('no model') ||
+			normalized.includes('no speech') ||
+			normalized.includes('api key')
 		) {
 			return 'error'
 		}
@@ -426,13 +428,13 @@ window.addEventListener('DOMContentLoaded', () => {
 		const meta = document.createElement('span')
 		meta.className = 'recording-meta'
 		if (currentRecordingStatusKind === 'recording') {
-			meta.textContent = `${formatDuration(Date.now() - recordingStartedAt)} • Shift+Cmd/Ctrl+H to stop`
+			meta.textContent = `${formatDuration(Date.now() - recordingStartedAt)} · press again to stop`
 		} else if (currentRecordingStatusKind === 'processing') {
-			meta.textContent = 'Processing voice context'
+			meta.textContent = 'Processing…'
 		} else if (currentRecordingStatusKind === 'error') {
-			meta.textContent = 'Check microphone or model setup'
+			meta.textContent = 'Check mic or model'
 		} else {
-			meta.textContent = 'Voice context updated'
+			meta.textContent = 'Context updated'
 		}
 
 		copy.append(label, meta)
@@ -547,16 +549,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
 			mediaRecorder.start()
 			window.api.setVoiceCaptureState({ state: 'recording' })
-			renderLoadingStatus({
-				state: 'recording',
-				title: 'Recording voice context',
-				message: 'Capture screenshots while speaking, or stop recording to analyze.',
-			})
-			applyVoiceStatus('Recording…')
+			hideLoadingStatus()
+			applyVoiceStatus('Recording')
 		} catch (error) {
 			console.error('Voice recording failed:', error)
 			window.api.setVoiceCaptureState({ state: 'error' })
-			applyVoiceStatus('Microphone unavailable')
+			applyVoiceStatus('Mic unavailable')
 			stopVoiceStream()
 		}
 	}
@@ -570,7 +568,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			title: 'Preparing voice context',
 			message: 'Transcribing your note before starting analysis.',
 		})
-		applyVoiceStatus('Preparing voice note…')
+		applyVoiceStatus('Preparing…')
 	}
 
 	function stopVoiceStream(): void {
@@ -590,18 +588,18 @@ window.addEventListener('DOMContentLoaded', () => {
 			if (blob.size === 0) {
 				window.api.setVoiceCaptureState({ state: 'error' })
 				hideLoadingStatus()
-				applyVoiceStatus('No audio recorded')
+				applyVoiceStatus('No audio')
 				return
 			}
 
 			const data = await blobToBase64(blob)
 			window.api.sendVoiceAudio({ data, mimeType, durationMs })
-			applyVoiceStatus('Transcribing…')
+			applyVoiceStatus('Transcribing')
 		} catch (error) {
 			console.error('Voice audio processing failed:', error)
 			window.api.setVoiceCaptureState({ state: 'error' })
 			hideLoadingStatus()
-			applyVoiceStatus('Voice recording failed')
+			applyVoiceStatus('Recording failed')
 		} finally {
 			mediaRecorder = null
 		}
@@ -715,10 +713,11 @@ window.addEventListener('DOMContentLoaded', () => {
 	// Handle voice recording
 	window.api.onToggleVoiceRecording(toggleVoiceRecording)
 	window.api.onVoiceStatus(applyVoiceStatus)
-	window.api.onVoiceTranscriptReady(() => applyVoiceStatus('Voice context ready'))
+	window.api.onVoiceTranscriptReady(() => applyVoiceStatus('Ready'))
 
 	// Handle loadingDiv state
 	window.api.onShowLoading(renderLoadingStatus)
+	window.api.onHideLoading(hideLoadingStatus)
 
 	// Handle context reset
 	window.api.onContextReset(() => {
