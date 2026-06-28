@@ -54,7 +54,7 @@ export class VoiceSession {
 		this.latestTranscript = null
 		this.captureState = 'idle'
 		this.isTranscribing = false
-		this.options.getWindow()?.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'Voice context cleared')
+		this.options.getWindow()?.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'Cleared')
 	}
 
 	async initializeModels(): Promise<void> {
@@ -84,13 +84,13 @@ export class VoiceSession {
 		const window = this.options.getWindow()
 		if (!isOpenRouterConfigured()) {
 			this.options.logger.warn('Attempted to switch STT model without OpenRouter configured')
-			window?.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'No OpenRouter API key configured')
+			window?.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'No API key')
 			window?.webContents.send(IPC_CHANNELS.STT_MODEL_CHANGED, 'no-key')
 			return
 		}
 
 		if (!this.availableModels.length) {
-			window?.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'STT models are still loading')
+			window?.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'Loading models…')
 			void this.initializeModels()
 			return
 		}
@@ -113,13 +113,13 @@ export class VoiceSession {
 		if (!window) return
 
 		if (this.isTranscribing) {
-			window.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'Already transcribing voice note')
+			window.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'Transcribing')
 			return
 		}
 
 		this.isTranscribing = true
 		this.captureState = 'processing'
-		window.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'Transcribing voice note…')
+		window.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'Transcribing')
 
 		try {
 			if (!this.availableModels.length) {
@@ -128,7 +128,7 @@ export class VoiceSession {
 
 			const currentModel = this.availableModels[this.currentModelIndex]
 			if (!currentModel) {
-				window.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'No STT model available')
+				window.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'No STT model')
 				return
 			}
 
@@ -139,13 +139,13 @@ export class VoiceSession {
 			})
 
 			if (!transcript) {
-				window.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'No speech detected')
+				window.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'No speech')
 				return
 			}
 
 			this.latestTranscript = transcript
 			window.webContents.send(IPC_CHANNELS.VOICE_TRANSCRIPT_READY)
-			window.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'Voice context ready')
+			window.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'Ready')
 			this.options.logger.info('Voice context updated', {
 				model: currentModel,
 				durationMs: Math.round(payload.durationMs),
@@ -155,7 +155,7 @@ export class VoiceSession {
 			this.options.logger.error('Voice transcription failed', {
 				error: error instanceof Error ? error.message : String(error),
 			})
-			window.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'Voice transcription failed')
+			window.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'Transcription failed')
 		} finally {
 			this.isTranscribing = false
 			this.captureState = 'idle'

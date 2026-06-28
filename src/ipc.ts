@@ -11,6 +11,7 @@ export const IPC_CHANNELS = {
 	GET_PROMPT: 'get-prompt',
 	PROMPT_RESPONSE: 'prompt-response',
 	SHOW_LOADING: 'show-loading',
+	HIDE_LOADING: 'hide-loading',
 	LANGUAGE_DETECTED: 'language-detected',
 	MODEL_CHANGED: 'model-changed',
 	MODELS_LOADING: 'models-loading',

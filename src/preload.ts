@@ -27,6 +27,7 @@ interface ApiInterface {
 	openScreenshot: (index: number) => void
 	onGetPrompt: (callback: () => string) => Unsubscribe
 	onShowLoading: (callback: (status?: LoadingStatusPayload) => void) => Unsubscribe
+	onHideLoading: (callback: () => void) => Unsubscribe
 	onLanguageDetected: (callback: (language: string) => void) => Unsubscribe
 	onModelChanged: (callback: (model: string | ModelChangedPayload) => void) => Unsubscribe
 	onModelsLoading: (callback: () => void) => Unsubscribe
@@ -87,6 +88,7 @@ contextBridge.exposeInMainWorld('api', {
 		ipcRenderer.on(IPC_CHANNELS.SHOW_LOADING, listener)
 		return () => ipcRenderer.removeListener(IPC_CHANNELS.SHOW_LOADING, listener)
 	},
+	onHideLoading: (callback: () => void) => onIpc(IPC_CHANNELS.HIDE_LOADING, callback),
 	onLanguageDetected: (callback: (language: string) => void) => onIpc(IPC_CHANNELS.LANGUAGE_DETECTED, callback),
 	onModelChanged: (callback: (model: string | ModelChangedPayload) => void) =>
 		onIpc(IPC_CHANNELS.MODEL_CHANGED, callback),

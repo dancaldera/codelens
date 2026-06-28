@@ -151,7 +151,11 @@ function flushPendingAnalysisRequest(): void {
 	if (!pendingAnalysisRequest || !mainWindow || !analysisSession || !screenshotSession || !voiceSession) return
 
 	if (voiceSession.isVoiceBusy()) {
-		showLoadingStatus(getWaitingForVoiceStatus())
+		// While recording, the top-right card is the sole indicator; only the
+		// post-recording transcription needs an in-overlay loading status.
+		if (!voiceSession.isRecording()) {
+			showLoadingStatus(getWaitingForVoiceStatus())
+		}
 		return
 	}
 
@@ -187,17 +191,11 @@ function canStartAnalysisNow(allowSingleScreenshot = false): boolean {
 }
 
 function getWaitingForVoiceStatus(): LoadingStatusPayload {
-	return voiceSession?.isRecording()
-		? {
-				state: 'recording',
-				title: 'Recording voice context',
-				message: 'Capture screenshots while speaking, or stop recording to analyze.',
-			}
-		: {
-				state: 'transcribing',
-				title: 'Preparing voice context',
-				message: 'Transcribing your note before starting analysis.',
-			}
+	return {
+		state: 'transcribing',
+		title: 'Preparing voice context',
+		message: 'Transcribing your note before starting analysis.',
+	}
 }
 
 function getWaitingForContextStatus(): LoadingStatusPayload {
@@ -226,10 +224,21 @@ function showLoadingStatus(status: LoadingStatusPayload): void {
 	mainWindow?.webContents.send(IPC_CHANNELS.SHOW_LOADING, status)
 }
 
+function hideLoadingStatus(): void {
+	mainWindow?.webContents.send(IPC_CHANNELS.HIDE_LOADING)
+}
+
 function handleVoiceSettled(): void {
 	if (voiceSession?.hasTranscript() || pendingAnalysisRequest || screenshotSession?.paths.length) {
 		scheduleAnalysis(250)
+		return
 	}
+
+	// Audio was transcribed but produced nothing to analyze (no transcript, no
+	// screenshots, no queued request) — clear the lingering "Preparing voice
+	// context" loader instead of leaving it spinning. The recording card already
+	// reports the outcome (e.g. "No speech").
+	hideLoadingStatus()
 }
 
 function cancelScheduledAnalysis(): void {
