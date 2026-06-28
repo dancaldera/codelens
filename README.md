@@ -18,7 +18,9 @@ AI-powered code analysis from screenshots. An Electron application that captures
 
 1. Clone this repository
 2. Install dependencies: `npm install`
-3. **Set up OpenRouter API Key** (required for AI analysis):
+3. **Set up the Electron binary and git hooks** (first time only): `npm run setup`
+   > Dependency install scripts are disabled by default (see `.npmrc`). This one-time `setup` step fetches the Electron binary and wires the pre-commit hook.
+4. **Set up OpenRouter API Key** (required for AI analysis):
    ```bash
    export OPENROUTER_API_KEY="sk-your-openrouter-api-key-here"
    ```
@@ -27,7 +29,7 @@ AI-powered code analysis from screenshots. An Electron application that captures
    cp .env.example .env
    # then edit OPENROUTER_API_KEY
    ```
-4. Start the application: `npm start`
+5. Start the application: `npm start`
 
 ## Configuration
 
