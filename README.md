@@ -17,7 +17,7 @@ AI-powered code analysis from screenshots. An Electron application that captures
 ## Installation
 
 1. Clone this repository
-2. Install dependencies: `bun install`
+2. Install dependencies: `npm install`
 3. **Set up OpenRouter API Key** (required for AI analysis):
    ```bash
    export OPENROUTER_API_KEY="sk-your-openrouter-api-key-here"
@@ -27,7 +27,7 @@ AI-powered code analysis from screenshots. An Electron application that captures
    cp .env.example .env
    # then edit OPENROUTER_API_KEY
    ```
-4. Start the application: `bun start`
+4. Start the application: `npm start`
 
 ## Configuration
 
@@ -169,28 +169,28 @@ The app has a fallback mechanism:
 ## Development
 
 **Development:**
-- `bun run dev` - Start development with hot reload
-- `bun run build` - Compile TypeScript to JavaScript
-- `bun start` - Build and run the application
-- `bun run typescript-check` - Type check without compilation
-- `bun run watch` - Watch TypeScript files for changes
+- `npm run dev` - Start development with hot reload
+- `npm run build` - Compile TypeScript to JavaScript
+- `npm start` - Build and run the application
+- `npm run typescript-check` - Type check without compilation
+- `npm run watch` - Watch TypeScript files for changes
 
 **Code Quality:**
-- `bun run format` - Format code with Biome
-- `bun run lint` - Lint and auto-fix with Biome
-- `bun run check` - Run both formatting and linting
+- `npm run format` - Format code with Biome
+- `npm run lint` - Lint and auto-fix with Biome
+- `npm run check` - Run both formatting and linting
 
 **Testing:**
-- `bun run test` - Run all tests
-- `bun run test:watch` - Run tests in watch mode
-- `bun run test:coverage` - Run tests with coverage
+- `npm test` - Run all tests
+- `npm run test:watch` - Run tests in watch mode
+- `npm run test:coverage` - Run tests with coverage
 
 **Packaging:**
-- `bun run package` - Build an unsigned local macOS `.dmg` (skips macOS code signing)
-- `bun run package-mac-signed` - Build a signed macOS `.dmg` when your Apple certificate/keychain setup is ready
-- `bun run package-win` - Build Windows installer
-- `bun run package-linux` - Build Linux AppImage
-- `bun run package-all` - Build for all platforms
+- `npm run package` - Build an unsigned local macOS `.dmg` (skips macOS code signing)
+- `npm run package-mac-signed` - Build a signed macOS `.dmg` when your Apple certificate/keychain setup is ready
+- `npm run package-win` - Build Windows installer
+- `npm run package-linux` - Build Linux AppImage
+- `npm run package-all` - Build for all platforms
 
 For local macOS packaging, the default script intentionally sets `mac.identity=null` to avoid Electron Builder auto-discovering a signing identity and stalling at the `signing` step. Use the signed variant only for release builds that are meant to go through Apple code signing.
 
@@ -234,7 +234,7 @@ For local macOS packaging, the default script intentionally sets `mac.identity=n
 **Development Stack:**
 - TypeScript with strict mode and ES2020 target
 - Biome for formatting and linting with consistent code style
-- Bun for package management and script execution, with Vitest for testing
+- npm for package management and script execution, with Vitest for testing
 - Winston for structured logging with Electron error suppression
 - Unified CSS architecture (single app.css file)
 - Local renderer vendor assets with a restrictive Content Security Policy

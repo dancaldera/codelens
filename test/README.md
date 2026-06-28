@@ -7,23 +7,20 @@ This directory contains tests for the CodeLens application using Vitest.
 ```
 test/
 ├── ipc.test.ts                 # IPC payload validation tests
+├── setup.ts                    # Test environment setup
 ├── lib/
-│   ├── utils/
-│   │   └── image.test.ts       # Image utility function tests
-│   └── logger.test.ts          # Logger utility tests
+│   └── utils/
+│       └── image.test.ts       # Image utility function tests
 ├── main/
 │   ├── analysisSession.test.ts # Analysis queue behavior tests
-│   └── screenshotSession.test.ts # Screenshot slot lifecycle tests
-├── renderer/
-│   └── sanitization.test.ts    # Markdown/XSS sanitization tests
+│   ├── screenshotSession.test.ts # Screenshot slot lifecycle tests
+│   └── voiceSession.test.ts    # Voice session tests
 ├── services/
 │   ├── smartAnalyzer.test.ts   # Smart screenshot analysis service tests
-│   ├── providers.test.ts       # Provider management tests
+│   ├── providers.test.ts       # Provider/model loading tests
+│   ├── stt.test.ts             # Speech-to-text request tests
 │   └── openrouter/
 │       └── client.test.ts      # OpenRouter client configuration tests
-├── integration/
-│   └── basic.test.ts           # Basic integration tests
-├── setup.ts                    # Test environment setup
 └── README.md                   # This file
 ```
 
@@ -31,25 +28,21 @@ test/
 
 ```bash
 # Run all tests
-bun run test
+npm test
 
 # Run tests in watch mode
-bun run test:watch
+npm run test:watch
 
 # Run tests with coverage
-bun run test:coverage
+npm run test:coverage
 ```
 
 ## Test Categories
 
 ### Unit Tests
 - **Image utilities** (`lib/utils/image.test.ts`): Tests MIME type detection and file validation
-- **Logger utilities** (`lib/logger.test.ts`): Tests logging functions and error patterns
 - **OpenRouter client** (`services/openrouter/client.test.ts`): Tests API key validation and configuration
-- **Provider management** (`services/providers.test.ts`): Tests model loading, cache behavior, and provider metadata
-
-### Integration Tests
-- **Basic integration** (`integration/basic.test.ts`): Tests module imports and basic functionality
+- **Provider management** (`services/providers.test.ts`): Tests model loading and cache behavior
 
 ## Mocking Strategy
 
@@ -58,19 +51,14 @@ The tests use Vitest's `vi.mock()` and `vi.fn()` helpers to mock Electron depend
 ## Test Coverage
 
 The test suite covers:
-- ✅ Utility functions (image processing, validation)
-- ✅ Configuration validation (OpenRouter API keys)
-- ✅ Logger functionality (performance and API call logging)
-- ✅ Provider and model selection behavior
-- ✅ Error pattern matching
-- ✅ IPC payload validation
-- ✅ Screenshot slot lifecycle and analysis queue behavior
-- ✅ Markdown sanitization against executable HTML
-- ✅ Basic module imports and integration
+- Utility functions (image processing, validation)
+- Configuration validation (OpenRouter API keys)
+- Provider and model selection behavior
+- IPC payload validation
+- Screenshot slot lifecycle and analysis queue behavior
 
 ## Notes
 
 - Tests are designed to work without Electron runtime
 - Environment variables are mocked for testing API key validation
-- Logger tests focus on functionality rather than mock verification
 - All tests use TypeScript for type safety
