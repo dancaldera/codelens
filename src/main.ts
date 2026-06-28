@@ -111,7 +111,6 @@ async function resetSession(): Promise<void> {
 
 	mainWindow.webContents.send(IPC_CHANNELS.CLEAR_SCREENSHOTS)
 	mainWindow.webContents.send(IPC_CHANNELS.CONTEXT_RESET)
-	mainWindow.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, 'Screenshots cleared')
 	mainWindow.setPosition(50, 50, false)
 	logger.info('Screenshots reset and window repositioned')
 }
@@ -274,7 +273,7 @@ app.on('before-quit', (event) => {
 	event.preventDefault()
 	isQuitting = true
 	globalShortcut.unregisterAll()
-	const cleanup = screenshotSession?.cleanupSessionFiles() ?? Promise.resolve()
+	const cleanup = screenshotSession?.reset() ?? Promise.resolve()
 	void cleanup.finally(() => app.quit())
 })
 

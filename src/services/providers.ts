@@ -1,170 +1,32 @@
 import { createLogger } from '../lib/logger'
 import {
-	DEFAULT_PROGRAMMING_VISION_MODEL,
 	FALLBACK_PROGRAMMING_VISION_MODELS,
 	fetchProgrammingModels,
 	isOpenRouterConfigured,
 	type ProgrammingModel,
 } from './openrouter/client'
-import { type AnalysisRequest, OpenRouterService } from './openrouter/service'
 
 const logger = createLogger('ProviderManager')
 
-// Cache for fetched models
+// ponytail: single provider (OpenRouter). The 'provider' string still flows
+// through the IPC contract + renderer badges as a display label; the
+// multi-provider union/record/override machinery that lived here was removed.
+
 let cachedModels: ProgrammingModel[] | null = null
 
-export type Provider = 'openrouter'
-
-export interface ProviderConfig {
-	name: Provider
-	displayName: string
-	isConfigured: () => boolean
-	defaultModel: string
-}
-
-export const PROVIDERS: Record<Provider, ProviderConfig> = {
-	openrouter: {
-		name: 'openrouter',
-		displayName: 'OpenRouter',
-		isConfigured: isOpenRouterConfigured,
-		defaultModel: DEFAULT_PROGRAMMING_VISION_MODEL,
-	},
-}
-
-/**
- * Fallback models when API fetch fails
- */
-const FALLBACK_MODELS: ProgrammingModel[] = FALLBACK_PROGRAMMING_VISION_MODELS
-
-/**
- * Get the current provider based on environment configuration or override
- */
-export function getCurrentProvider(override?: Provider): Provider {
-	// Use override if provided and valid
-	if (override && PROVIDERS[override]) {
-		logger.debug('Using provider override', { provider: override })
-		return override
-	}
-
-	// Check environment variable first
-	const envProvider = process.env.AI_PROVIDER?.toLowerCase() as Provider
-	if (envProvider && PROVIDERS[envProvider]) {
-		logger.debug('Using provider from environment', { provider: envProvider })
-		return envProvider
-	}
-
-	// Always return OpenRouter
-	logger.debug('Using OpenRouter as provider')
-	return 'openrouter'
-}
-
-/**
- * Check if any provider is configured
- */
 export function isAnyProviderConfigured(): boolean {
-	return Object.values(PROVIDERS).some((provider) => provider.isConfigured())
+	return isOpenRouterConfigured()
 }
 
-/**
- * Get available models for the current provider (async with caching)
- * Fetches programming models with image support from OpenRouter API
- * Returns fallback models if API fetch fails
- */
-export async function getAvailableModels(providerOverride?: Provider): Promise<string[]> {
-	// Ensure provider is configured
-	getCurrentProvider(providerOverride)
+export async function getAvailableModels(): Promise<string[]> {
+	if (cachedModels) return cachedModels.map((m) => m.id)
 
-	// Return cached models if available
-	if (cachedModels) {
-		logger.debug('Returning cached models', { count: cachedModels.length })
-		return cachedModels.map((m) => m.id)
-	}
-
-	// Fetch models from API
-	logger.debug('Fetching programming models with image support')
 	try {
-		const models = await fetchProgrammingModels()
-		cachedModels = models
-		return models.map((m) => m.id)
+		cachedModels = await fetchProgrammingModels()
+		return cachedModels.map((m) => m.id)
 	} catch (error) {
 		logger.error('Failed to fetch models, using fallback', { error })
-		cachedModels = FALLBACK_MODELS
-		return FALLBACK_MODELS.map((m) => m.id)
-	}
-}
-
-export function getAvailableModelsSync(): string[] {
-	if (cachedModels) {
-		logger.debug('Returning cached models synchronously', { count: cachedModels.length })
+		cachedModels = FALLBACK_PROGRAMMING_VISION_MODELS
 		return cachedModels.map((m) => m.id)
-	}
-
-	logger.debug('Returning fallback models synchronously')
-	return FALLBACK_MODELS.map((m) => m.id)
-}
-
-/**
- * Refresh the models cache by fetching latest from API
- */
-export async function refreshModelsCache(): Promise<void> {
-	logger.debug('Refreshing models cache')
-	cachedModels = null
-	await getAvailableModels()
-}
-
-/**
- * Get the default model for the current provider
- */
-export function getDefaultModel(providerOverride?: Provider): string {
-	const provider = getCurrentProvider(providerOverride)
-	return PROVIDERS[provider].defaultModel
-}
-
-/**
- * Create the appropriate service instance based on provider and model
- */
-export function createAnalysisService(model?: string, providerOverride?: Provider): OpenRouterService {
-	const provider = getCurrentProvider(providerOverride)
-	const selectedModel = model || getDefaultModel(providerOverride)
-
-	logger.debug('Creating analysis service', { provider, model: selectedModel })
-
-	return new OpenRouterService({ model: selectedModel })
-}
-
-/**
- * Analyze screenshot content using the specified provider
- */
-export async function analyzeWithProvider(
-	request: AnalysisRequest,
-	model?: string,
-	providerOverride?: Provider,
-): Promise<string> {
-	const service = createAnalysisService(model, providerOverride)
-	return await service.analyze(request)
-}
-
-/**
- * Get all available providers
- */
-export function getAvailableProviders(): Provider[] {
-	return Object.keys(PROVIDERS) as Provider[]
-}
-
-/**
- * Get provider info for display
- */
-export function getProviderInfo(providerOverride?: Provider): {
-	provider: Provider
-	displayName: string
-	isConfigured: boolean
-} {
-	const provider = getCurrentProvider(providerOverride)
-	const config = PROVIDERS[provider]
-
-	return {
-		provider,
-		displayName: config.displayName,
-		isConfigured: config.isConfigured(),
 	}
 }

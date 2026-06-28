@@ -1,7 +1,7 @@
 import type { BrowserWindow } from 'electron'
 import { IPC_CHANNELS, type ModelChangedPayload } from '../ipc'
-import { analyzeImagesSmart } from '../services'
-import { getAvailableModels, getCurrentProvider, isAnyProviderConfigured, type Provider } from '../services/providers'
+import { getAvailableModels, isAnyProviderConfigured } from '../services/providers'
+import { analyzeImagesSmart } from '../services/smartAnalyzer'
 
 interface AnalysisLogger {
 	debug: (message: string, meta?: Record<string, unknown>) => void
@@ -21,7 +21,7 @@ export class AnalysisSession {
 	private previousAnalysis: string | null = null
 	private currentModelIndex = 0
 	private availableModels: string[] = []
-	private currentProvider: Provider = 'openrouter'
+	private currentProvider = 'openrouter'
 	private isAnalysisRunning = false
 	private pendingAnalysis = false
 	private analysisPromise: Promise<void> | null = null
@@ -66,13 +66,12 @@ export class AnalysisSession {
 	}
 
 	private async loadProvider(): Promise<void> {
-		this.currentProvider = getCurrentProvider()
 		const window = this.options.getWindow()
 
 		window?.webContents.send(IPC_CHANNELS.MODELS_LOADING)
 
 		try {
-			this.availableModels = await getAvailableModels(this.currentProvider)
+			this.availableModels = await getAvailableModels()
 			this.currentModelIndex = 0
 
 			this.options.logger.info('Provider initialized', {
@@ -96,12 +95,10 @@ export class AnalysisSession {
 		const window = this.options.getWindow()
 		if (!isAnyProviderConfigured()) {
 			this.options.logger.warn('Attempted to switch model without any provider configured')
-			window?.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, 'No API key configured')
 			return
 		}
 
 		if (!this.availableModels.length) {
-			window?.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, 'Models are still loading')
 			return
 		}
 
@@ -116,7 +113,6 @@ export class AnalysisSession {
 		})
 
 		window?.webContents.send(IPC_CHANNELS.MODEL_CHANGED, modelInfo)
-		window?.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, `Model: ${this.currentProvider}:${modelInfo.model}`)
 	}
 
 	async triggerAnalysis(): Promise<void> {
@@ -131,12 +127,12 @@ export class AnalysisSession {
 		this.isAnalysisRunning = true
 		this.pendingAnalysis = false
 
-		const currentPromise = this.prepareAndRunAnalysis(window)
+		const currentPromise = this.prepareAndRunAnalysis()
 		this.analysisPromise = currentPromise
 		await currentPromise
 	}
 
-	private async prepareAndRunAnalysis(window: BrowserWindow): Promise<void> {
+	private async prepareAndRunAnalysis(): Promise<void> {
 		try {
 			if (!this.availableModels.length) {
 				await this.initializeProvider()
@@ -148,7 +144,6 @@ export class AnalysisSession {
 					modelIndex: this.currentModelIndex,
 					models: this.availableModels,
 				})
-				window.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, 'No model available')
 				return
 			}
 
@@ -181,12 +176,10 @@ export class AnalysisSession {
 				previousContext: this.previousAnalysis || undefined,
 				voiceContext,
 				model: currentModel,
-				provider: this.currentProvider,
 			})
 
 			this.previousAnalysis = markdownResult
 			this.options.getWindow()?.webContents.send(IPC_CHANNELS.ANALYSIS_RESULT, markdownResult)
-			this.options.getWindow()?.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, 'Analysis completed')
 
 			this.options.logger.info('Analysis completed successfully')
 		} catch (error) {
@@ -206,6 +199,5 @@ An error occurred during screenshot analysis: ${error instanceof Error ? error.m
 Please try again or check your OpenRouter API key configuration.`
 
 		this.options.getWindow()?.webContents.send(IPC_CHANNELS.ANALYSIS_RESULT, errorMessage)
-		this.options.getWindow()?.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, 'Analysis failed')
 	}
 }

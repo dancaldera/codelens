@@ -44,7 +44,6 @@ export class ScreenshotSession {
 
 		if (this.isCapturing) {
 			this.options.logger.warn('Screenshot capture already in progress')
-			window.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, 'Screenshot already in progress')
 			return
 		}
 
@@ -78,13 +77,11 @@ export class ScreenshotSession {
 
 			if (!success) {
 				this.options.logger.error('All screenshot methods failed')
-				this.options.getWindow()?.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, 'Screenshot failed')
 			}
 		} catch (error) {
 			this.options.logger.error('Screenshot operation failed', {
 				error: error instanceof Error ? error.message : String(error),
 			})
-			this.options.getWindow()?.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, 'Screenshot failed')
 		} finally {
 			this.isCapturing = false
 			if (wasVisible) {
@@ -123,7 +120,6 @@ export class ScreenshotSession {
 			path: filePath,
 			data: buffer.toString('base64'),
 		})
-		window?.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, this.getCaptureStatusMessage())
 
 		if (this.shouldAnalyzeAfterSave()) {
 			this.options.onShouldAnalyze()
@@ -135,15 +131,11 @@ export class ScreenshotSession {
 		await Promise.all(pathsToRemove.map((filePath) => this.deleteFile(filePath, 'Failed to delete screenshot file')))
 	}
 
-	clearState(): string[] {
+	private clearState(): string[] {
 		const pathsToRemove = [...this.screenshotPaths]
 		this.screenshotCount = 0
 		this.screenshotPaths = []
 		return pathsToRemove
-	}
-
-	async cleanupSessionFiles(): Promise<void> {
-		await this.reset()
 	}
 
 	async cleanupStaleFiles(): Promise<void> {
@@ -167,18 +159,6 @@ export class ScreenshotSession {
 
 	private shouldAnalyzeAfterSave(): boolean {
 		return this.screenshotCount === MAX_SCREENSHOTS || (this.screenshotCount === 1 && this.options.hasContext())
-	}
-
-	private getCaptureStatusMessage(): string {
-		if (this.screenshotCount === 1 && this.options.isWaitingForVoice?.()) {
-			return 'Screenshot 1 captured — keep speaking or capture one more'
-		}
-		if (this.screenshotCount === 1 && !this.options.hasContext()) return 'Screenshot 1 captured — need one more'
-		if (this.screenshotCount === MAX_SCREENSHOTS && this.options.isWaitingForVoice?.()) {
-			return 'Screenshot 2 captured — waiting for voice note'
-		}
-		if (this.screenshotCount === MAX_SCREENSHOTS) return 'Screenshot 2 captured — ready to analyze'
-		return `Screenshot ${this.screenshotCount} captured`
 	}
 
 	private async captureWithDesktopCapturer(): Promise<boolean> {
@@ -308,6 +288,3 @@ export class ScreenshotSession {
 		}
 	}
 }
-
-export const screenshotDirectory = SCREENSHOT_DIR
-export const maxScreenshots = MAX_SCREENSHOTS

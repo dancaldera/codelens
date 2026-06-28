@@ -1,9 +1,10 @@
-import { OpenAI } from 'openai'
 import { createLogger } from '../../lib/logger'
 
 const logger = createLogger('OpenRouterClient')
 
 const OPENROUTER_MODELS_ENDPOINT = 'https://openrouter.ai/api/v1/models'
+const OPENROUTER_CHAT_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'
+const REQUEST_TIMEOUT_MS = 50000
 
 export const DEFAULT_PROGRAMMING_VISION_MODEL = 'anthropic/claude-sonnet-4.6'
 export const DEFAULT_TRANSCRIPTION_MODEL = 'openai/gpt-4o-mini-transcribe'
@@ -101,22 +102,51 @@ export function isOpenRouterConfigured(): boolean {
 }
 
 /**
- * Create a configured OpenRouter client instance
+ * Chat completion request shapes (subset of OpenRouter/OpenAI's API).
  */
-export function createOpenRouterClient(): OpenAI {
-	if (!isOpenRouterConfigured()) {
-		throw new Error('OpenRouter API key is not configured properly')
-	}
+export interface ChatCompletionMessage {
+	role: string
+	content: unknown[]
+}
 
-	return new OpenAI({
-		baseURL: 'https://openrouter.ai/api/v1',
-		apiKey: process.env.OPENROUTER_API_KEY,
-		timeout: 50000, // 50 second timeout for API calls
-		defaultHeaders: {
+export interface ChatCompletionRequest {
+	model: string
+	messages: ChatCompletionMessage[]
+	max_tokens: number
+	temperature: number
+}
+
+interface ChatCompletionResponse {
+	choices?: { message?: { content?: string } }[]
+	error?: { message?: string }
+}
+
+/**
+ * Send a chat completion request to OpenRouter and return the first choice's content.
+ * Mirrors the stt.ts fetch pattern (same headers, AbortController timeout, error shape).
+ */
+export async function chatCompletion(body: ChatCompletionRequest): Promise<string> {
+	validateOpenRouterConfiguration()
+
+	const response = await fetch(OPENROUTER_CHAT_ENDPOINT, {
+		method: 'POST',
+		headers: {
+			Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+			'Content-Type': 'application/json',
 			'HTTP-Referer': process.env.OPENROUTER_SITE_URL || 'https://codelens.app',
 			'X-Title': process.env.OPENROUTER_SITE_NAME || 'CodeLens',
 		},
+		body: JSON.stringify(body),
+		signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
 	})
+
+	const result = (await response.json().catch(() => ({}))) as ChatCompletionResponse
+
+	if (!response.ok) {
+		throw new Error(result.error?.message || `OpenRouter API returned ${response.status}: ${response.statusText}`)
+	}
+
+	return result.choices?.[0]?.message?.content ?? ''
 }
 
 /**

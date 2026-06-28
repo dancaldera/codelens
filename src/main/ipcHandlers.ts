@@ -67,7 +67,7 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
 
 		const screenshotPath = options.screenshotSession.getPath(index)
 		if (!screenshotPath) {
-			options.getWindow()?.webContents.send(IPC_CHANNELS.SCREENSHOT_STATUS, `Screenshot ${index} is not available`)
+			options.logger.warn('Screenshot not available', { index })
 			return
 		}
 

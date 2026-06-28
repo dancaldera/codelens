@@ -1,18 +1,13 @@
 export const IPC_CHANNELS = {
 	SUBMIT_PROMPT: 'submit-prompt',
-	SCREENSHOT_STATUS: 'screenshot-status',
 	ANALYSIS_RESULT: 'analysis-result',
 	CONTEXT_RESET: 'context-reset',
-	SUBMIT_RESULT: 'submit-result',
 	REQUEST_SCREENSHOT: 'request-screenshot',
 	SCREENSHOT_IMAGE: 'screenshot-image',
 	CLEAR_SCREENSHOTS: 'clear-screenshots',
 	OPEN_SCREENSHOT: 'open-screenshot',
-	GET_PROMPT: 'get-prompt',
-	PROMPT_RESPONSE: 'prompt-response',
 	SHOW_LOADING: 'show-loading',
 	HIDE_LOADING: 'hide-loading',
-	LANGUAGE_DETECTED: 'language-detected',
 	MODEL_CHANGED: 'model-changed',
 	MODELS_LOADING: 'models-loading',
 	GET_CURRENT_MODEL: 'get-current-model',
@@ -25,7 +20,6 @@ export const IPC_CHANNELS = {
 	VOICE_TRANSCRIPT_READY: 'voice-transcript-ready',
 	VOICE_CAPTURE_STATE: 'voice-capture-state',
 	RESIZE_WINDOW: 'resize-window',
-	TRIGGER_SCREENSHOT: 'trigger-screenshot',
 } as const
 
 export type LoadingState = 'waiting' | 'recording' | 'transcribing' | 'analyzing'

@@ -2,8 +2,7 @@ import * as fs from 'node:fs'
 import { createLogger, logPerformance } from '../lib/logger'
 import { getMimeType, validateImageFile } from '../lib/utils'
 import { DEFAULT_PROGRAMMING_VISION_MODEL } from './openrouter/client'
-import type { ImageContent } from './openrouter/service'
-import { analyzeWithProvider, type Provider } from './providers'
+import { type AnalysisRequest, type ImageContent, OpenRouterService } from './openrouter/service'
 
 const logger = createLogger('SmartAnalyzer')
 
@@ -123,7 +122,6 @@ export interface SmartAnalysisOptions {
 	previousContext?: string
 	voiceContext?: string
 	model?: string
-	provider?: Provider
 }
 
 export async function analyzeImagesSmart({
@@ -131,7 +129,6 @@ export async function analyzeImagesSmart({
 	previousContext,
 	voiceContext,
 	model = DEFAULT_PROGRAMMING_VISION_MODEL,
-	provider,
 }: SmartAnalysisOptions): Promise<string> {
 	const startTime = Date.now()
 
@@ -152,16 +149,16 @@ export async function analyzeImagesSmart({
 
 		logger.info('Executing smart analysis', {
 			model,
-			provider,
 			images: images.length,
 			hasVoiceContext,
 		})
 
-		const markdown = await analyzeWithProvider(
-			{ images, prompt: buildAnalysisPrompt(voiceContext, images.length > 0), previousContext },
-			model,
-			provider,
-		)
+		const request: AnalysisRequest = {
+			images,
+			prompt: buildAnalysisPrompt(voiceContext, images.length > 0),
+			previousContext,
+		}
+		const markdown = await new OpenRouterService({ model }).analyze(request)
 
 		logPerformance('Smart analysis completed', startTime)
 		return markdown.trim() || '## Empty response\nThe model returned no content. Try again.'

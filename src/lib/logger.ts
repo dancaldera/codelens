@@ -37,23 +37,10 @@ const ELECTRON_ERROR_PATTERNS = [
 	/\[.*?\] Passthrough is not supported/,
 ]
 
-// Custom filter to suppress known Electron errors
-const electronErrorFilter = winston.format((info) => {
-	if (info.level === 'error' && typeof info.message === 'string') {
-		for (const pattern of ELECTRON_ERROR_PATTERNS) {
-			if (pattern.test(info.message)) {
-				return false // Suppress this log entry
-			}
-		}
-	}
-	return info
-})
-
 // Create the main logger
 const logger = winston.createLogger({
 	level: process.env.LOG_LEVEL || 'info',
 	defaultMeta: { service: 'codelens' },
-	format: electronErrorFilter(),
 	transports: [
 		// Console transport
 		new winston.transports.Console({
@@ -98,17 +85,6 @@ const logger = winston.createLogger({
 // Create specialized loggers for different components
 export const createLogger = (service: string) => {
 	return logger.child({ service })
-}
-
-// Export the main logger
-export default logger
-
-// Convenience methods for quick logging
-export const log = {
-	debug: (message: string, meta?: Record<string, unknown>) => logger.debug(message, meta),
-	info: (message: string, meta?: Record<string, unknown>) => logger.info(message, meta),
-	warn: (message: string, meta?: Record<string, unknown>) => logger.warn(message, meta),
-	error: (message: string, meta?: Record<string, unknown>) => logger.error(message, meta),
 }
 
 // Performance logging utility

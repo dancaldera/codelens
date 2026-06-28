@@ -4,11 +4,13 @@ const mockApp = {
 	isPackaged: false,
 	getPath: vi.fn(() => '/tmp/test-logs'),
 }
-const analyzeWithProvider = vi.fn(async () => 'voice-only answer')
+const analyzeMock = vi.fn(async () => 'voice-only answer')
 
 vi.mock('electron', () => ({ app: mockApp }))
-vi.mock('../../src/services/providers', () => ({
-	analyzeWithProvider: (...args: unknown[]) => analyzeWithProvider(...args),
+vi.mock('../../src/services/openrouter/service', () => ({
+	OpenRouterService: class {
+		analyze = analyzeMock
+	},
 }))
 
 describe('Smart Analyzer', () => {
@@ -22,7 +24,7 @@ describe('Smart Analyzer', () => {
 
 		expect(result.toLowerCase()).toContain('no screenshots')
 		expect(result.toLowerCase()).toContain('capture at least one screenshot')
-		expect(analyzeWithProvider).not.toHaveBeenCalled()
+		expect(analyzeMock).not.toHaveBeenCalled()
 	})
 
 	test('analyzes voice-only context without screenshots', async () => {
@@ -31,17 +33,14 @@ describe('Smart Analyzer', () => {
 			imagePaths: [],
 			voiceContext: 'Explain binary search in TypeScript.',
 			model: 'model-a',
-			provider: 'openrouter',
 		})
 
 		expect(result).toBe('voice-only answer')
-		expect(analyzeWithProvider).toHaveBeenCalledWith(
+		expect(analyzeMock).toHaveBeenCalledWith(
 			expect.objectContaining({
 				images: [],
 				prompt: expect.stringContaining('Explain binary search in TypeScript.'),
 			}),
-			'model-a',
-			'openrouter',
 		)
 	})
 })

@@ -66,22 +66,6 @@ window.addEventListener('DOMContentLoaded', () => {
 	const MIN_OVERLAY_HEIGHT = 400
 	const MAX_OVERLAY_SIZE = 4000
 	const screenshotData = new Map<number, ScreenshotData>()
-	let modelInfoPulseTimeout: ReturnType<typeof setTimeout> | null = null
-	let modelInfoHideTimeout: ReturnType<typeof setTimeout> | null = null
-	let currentProviderLabel = 'OpenRouter'
-	let currentModelLabel = 'Model'
-	let currentModelVendor = ''
-	let currentModelDataset = ''
-	let currentModelTitle = 'OpenRouter'
-	let currentModelPosition = ''
-	let sttModelInfoPulseTimeout: ReturnType<typeof setTimeout> | null = null
-	let sttModelInfoHideTimeout: ReturnType<typeof setTimeout> | null = null
-	let currentSttProviderLabel = 'Voice'
-	let currentSttModelLabel = 'STT'
-	let currentSttModelVendor = ''
-	let currentSttModelDataset = ''
-	let currentSttModelTitle = 'OpenRouter STT'
-	let currentSttModelPosition = ''
 	let mediaRecorder: MediaRecorder | null = null
 	let mediaStream: MediaStream | null = null
 	let voiceChunks: Blob[] = []
@@ -114,202 +98,184 @@ window.addEventListener('DOMContentLoaded', () => {
 		return `${info.index + 1}/${info.count}`
 	}
 
-	function updateModelInfoBadge(): void {
-		const label = currentModelLabel || 'Model'
-		const providerLabel = currentProviderLabel || 'OpenRouter'
-
-		modelInfoDiv.replaceChildren()
-		modelInfoDiv.title = currentModelTitle || label
-
-		const providerLine = document.createElement('div')
-		providerLine.className = 'badge-provider'
-
-		const providerName = document.createElement('span')
-		providerName.className = 'badge-provider-name'
-		providerName.textContent = currentModelVendor ? `${providerLabel} • ${currentModelVendor}` : providerLabel
-		providerLine.append(providerName)
-
-		if (currentModelPosition) {
-			const modelCount = document.createElement('span')
-			modelCount.className = 'badge-count'
-			modelCount.textContent = currentModelPosition
-			providerLine.append(modelCount)
-		}
-
-		const modelLine = document.createElement('div')
-		modelLine.className = 'badge-model'
-		modelLine.textContent = label
-
-		modelInfoDiv.append(providerLine, modelLine)
-
-		if (currentModelDataset) {
-			modelInfoDiv.dataset.model = currentModelDataset
-		} else {
-			delete modelInfoDiv.dataset.model
-		}
-	}
-
 	const BADGE_FLASH_MS = 450
 	const BADGE_VISIBLE_MS = 2500
 
-	function clearModelInfoTimers(): void {
-		if (modelInfoPulseTimeout) {
-			clearTimeout(modelInfoPulseTimeout)
-			modelInfoPulseTimeout = null
-		}
-		if (modelInfoHideTimeout) {
-			clearTimeout(modelInfoHideTimeout)
-			modelInfoHideTimeout = null
-		}
+	interface BadgeState {
+		providerLabel: string
+		modelLabel: string
+		vendor: string
+		dataset: string
+		title: string
+		position: string
 	}
 
-	function flashModelInfoBadge(autoHide = true): void {
-		clearModelInfoTimers()
-		modelInfoDiv.classList.remove('is-updating')
-		void modelInfoDiv.offsetWidth
-		modelInfoDiv.classList.add('show', 'is-updating')
-		modelInfoPulseTimeout = setTimeout(() => {
-			modelInfoDiv.classList.remove('is-updating')
-			modelInfoPulseTimeout = null
-		}, BADGE_FLASH_MS)
-		if (autoHide) {
-			modelInfoHideTimeout = setTimeout(() => {
-				modelInfoDiv.classList.remove('show')
-				modelInfoHideTimeout = null
-			}, BADGE_VISIBLE_MS)
+	// ponytail: two badges (analysis model + STT model) used to duplicate
+	// render/flash/timer/apply logic. One factory, configured with defaults and
+	// an object-branch labeler, serves both.
+	function createModelBadge(
+		div: HTMLDivElement,
+		defaults: BadgeState,
+		labelObjectState: (info: ModelInfo) => BadgeState,
+	): {
+		render: () => void
+		flash: (autoHide?: boolean) => void
+		setLabels: (next: Partial<BadgeState>) => void
+		apply: (info: string | ModelInfo | null) => void
+	} {
+		let pulseTimeout: ReturnType<typeof setTimeout> | null = null
+		let hideTimeout: ReturnType<typeof setTimeout> | null = null
+		let state: BadgeState = { ...defaults }
+
+		function clearTimers(): void {
+			if (pulseTimeout) {
+				clearTimeout(pulseTimeout)
+				pulseTimeout = null
+			}
+			if (hideTimeout) {
+				clearTimeout(hideTimeout)
+				hideTimeout = null
+			}
 		}
+
+		function render(): void {
+			const label = state.modelLabel || defaults.modelLabel
+			const providerLabel = state.providerLabel || defaults.providerLabel
+
+			div.replaceChildren()
+			div.title = state.title || label
+
+			const providerLine = document.createElement('div')
+			providerLine.className = 'badge-provider'
+
+			const providerName = document.createElement('span')
+			providerName.className = 'badge-provider-name'
+			providerName.textContent = state.vendor ? `${providerLabel} • ${state.vendor}` : providerLabel
+			providerLine.append(providerName)
+
+			if (state.position) {
+				const modelCount = document.createElement('span')
+				modelCount.className = 'badge-count'
+				modelCount.textContent = state.position
+				providerLine.append(modelCount)
+			}
+
+			const modelLine = document.createElement('div')
+			modelLine.className = 'badge-model'
+			modelLine.textContent = label
+
+			div.append(providerLine, modelLine)
+
+			if (state.dataset) {
+				div.dataset.model = state.dataset
+			} else {
+				delete div.dataset.model
+			}
+		}
+
+		function flash(autoHide = true): void {
+			clearTimers()
+			div.classList.remove('is-updating')
+			void div.offsetWidth
+			div.classList.add('show', 'is-updating')
+			pulseTimeout = setTimeout(() => {
+				div.classList.remove('is-updating')
+				pulseTimeout = null
+			}, BADGE_FLASH_MS)
+			if (autoHide) {
+				hideTimeout = setTimeout(() => {
+					div.classList.remove('show')
+					hideTimeout = null
+				}, BADGE_VISIBLE_MS)
+			}
+		}
+
+		function setLabels(next: Partial<BadgeState>): void {
+			state = { ...defaults, ...next }
+		}
+
+		function apply(info: string | ModelInfo | null): void {
+			if (!info) return
+
+			clearTimers()
+
+			if (info === 'no-key') {
+				state = {
+					...defaults,
+					modelLabel: 'No API Key',
+					vendor: '',
+					dataset: 'no-key',
+					title: 'OpenRouter API key missing',
+					position: '',
+				}
+			} else if (typeof info === 'object') {
+				state = labelObjectState(info)
+			} else {
+				const { vendor, name } = splitModelId(info)
+				state = {
+					...defaults,
+					modelLabel: name,
+					vendor,
+					dataset: info.toLowerCase(),
+					title: info,
+					position: '',
+				}
+			}
+
+			render()
+			flash()
+		}
+
+		return { render, flash, setLabels, apply }
 	}
 
-	function applyModelInfo(info: string | ModelInfo | null): void {
-		if (!info) return
-
-		clearModelInfoTimers()
-
-		if (info === 'no-key') {
-			currentProviderLabel = 'OpenRouter'
-			currentModelLabel = 'No API Key'
-			currentModelVendor = ''
-			currentModelDataset = 'no-key'
-			currentModelTitle = 'OpenRouter API key missing'
-			currentModelPosition = ''
-		} else if (typeof info === 'object') {
+	const modelBadge = createModelBadge(
+		modelInfoDiv,
+		{
+			providerLabel: 'OpenRouter',
+			modelLabel: 'Model',
+			vendor: '',
+			dataset: '',
+			title: 'OpenRouter',
+			position: '',
+		},
+		(info) => {
 			const { vendor, name } = splitModelId(info.model)
-			currentProviderLabel = formatProviderLabel(info.provider)
-			currentModelLabel = name
-			currentModelVendor = vendor
-			currentModelDataset = info.model.toLowerCase()
-			currentModelTitle = `${currentProviderLabel}: ${info.model}`
-			currentModelPosition = formatModelPosition(info)
-		} else {
-			const { vendor, name } = splitModelId(info)
-			currentProviderLabel = 'OpenRouter'
-			currentModelLabel = name
-			currentModelVendor = vendor
-			currentModelDataset = info.toLowerCase()
-			currentModelTitle = info
-			currentModelPosition = ''
-		}
+			const providerLabel = formatProviderLabel(info.provider)
+			return {
+				providerLabel,
+				modelLabel: name,
+				vendor,
+				dataset: info.model.toLowerCase(),
+				title: `${providerLabel}: ${info.model}`,
+				position: formatModelPosition(info),
+			}
+		},
+	)
 
-		updateModelInfoBadge()
-		flashModelInfoBadge()
-	}
-
-	function updateSttModelInfoBadge(): void {
-		const label = currentSttModelLabel || 'STT'
-		const providerLabel = currentSttProviderLabel || 'Voice'
-
-		sttModelInfoDiv.replaceChildren()
-		sttModelInfoDiv.title = currentSttModelTitle || label
-
-		const providerLine = document.createElement('div')
-		providerLine.className = 'badge-provider'
-
-		const providerName = document.createElement('span')
-		providerName.className = 'badge-provider-name'
-		providerName.textContent = currentSttModelVendor ? `${providerLabel} • ${currentSttModelVendor}` : providerLabel
-		providerLine.append(providerName)
-
-		if (currentSttModelPosition) {
-			const modelCount = document.createElement('span')
-			modelCount.className = 'badge-count'
-			modelCount.textContent = currentSttModelPosition
-			providerLine.append(modelCount)
-		}
-
-		const modelLine = document.createElement('div')
-		modelLine.className = 'badge-model'
-		modelLine.textContent = label
-
-		sttModelInfoDiv.append(providerLine, modelLine)
-
-		if (currentSttModelDataset) {
-			sttModelInfoDiv.dataset.model = currentSttModelDataset
-		} else {
-			delete sttModelInfoDiv.dataset.model
-		}
-	}
-
-	function clearSttModelInfoTimers(): void {
-		if (sttModelInfoPulseTimeout) {
-			clearTimeout(sttModelInfoPulseTimeout)
-			sttModelInfoPulseTimeout = null
-		}
-		if (sttModelInfoHideTimeout) {
-			clearTimeout(sttModelInfoHideTimeout)
-			sttModelInfoHideTimeout = null
-		}
-	}
-
-	function flashSttModelInfoBadge(autoHide = true): void {
-		clearSttModelInfoTimers()
-		sttModelInfoDiv.classList.remove('is-updating')
-		void sttModelInfoDiv.offsetWidth
-		sttModelInfoDiv.classList.add('show', 'is-updating')
-		sttModelInfoPulseTimeout = setTimeout(() => {
-			sttModelInfoDiv.classList.remove('is-updating')
-			sttModelInfoPulseTimeout = null
-		}, BADGE_FLASH_MS)
-		if (autoHide) {
-			sttModelInfoHideTimeout = setTimeout(() => {
-				sttModelInfoDiv.classList.remove('show')
-				sttModelInfoHideTimeout = null
-			}, BADGE_VISIBLE_MS)
-		}
-	}
-
-	function applySttModelInfo(info: string | ModelInfo | null): void {
-		if (!info) return
-
-		clearSttModelInfoTimers()
-
-		if (info === 'no-key') {
-			currentSttProviderLabel = 'Voice'
-			currentSttModelLabel = 'No API Key'
-			currentSttModelVendor = ''
-			currentSttModelDataset = 'no-key'
-			currentSttModelTitle = 'OpenRouter API key missing'
-			currentSttModelPosition = ''
-		} else if (typeof info === 'object') {
+	const sttBadge = createModelBadge(
+		sttModelInfoDiv,
+		{
+			providerLabel: 'Voice',
+			modelLabel: 'STT',
+			vendor: '',
+			dataset: '',
+			title: 'OpenRouter STT',
+			position: '',
+		},
+		(info) => {
 			const { vendor, name } = splitModelId(info.model)
-			currentSttProviderLabel = 'Voice'
-			currentSttModelLabel = name
-			currentSttModelVendor = vendor || formatProviderLabel(info.provider)
-			currentSttModelDataset = info.model.toLowerCase()
-			currentSttModelTitle = `${formatProviderLabel(info.provider)} STT: ${info.model}`
-			currentSttModelPosition = formatModelPosition(info)
-		} else {
-			const { vendor, name } = splitModelId(info)
-			currentSttProviderLabel = 'Voice'
-			currentSttModelLabel = name
-			currentSttModelVendor = vendor
-			currentSttModelDataset = info.toLowerCase()
-			currentSttModelTitle = info
-			currentSttModelPosition = ''
-		}
-
-		updateSttModelInfoBadge()
-		flashSttModelInfoBadge()
-	}
+			const providerLabel = formatProviderLabel(info.provider)
+			return {
+				providerLabel: 'Voice',
+				modelLabel: name,
+				vendor: vendor || providerLabel,
+				dataset: info.model.toLowerCase(),
+				title: `${providerLabel} STT: ${info.model}`,
+				position: formatModelPosition(info),
+			}
+		},
+	)
 
 	function formatDuration(ms: number): string {
 		const totalSeconds = Math.max(Math.floor(ms / 1000), 0)
@@ -650,10 +616,10 @@ window.addEventListener('DOMContentLoaded', () => {
 	}
 
 	initScreenshots()
-	updateModelInfoBadge()
-	updateSttModelInfoBadge()
-	flashModelInfoBadge()
-	flashSttModelInfoBadge()
+	modelBadge.render()
+	sttBadge.render()
+	modelBadge.flash()
+	sttBadge.flash()
 
 	// Handle screenshot images
 	window.api.onScreenshotImage((data: ScreenshotData) => {
@@ -681,34 +647,38 @@ window.addEventListener('DOMContentLoaded', () => {
 	})
 
 	// Handle model changes
-	window.api.onModelChanged(applyModelInfo)
-	window.api.onSttModelChanged(applySttModelInfo)
+	window.api.onModelChanged(modelBadge.apply)
+	window.api.onSttModelChanged(sttBadge.apply)
 
 	// Handle models loading state
 	window.api.onModelsLoading(() => {
-		currentProviderLabel = 'OpenRouter'
-		currentModelLabel = 'Loading models…'
-		currentModelVendor = ''
-		currentModelDataset = ''
-		currentModelTitle = 'Loading OpenRouter models'
-		currentModelPosition = ''
-		updateModelInfoBadge()
-		flashModelInfoBadge(false)
+		modelBadge.setLabels({
+			providerLabel: 'OpenRouter',
+			modelLabel: 'Loading models…',
+			vendor: '',
+			dataset: '',
+			title: 'Loading OpenRouter models',
+			position: '',
+		})
+		modelBadge.render()
+		modelBadge.flash(false)
 	})
 
 	window.api.onSttModelsLoading(() => {
-		currentSttProviderLabel = 'Voice'
-		currentSttModelLabel = 'Loading STT…'
-		currentSttModelVendor = ''
-		currentSttModelDataset = ''
-		currentSttModelTitle = 'Loading OpenRouter transcription models'
-		currentSttModelPosition = ''
-		updateSttModelInfoBadge()
-		flashSttModelInfoBadge(false)
+		sttBadge.setLabels({
+			providerLabel: 'Voice',
+			modelLabel: 'Loading STT…',
+			vendor: '',
+			dataset: '',
+			title: 'Loading OpenRouter transcription models',
+			position: '',
+		})
+		sttBadge.render()
+		sttBadge.flash(false)
 	})
 
-	void window.api.getCurrentModel().then(applyModelInfo).catch(console.error)
-	void window.api.getCurrentSttModel().then(applySttModelInfo).catch(console.error)
+	void window.api.getCurrentModel().then(modelBadge.apply).catch(console.error)
+	void window.api.getCurrentSttModel().then(sttBadge.apply).catch(console.error)
 
 	// Handle voice recording
 	window.api.onToggleVoiceRecording(toggleVoiceRecording)
@@ -745,9 +715,4 @@ window.addEventListener('DOMContentLoaded', () => {
 		})
 		scheduleRenderedContentLayoutUpdate()
 	})
-
-	// Unused handlers (for compatibility)
-	window.api.onScreenshotStatus(() => {})
-	window.api.onLanguageDetected(() => {})
-	window.api.onGetPrompt(() => 'Analyze this code')
 })

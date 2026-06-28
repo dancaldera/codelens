@@ -74,13 +74,12 @@ describe('ScreenshotSession', () => {
 		expect(getSources).toHaveBeenCalledTimes(1)
 		expect(window.hide).toHaveBeenCalledTimes(1)
 		expect(window.show).toHaveBeenCalledTimes(1)
-		expect(window.webContents.send).toHaveBeenCalledWith('screenshot-status', 'Screenshot already in progress')
 		expect(window.webContents.send).toHaveBeenCalledWith(
 			'screenshot-image',
 			expect.objectContaining({ index: 1, data: Buffer.alloc(1500).toString('base64') }),
 		)
 
-		await session.cleanupSessionFiles()
+		await session.reset()
 	})
 
 	test('prefers screen sources for desktop capture', async () => {
@@ -115,7 +114,7 @@ describe('ScreenshotSession', () => {
 			expect.objectContaining({ id: 'screen:1:0', name: 'Entire Screen', displayId: '1' }),
 		)
 
-		await session.cleanupSessionFiles()
+		await session.reset()
 	})
 
 	test('cycles screenshot slots and deletes the replaced file', async () => {
@@ -143,6 +142,6 @@ describe('ScreenshotSession', () => {
 			code: 'ENOENT',
 		})
 
-		await session.cleanupSessionFiles()
+		await session.reset()
 	})
 })

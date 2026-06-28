@@ -1,5 +1,5 @@
 import { createLogger, logApiCall } from '../../lib/logger'
-import { createOpenRouterClient, DEFAULT_PROGRAMMING_VISION_MODEL, validateOpenRouterConfiguration } from './client'
+import { chatCompletion, DEFAULT_PROGRAMMING_VISION_MODEL } from './client'
 
 const logger = createLogger('OpenRouterService')
 
@@ -18,7 +18,6 @@ export interface OpenRouterServiceOptions {
 	model?: string
 	maxTokens?: number
 	temperature?: number
-	timeout?: number
 }
 
 export class OpenRouterService {
@@ -29,14 +28,10 @@ export class OpenRouterService {
 			model: options.model || DEFAULT_PROGRAMMING_VISION_MODEL,
 			maxTokens: options.maxTokens || 2000,
 			temperature: options.temperature || 0.2,
-			timeout: options.timeout || 50000,
 		}
 	}
 
 	async analyze(request: AnalysisRequest): Promise<string> {
-		validateOpenRouterConfiguration()
-
-		const client = createOpenRouterClient()
 		const userText = request.previousContext
 			? `${request.prompt}\n\nPrevious analysis context:\n${request.previousContext}`
 			: request.prompt
@@ -45,12 +40,12 @@ export class OpenRouterService {
 		logger.info('Calling OpenRouter API', { model: this.options.model, images: request.images.length })
 
 		try {
-			const response = await client.chat.completions.create({
+			const content = await chatCompletion({
 				model: this.options.model,
 				messages: [
 					{
 						role: 'user',
-						content: [{ type: 'text' as const, text: userText }, ...request.images],
+						content: [{ type: 'text', text: userText }, ...request.images],
 					},
 				],
 				max_tokens: this.options.maxTokens,
@@ -64,7 +59,7 @@ export class OpenRouterService {
 				imageCount: request.images.length,
 			})
 
-			return response.choices[0]?.message.content || ''
+			return content
 		} catch (error) {
 			const apiCallTime = Date.now() - apiCallStart
 			logApiCall('POST', '/chat/completions', 500, apiCallTime, {
@@ -76,5 +71,3 @@ export class OpenRouterService {
 		}
 	}
 }
-
-export const openRouterService = new OpenRouterService()

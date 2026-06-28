@@ -2,13 +2,12 @@ import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 const analyzeImagesSmart = vi.fn()
 
-vi.mock('../../src/services', () => ({
+vi.mock('../../src/services/smartAnalyzer', () => ({
 	analyzeImagesSmart: (...args: unknown[]) => analyzeImagesSmart(...args),
 }))
 
 vi.mock('../../src/services/providers', () => ({
 	getAvailableModels: vi.fn(async () => ['model-a']),
-	getCurrentProvider: vi.fn(() => 'openrouter'),
 	isAnyProviderConfigured: vi.fn(() => true),
 }))
 
@@ -80,7 +79,6 @@ describe('AnalysisSession', () => {
 			previousContext: undefined,
 			voiceContext: 'Please explain this with a recursive approach.',
 			model: 'model-a',
-			provider: 'openrouter',
 		})
 	})
 
@@ -106,7 +104,6 @@ describe('AnalysisSession', () => {
 			previousContext: undefined,
 			voiceContext: 'Explain binary search in TypeScript.',
 			model: 'model-a',
-			provider: 'openrouter',
 		})
 		expect(send).toHaveBeenCalledWith('analysis-result', 'voice-only result')
 	})
