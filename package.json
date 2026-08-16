@@ -1,88 +1,88 @@
 {
-	"name": "codelens",
-	"version": "1.0.0",
-	"description": "AI-powered code analysis from screenshots - CodeLens visual code analyzer",
-	"main": "dist/src/main.js",
-	"engines": {
-		"node": ">=20"
-	},
-	"scripts": {
-		"build": "tsc",
-		"start": "npm run build && electron .",
-		"typescript-check": "tsc --noEmit",
-		"dev": "nodemon --watch src --watch index.html --watch styles --ext ts,html,css --exec \"npm run build && electron .\"",
-		"watch": "tsc -w",
-		"format": "biome format --write",
-		"lint": "biome lint --write",
-		"check": "biome check --write",
-		"test": "vitest run",
-		"test:watch": "vitest",
-		"test:coverage": "vitest run --coverage",
-		"package": "npm run build && electron-builder build --mac -c.mac.identity=null",
-		"package-mac-signed": "npm run build && electron-builder build --mac",
-		"package-win": "npm run build && electron-builder build --win",
-		"package-linux": "npm run build && electron-builder build --linux",
-		"package-all": "npm run build && electron-builder build -mwl",
-		"setup": "node node_modules/electron/install.js && husky"
-	},
-	"dependencies": {
-		"dotenv": "^17.4.2",
-		"winston": "^3.19.0"
-	},
-	"devDependencies": {
-		"@biomejs/biome": "2.4.12",
-		"@types/node": "^25.6.0",
-		"@vitest/coverage-v8": "^4.1.4",
-		"electron": "^41.2.1",
-		"electron-builder": "^26.8.1",
-		"husky": "^9.1.7",
-		"lint-staged": "^16.4.0",
-		"nodemon": "^3.1.14",
-		"typescript": "^6.0.3",
-		"vitest": "^4.1.4"
-	},
-	"lint-staged": {
-		"*.ts": "biome check --write"
-	},
-	"build": {
-		"appId": "com.dancaldera.codelens",
-		"productName": "CodeLens",
-		"files": [
-			"dist/**/*",
-			"index.html",
-			"package.json",
-			"styles/**/*",
-			"vendor/**/*"
-		],
-		"directories": {
-			"output": "release/"
-		},
-		"asar": true,
-		"compression": "maximum",
-		"mac": {
-			"category": "public.app-category.developer-tools",
-			"target": [
-				"dmg"
-			],
-			"entitlements": "entitlements.mac.plist",
-			"entitlementsInherit": "entitlements.mac.plist",
-			"hardenedRuntime": true,
-			"gatekeeperAssess": false,
-			"extendInfo": {
-				"NSMicrophoneUsageDescription": "CodeLens records short voice notes to add context to screenshot analysis."
-			}
-		},
-		"win": {
-			"target": [
-				"nsis"
-			]
-		},
-		"linux": {
-			"target": [
-				"AppImage"
-			],
-			"category": "Development"
-		}
-	},
-	"author": "Daniel Caldera"
+  "name": "codelens",
+  "version": "1.0.0",
+  "description": "AI-powered code analysis from screenshots - CodeLens visual code analyzer",
+  "main": "dist/src/main.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && electron .",
+    "typescript-check": "tsc --noEmit",
+    "dev": "nodemon --watch src --watch index.html --watch styles --ext ts,html,css --exec \"npm run build && electron .\"",
+    "watch": "tsc -w",
+    "format": "biome format --write",
+    "lint": "biome lint --write",
+    "check": "biome check --write",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "package": "npm run build && electron-builder build --mac -c.mac.identity=null",
+    "package-mac-signed": "npm run build && electron-builder build --mac",
+    "package-win": "npm run build && electron-builder build --win",
+    "package-linux": "npm run build && electron-builder build --linux",
+    "package-all": "npm run build && electron-builder build -mwl",
+    "setup": "node node_modules/electron/install.js && husky"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.12",
+    "@types/node": "^25.6.0",
+    "@vitest/coverage-v8": "^4.1.4",
+    "electron": "^41.2.1",
+    "electron-builder": "^26.8.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "nodemon": "^3.1.14",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.4"
+  },
+  "lint-staged": {
+    "*.ts": "biome check --write"
+  },
+  "build": {
+    "appId": "com.dancaldera.codelens",
+    "productName": "CodeLens",
+    "files": [
+      "dist/**/*",
+      "index.html",
+      "package.json",
+      "styles/**/*",
+      "vendor/**/*"
+    ],
+    "directories": {
+      "output": "release/"
+    },
+    "asar": true,
+    "compression": "maximum",
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dmg"
+      ],
+      "entitlements": "entitlements.mac.plist",
+      "entitlementsInherit": "entitlements.mac.plist",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "CodeLens records short voice notes to add context to screenshot analysis."
+      }
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Development"
+    }
+  },
+  "author": "Daniel Caldera"
 }
