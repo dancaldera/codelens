@@ -1,7 +1,7 @@
 import type { BrowserWindow } from 'electron'
 import { IPC_CHANNELS } from '../ipc'
 import type { Logger } from '../lib'
-import { fetchTranscriptionModels, isOpenRouterConfigured } from '../services/openrouter/client'
+import { getAvailableTranscriptionModels, getProvider, isProviderConfigured } from '../services/providers'
 import { transcribeAudio } from '../services/stt'
 
 export interface VoiceSessionOptions {
@@ -67,17 +67,30 @@ export class VoiceSession {
 		if (!currentModel) return null
 
 		return {
-			provider: 'openrouter',
+			provider: getProvider().id,
 			model: currentModel,
 			index: this.currentModelIndex,
 			count: this.availableModels.length,
 		}
 	}
 
+	reloadModels(): Promise<void> {
+		this.availableModels = []
+		this.currentModelIndex = 0
+		return this.initializeModels()
+	}
+
 	switchModel(): void {
 		const window = this.options.getWindow()
-		if (!isOpenRouterConfigured()) {
-			this.options.logger.warn('Attempted to switch STT model without OpenRouter configured')
+		const provider = getProvider()
+		if (!provider.transcription) {
+			window?.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'STT unavailable')
+			return
+		}
+		if (!isProviderConfigured(provider.id)) {
+			this.options.logger.warn('Attempted to switch STT model without provider configured', {
+				provider: provider.id,
+			})
 			window?.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'No API key')
 			window?.webContents.send(IPC_CHANNELS.STT_MODEL_CHANGED, 'no-key')
 			return
@@ -106,6 +119,14 @@ export class VoiceSession {
 		const window = this.options.getWindow()
 		if (!window) return
 
+		const provider = getProvider()
+		if (!provider.transcription) {
+			window.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'STT unavailable')
+			this.captureState = 'idle'
+			this.options.onVoiceSettled?.()
+			return
+		}
+
 		if (this.isTranscribing) {
 			window.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'Transcribing')
 			return
@@ -130,6 +151,7 @@ export class VoiceSession {
 				audioBase64: payload.data,
 				mimeType: payload.mimeType,
 				model: currentModel,
+				provider,
 			})
 
 			if (!transcript) {
@@ -159,18 +181,27 @@ export class VoiceSession {
 
 	private async loadModels(): Promise<void> {
 		const window = this.options.getWindow()
+		const provider = getProvider()
 		window?.webContents.send(IPC_CHANNELS.STT_MODELS_LOADING)
 
-		if (!isOpenRouterConfigured()) {
-			this.options.logger.warn('OpenRouter API key missing for STT models')
+		if (!provider.transcription) {
+			this.options.logger.info('Active provider has no transcription support', { provider: provider.id })
+			window?.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'STT unavailable')
+			window?.webContents.send(IPC_CHANNELS.STT_MODEL_CHANGED, 'no-stt')
+			return
+		}
+
+		if (!isProviderConfigured(provider.id)) {
+			this.options.logger.warn('Provider API key missing for STT models', { provider: provider.id })
 			window?.webContents.send(IPC_CHANNELS.STT_MODEL_CHANGED, 'no-key')
 			return
 		}
 
-		this.availableModels = (await fetchTranscriptionModels()).map((model) => model.id)
+		this.availableModels = await getAvailableTranscriptionModels(provider)
 		this.currentModelIndex = 0
 
 		this.options.logger.info('STT models initialized', {
+			provider: provider.id,
 			models: this.availableModels,
 			count: this.availableModels.length,
 			defaultModel: this.availableModels[0],

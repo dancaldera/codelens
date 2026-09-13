@@ -17,6 +17,8 @@ export const IPC_CHANNELS = {
 	VOICE_TRANSCRIPT_READY: 'voice-transcript-ready',
 	VOICE_CAPTURE_STATE: 'voice-capture-state',
 	RESIZE_WINDOW: 'resize-window',
+	GET_SETTINGS_CONFIG: 'get-settings-config',
+	SAVE_SETTINGS_CONFIG: 'save-settings-config',
 } as const
 
 export const MAX_SCREENSHOTS = 2
@@ -86,6 +88,31 @@ export function isValidVoiceAudioPayload(payload: unknown): payload is VoiceAudi
 		Number.isFinite(durationMs) &&
 		durationMs > 0 &&
 		durationMs <= 120_000
+	)
+}
+
+export function isValidSaveSettingsPayload(
+	payload: unknown,
+	allowedProviders: string[],
+	allowedKeys: string[],
+): payload is SaveSettingsPayload {
+	if (!payload || typeof payload !== 'object') return false
+
+	const { provider, keys } = payload as Partial<SaveSettingsPayload>
+	return (
+		typeof provider === 'string' &&
+		allowedProviders.includes(provider) &&
+		Array.isArray(keys) &&
+		keys.length <= 16 &&
+		keys.every(
+			(key) =>
+				key &&
+				typeof key === 'object' &&
+				typeof key.envKey === 'string' &&
+				allowedKeys.includes(key.envKey) &&
+				typeof key.value === 'string' &&
+				key.value.length <= 512,
+		)
 	)
 }
 

@@ -1,7 +1,7 @@
 import type { BrowserWindow } from 'electron'
 import { IPC_CHANNELS } from '../ipc'
 import type { Logger } from '../lib'
-import { getAvailableModels, isAnyProviderConfigured } from '../services/providers'
+import { getAvailableModels, getProvider, isProviderConfigured } from '../services/providers'
 import { analyzeImagesSmart } from '../services/smartAnalyzer'
 
 export interface AnalysisSessionOptions {
@@ -15,7 +15,6 @@ export class AnalysisSession {
 	private previousAnalysis: string | null = null
 	private currentModelIndex = 0
 	private availableModels: string[] = []
-	private currentProvider = 'openrouter'
 	private isAnalysisRunning = false
 	private pendingAnalysis = false
 	private analysisPromise: Promise<void> | null = null
@@ -52,24 +51,37 @@ export class AnalysisSession {
 		if (!currentModel) return null
 
 		return {
-			provider: this.currentProvider,
+			provider: getProvider().id,
 			model: currentModel,
 			index: this.currentModelIndex,
 			count: this.availableModels.length,
 		}
 	}
 
+	reloadProvider(): Promise<void> {
+		this.availableModels = []
+		this.currentModelIndex = 0
+		return this.initializeProvider()
+	}
+
 	private async loadProvider(): Promise<void> {
 		const window = this.options.getWindow()
+		const provider = getProvider()
 
 		window?.webContents.send(IPC_CHANNELS.MODELS_LOADING)
 
+		if (!isProviderConfigured(provider.id)) {
+			this.options.logger.warn('Provider API key missing for analysis models', { provider: provider.id })
+			window?.webContents.send(IPC_CHANNELS.MODEL_CHANGED, 'no-key')
+			return
+		}
+
 		try {
-			this.availableModels = await getAvailableModels()
+			this.availableModels = await getAvailableModels(provider)
 			this.currentModelIndex = 0
 
 			this.options.logger.info('Provider initialized', {
-				provider: this.currentProvider,
+				provider: provider.id,
 				models: this.availableModels,
 				count: this.availableModels.length,
 				defaultModel: this.availableModels[0],
@@ -87,7 +99,7 @@ export class AnalysisSession {
 
 	switchModel(): void {
 		const window = this.options.getWindow()
-		if (!isAnyProviderConfigured()) {
+		if (!isProviderConfigured()) {
 			this.options.logger.warn('Attempted to switch model without any provider configured')
 			return
 		}
@@ -101,7 +113,7 @@ export class AnalysisSession {
 		if (!modelInfo) return
 
 		this.options.logger.info('Model switched', {
-			provider: this.currentProvider,
+			provider: getProvider().id,
 			model: modelInfo.model,
 			index: this.currentModelIndex,
 		})
@@ -157,12 +169,20 @@ export class AnalysisSession {
 		try {
 			const imagePaths = this.options.getImagePaths()
 			const voiceContext = this.options.getVoiceContext?.()
+			const provider = getProvider()
+
+			if (imagePaths.length && !provider.vision) {
+				const notice = `## Provider without image support\n**${provider.label}** cannot analyze screenshots. Switch to a vision-capable provider with \`Ctrl/Cmd+,\`.`
+				this.options.getWindow()?.webContents.send(IPC_CHANNELS.ANALYSIS_RESULT, notice)
+				return
+			}
+
 			this.options.logger.info('Starting analysis', {
 				imageCount: imagePaths.length,
 				hasVoiceContext: !!voiceContext?.trim(),
 				hasPreviousAnalysis: !!this.previousAnalysis,
 				model: currentModel,
-				provider: this.currentProvider,
+				provider: provider.id,
 			})
 
 			const markdownResult = await analyzeImagesSmart({
@@ -190,7 +210,7 @@ export class AnalysisSession {
 
 An error occurred during screenshot analysis: ${error instanceof Error ? error.message : 'Unknown error'}
 
-Please try again or check your OpenRouter API key configuration.`
+Please try again or check your provider API key configuration (Ctrl/Cmd+,).`
 
 		this.options.getWindow()?.webContents.send(IPC_CHANNELS.ANALYSIS_RESULT, errorMessage)
 	}

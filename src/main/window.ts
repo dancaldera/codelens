@@ -69,9 +69,14 @@ function configureOverlayBehavior(window: BrowserWindow, app: App, logger: Logge
 	}
 }
 
-export function resolveRendererPaths(distDir: string): { preloadPath: string; indexPath: string } {
+export function resolveRendererPaths(distDir: string): {
+	preloadPath: string
+	indexPath: string
+	settingsIndexPath: string
+} {
 	return {
 		preloadPath: path.join(distDir, 'preload.js'),
 		indexPath: path.join(distDir, '..', '..', 'index.html'),
+		settingsIndexPath: path.join(distDir, '..', '..', 'settings.html'),
 	}
 }

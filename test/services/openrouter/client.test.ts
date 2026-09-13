@@ -7,7 +7,20 @@ const mockApp = {
 
 vi.mock('electron', () => ({ app: mockApp }))
 
-describe('OpenRouter Client configuration guards', () => {
+const openRouterProvider = {
+	id: 'openrouter',
+	label: 'OpenRouter',
+	envKey: 'OPENROUTER_API_KEY',
+	baseUrl: 'https://openrouter.ai/api/v1',
+	vision: true,
+	transcription: 'json' as const,
+	defaultModel: 'anthropic/claude-sonnet-4.6',
+	models: null,
+	transcriptionModels: [],
+	defaultTranscriptionModel: null,
+}
+
+describe('Provider configuration guards', () => {
 	let originalApiKey: string | undefined
 
 	beforeEach(() => {
@@ -22,17 +35,17 @@ describe('OpenRouter Client configuration guards', () => {
 		}
 	})
 
-	test('isOpenRouterConfigured reflects key presence and format', async () => {
-		const { isOpenRouterConfigured } = await import('../../../src/services/openrouter/client')
+	test('isProviderConfigured reflects key presence and format', async () => {
+		const { isProviderConfigured } = await import('../../../src/services/providers')
 		delete process.env.OPENROUTER_API_KEY
-		expect(isOpenRouterConfigured()).toBe(false)
+		expect(isProviderConfigured('openrouter')).toBe(false)
 		process.env.OPENROUTER_API_KEY = 'sk-test123'
-		expect(isOpenRouterConfigured()).toBe(true)
+		expect(isProviderConfigured('openrouter')).toBe(true)
 	})
 
-	test('validateOpenRouterConfiguration throws with a useful message when unset', async () => {
-		const { validateOpenRouterConfiguration } = await import('../../../src/services/openrouter/client')
+	test('validateProviderConfiguration throws with a useful message when unset', async () => {
+		const { validateProviderConfiguration } = await import('../../../src/services/openrouter/client')
 		delete process.env.OPENROUTER_API_KEY
-		expect(() => validateOpenRouterConfiguration()).toThrow(/OpenRouter API key not found/)
+		expect(() => validateProviderConfiguration(openRouterProvider)).toThrow(/OpenRouter API key not found/)
 	})
 })

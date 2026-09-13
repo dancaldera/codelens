@@ -54,7 +54,10 @@ window.addEventListener('DOMContentLoaded', () => {
 	let currentRecordingStatusKind: RecordingStatusKind = 'ready'
 
 	function formatProviderLabel(provider: string): string {
-		if (provider.toLowerCase() === 'openrouter') return 'OpenRouter'
+		const normalized = provider.toLowerCase()
+		if (normalized === 'openrouter') return 'OpenRouter'
+		if (normalized === 'openai') return 'OpenAI'
+		if (normalized === 'deepseek') return 'DeepSeek'
 
 		return provider
 			.split(/[-_\s]+/)
@@ -177,13 +180,14 @@ window.addEventListener('DOMContentLoaded', () => {
 
 			clearTimers()
 
-			if (info === 'no-key') {
+			if (info === 'no-key' || info === 'no-stt') {
+				const missingKey = info === 'no-key'
 				state = {
 					...defaults,
-					modelLabel: 'No API Key',
+					modelLabel: missingKey ? 'No API Key' : 'STT Unavailable',
 					vendor: '',
-					dataset: 'no-key',
-					title: 'OpenRouter API key missing',
+					dataset: info,
+					title: missingKey ? 'API key missing — press Ctrl/Cmd+, to configure' : 'Provider has no voice transcription',
 					position: '',
 				}
 			} else if (typeof info === 'object') {

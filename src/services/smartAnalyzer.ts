@@ -1,7 +1,6 @@
 import * as fs from 'node:fs'
 import { createLogger, logPerformance } from '../lib/logger'
 import { getMimeType, validateImageFile } from '../lib/utils'
-import { DEFAULT_PROGRAMMING_VISION_MODEL } from './openrouter/client'
 import { type AnalysisRequest, analyze, type ImageContent } from './openrouter/service'
 
 const logger = createLogger('SmartAnalyzer')
@@ -126,7 +125,7 @@ export async function analyzeImagesSmart({
 	imagePaths,
 	previousContext,
 	voiceContext,
-	model = DEFAULT_PROGRAMMING_VISION_MODEL,
+	model,
 }: SmartAnalysisOptions): Promise<string> {
 	const startTime = Date.now()
 

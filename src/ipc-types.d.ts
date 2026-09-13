@@ -37,3 +37,23 @@ interface ModelChangedPayload {
 	index?: number
 	count?: number
 }
+
+interface ProviderInfo {
+	id: string
+	label: string
+	envKey: string
+	vision: boolean
+	transcription: boolean
+	configured: boolean
+}
+
+interface SettingsConfig {
+	provider: string
+	providers: ProviderInfo[]
+	keys: Record<string, string>
+}
+
+interface SaveSettingsPayload {
+	provider: string
+	keys: { envKey: string; value: string }[]
+}

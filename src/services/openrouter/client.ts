@@ -1,9 +1,9 @@
 import { createLogger } from '../../lib/logger'
+import type { ProviderDef } from '../providers'
 
 const logger = createLogger('OpenRouterClient')
 
 const OPENROUTER_MODELS_ENDPOINT = 'https://openrouter.ai/api/v1/models'
-const OPENROUTER_CHAT_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'
 const REQUEST_TIMEOUT_MS = 50000
 
 export const DEFAULT_PROGRAMMING_VISION_MODEL = 'anthropic/claude-sonnet-4.6'
@@ -91,17 +91,6 @@ export interface ProgrammingModel {
 }
 
 /**
- * Check if OpenRouter API key is configured and valid
- */
-export function isOpenRouterConfigured(): boolean {
-	const hasKey = !!process.env.OPENROUTER_API_KEY
-	const isValidFormat = process.env.OPENROUTER_API_KEY?.startsWith('sk-') ?? false
-
-	logger.debug('OpenRouter API Key configuration check', { hasKey, isValidFormat })
-	return hasKey && isValidFormat
-}
-
-/**
  * Chat completion request shapes (subset of OpenRouter/OpenAI's API).
  */
 export interface ChatCompletionMessage {
@@ -122,30 +111,26 @@ interface ChatCompletionResponse {
 }
 
 /**
- * Shared OpenRouter request headers (attribution + optional auth/JSON body).
+ * Shared provider request headers (auth + attribution + optional JSON body).
  */
-export function openRouterHeaders(json = false): Record<string, string> {
-	const headers: Record<string, string> = {
-		'HTTP-Referer': process.env.OPENROUTER_SITE_URL || 'https://codelens.app',
-		'X-Title': process.env.OPENROUTER_SITE_NAME || 'CodeLens',
-	}
+export function providerHeaders(provider: ProviderDef, json = false): Record<string, string> {
+	const headers: Record<string, string> = { ...provider.extraHeaders?.() }
 	if (json) headers['Content-Type'] = 'application/json'
-	if (process.env.OPENROUTER_API_KEY) {
-		headers.Authorization = `Bearer ${process.env.OPENROUTER_API_KEY}`
-	}
+	const key = process.env[provider.envKey]
+	if (key) headers.Authorization = `Bearer ${key}`
 	return headers
 }
 
 /**
- * Send a chat completion request to OpenRouter and return the first choice's content.
+ * Send a chat completion request to the provider and return the first choice's content.
  * Mirrors the stt.ts fetch pattern (same headers, AbortController timeout, error shape).
  */
-export async function chatCompletion(body: ChatCompletionRequest): Promise<string> {
-	validateOpenRouterConfiguration()
+export async function chatCompletion(body: ChatCompletionRequest, provider: ProviderDef): Promise<string> {
+	validateProviderConfiguration(provider)
 
-	const response = await fetch(OPENROUTER_CHAT_ENDPOINT, {
+	const response = await fetch(`${provider.baseUrl}/chat/completions`, {
 		method: 'POST',
-		headers: openRouterHeaders(true),
+		headers: providerHeaders(provider, true),
 		body: JSON.stringify(body),
 		signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
 	})
@@ -153,25 +138,28 @@ export async function chatCompletion(body: ChatCompletionRequest): Promise<strin
 	const result = (await response.json().catch(() => ({}))) as ChatCompletionResponse
 
 	if (!response.ok) {
-		throw new Error(result.error?.message || `OpenRouter API returned ${response.status}: ${response.statusText}`)
+		throw new Error(
+			result.error?.message || `${provider.label} API returned ${response.status}: ${response.statusText}`,
+		)
 	}
 
 	return result.choices?.[0]?.message?.content ?? ''
 }
 
 /**
- * Validate OpenRouter configuration and throw descriptive error if invalid
+ * Validate a provider's API key and throw descriptive error if invalid
  */
-export function validateOpenRouterConfiguration(): void {
-	if (!process.env.OPENROUTER_API_KEY) {
-		throw new Error('OpenRouter API key not found. Please set OPENROUTER_API_KEY environment variable.')
+export function validateProviderConfiguration(provider: ProviderDef): void {
+	const key = process.env[provider.envKey]
+	if (!key) {
+		throw new Error(`${provider.label} API key not found. Please set ${provider.envKey} environment variable.`)
 	}
 
-	if (!process.env.OPENROUTER_API_KEY.startsWith('sk-')) {
-		throw new Error('Invalid OpenRouter API key format. API key should start with "sk-".')
+	if (!key.startsWith('sk-')) {
+		throw new Error(`Invalid ${provider.label} API key format. API key should start with "sk-".`)
 	}
 
-	logger.debug('OpenRouter configuration validated successfully')
+	logger.debug('Provider configuration validated successfully', { provider: provider.id })
 }
 
 interface ModelQuery {
@@ -191,7 +179,15 @@ async function fetchModels({ params, filter, order, fallback, label }: ModelQuer
 			url.searchParams.set(key, value)
 		}
 
-		const response = await fetch(url, { method: 'GET', headers: openRouterHeaders() })
+		const headers: Record<string, string> = {
+			'HTTP-Referer': process.env.OPENROUTER_SITE_URL || 'https://codelens.app',
+			'X-Title': process.env.OPENROUTER_SITE_NAME || 'CodeLens',
+		}
+		if (process.env.OPENROUTER_API_KEY) {
+			headers.Authorization = `Bearer ${process.env.OPENROUTER_API_KEY}`
+		}
+
+		const response = await fetch(url, { method: 'GET', headers })
 		if (!response.ok) {
 			throw new Error(`OpenRouter API returned ${response.status}: ${response.statusText}`)
 		}

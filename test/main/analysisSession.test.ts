@@ -8,7 +8,19 @@ vi.mock('../../src/services/smartAnalyzer', () => ({
 
 vi.mock('../../src/services/providers', () => ({
 	getAvailableModels: vi.fn(async () => ['model-a']),
-	isAnyProviderConfigured: vi.fn(() => true),
+	getProvider: vi.fn(() => ({
+		id: 'openrouter',
+		label: 'OpenRouter',
+		envKey: 'OPENROUTER_API_KEY',
+		baseUrl: 'https://openrouter.ai/api/v1',
+		vision: true,
+		transcription: 'json',
+		defaultModel: 'model-a',
+		models: null,
+		transcriptionModels: [],
+		defaultTranscriptionModel: null,
+	})),
+	isProviderConfigured: vi.fn(() => true),
 }))
 
 const logger = {

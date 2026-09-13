@@ -15,6 +15,7 @@ export interface RegisterShortcutsOptions {
 	cancelScheduledAnalysis: () => void
 	onReset: () => Promise<void>
 	onQuit: () => void
+	onOpenSettings: () => void
 	increaseOpacity: () => void
 	decreaseOpacity: () => void
 	logger: Logger
@@ -60,6 +61,7 @@ export function registerShortcuts(options: RegisterShortcutsOptions): void {
 	register('CommandOrControl+2', options.increaseOpacity)
 	register('CommandOrControl+M', () => options.analysisSession.switchModel())
 	register('Shift+CommandOrControl+M', () => options.voiceSession.switchModel())
+	register('CommandOrControl+,', options.onOpenSettings)
 
 	register('CommandOrControl+Enter', () => {
 		if (!options.getWindow()) return

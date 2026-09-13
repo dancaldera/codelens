@@ -1,17 +1,17 @@
 import { createLogger, logApiCall } from '../lib/logger'
-import { DEFAULT_TRANSCRIPTION_MODEL, openRouterHeaders, validateOpenRouterConfiguration } from './openrouter/client'
+import { providerHeaders, validateProviderConfiguration } from './openrouter/client'
+import type { ProviderDef } from './providers'
 
 const logger = createLogger('SttService')
-
-const OPENROUTER_STT_ENDPOINT = 'https://openrouter.ai/api/v1/audio/transcriptions'
 
 export interface TranscribeAudioOptions {
 	audioBase64: string
 	mimeType: string
 	model?: string
+	provider: ProviderDef
 }
 
-interface OpenRouterSttResponse {
+interface SttResponse {
 	text?: string
 	usage?: {
 		seconds?: number
@@ -28,50 +28,63 @@ interface OpenRouterSttResponse {
 export async function transcribeAudio({
 	audioBase64,
 	mimeType,
-	model = DEFAULT_TRANSCRIPTION_MODEL,
+	model,
+	provider,
 }: TranscribeAudioOptions): Promise<string> {
-	validateOpenRouterConfiguration()
+	if (!provider.transcription) {
+		throw new Error(`${provider.label} does not support audio transcription`)
+	}
 
-	const apiCallStart = Date.now()
+	validateProviderConfiguration(provider)
+
+	const resolvedModel = model ?? provider.defaultTranscriptionModel ?? 'whisper-1'
 	const format = getAudioFormatFromMimeType(mimeType)
-	logger.info('Calling OpenRouter STT API', { model, format })
+	const endpoint = `${provider.baseUrl}/audio/transcriptions`
+	const apiCallStart = Date.now()
+	logger.info('Calling provider STT API', { provider: provider.id, model: resolvedModel, format })
 
 	try {
-		const response = await fetch(OPENROUTER_STT_ENDPOINT, {
+		const response = await fetch(endpoint, {
 			method: 'POST',
-			headers: openRouterHeaders(true),
-			body: JSON.stringify({
-				model,
-				input_audio: {
-					data: audioBase64,
-					format,
-				},
-			}),
+			headers: providerHeaders(provider, provider.transcription === 'json'),
+			body:
+				provider.transcription === 'json'
+					? JSON.stringify({ model: resolvedModel, input_audio: { data: audioBase64, format } })
+					: buildMultipartBody(audioBase64, mimeType, format, resolvedModel),
 		})
 
-		const result = (await response.json().catch(() => ({}))) as OpenRouterSttResponse
+		const result = (await response.json().catch(() => ({}))) as SttResponse
 		const apiCallTime = Date.now() - apiCallStart
 		logApiCall('POST', '/audio/transcriptions', response.status, apiCallTime, {
-			provider: 'openrouter',
-			model,
+			provider: provider.id,
+			model: resolvedModel,
 			format,
 		})
 
 		if (!response.ok) {
-			throw new Error(result.error?.message || `OpenRouter STT API returned ${response.status}: ${response.statusText}`)
+			throw new Error(
+				result.error?.message || `${provider.label} STT API returned ${response.status}: ${response.statusText}`,
+			)
 		}
 
 		return (result.text ?? '').trim()
 	} catch (error) {
-		const apiCallTime = Date.now() - apiCallStart
-		logApiCall('POST', '/audio/transcriptions', 500, apiCallTime, {
-			provider: 'openrouter',
-			model,
+		logApiCall('POST', '/audio/transcriptions', 500, Date.now() - apiCallStart, {
+			provider: provider.id,
+			model: resolvedModel,
 			format,
 			error: error instanceof Error ? error.message : String(error),
 		})
-		throw new Error(`OpenRouter STT call failed: ${error instanceof Error ? error.message : String(error)}`)
+		throw new Error(`${provider.label} STT call failed: ${error instanceof Error ? error.message : String(error)}`)
 	}
+}
+
+function buildMultipartBody(audioBase64: string, mimeType: string, format: string, model: string): FormData {
+	const bytes = Buffer.from(audioBase64, 'base64')
+	const form = new FormData()
+	form.append('file', new Blob([bytes], { type: mimeType }), `audio.${format}`)
+	form.append('model', model)
+	return form
 }
 
 export function getAudioFormatFromMimeType(mimeType: string): string {

@@ -31,11 +31,13 @@ describe('STT service', () => {
 
 	test('transcribes webm audio through OpenRouter only', async () => {
 		const { transcribeAudio } = await import('../../src/services/stt')
+		const { PROVIDERS } = await import('../../src/services/providers')
 
 		const transcript = await transcribeAudio({
 			audioBase64: 'UklGRg==',
 			mimeType: 'audio/webm;codecs=opus',
 			model: 'openai/gpt-4o-mini-transcribe',
+			provider: PROVIDERS.openrouter,
 		})
 
 		expect(transcript).toBe('Use a dynamic programming approach.')

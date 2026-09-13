@@ -56,44 +56,50 @@ describe('Provider Management', () => {
 		}
 	})
 
-	describe('isAnyProviderConfigured', () => {
+	describe('isProviderConfigured', () => {
 		test('should return true when OpenRouter is configured', async () => {
 			process.env.OPENROUTER_API_KEY = 'sk-test123'
-			const { isAnyProviderConfigured } = await import('../../src/services/providers')
-			expect(isAnyProviderConfigured()).toBe(true)
+			const { isProviderConfigured } = await import('../../src/services/providers')
+			expect(isProviderConfigured('openrouter')).toBe(true)
 		})
 
 		test('should return false when OpenRouter is not configured', async () => {
 			delete process.env.OPENROUTER_API_KEY
-			const { isAnyProviderConfigured } = await import('../../src/services/providers')
-			expect(isAnyProviderConfigured()).toBe(false)
+			const { isProviderConfigured } = await import('../../src/services/providers')
+			expect(isProviderConfigured('openrouter')).toBe(false)
 		})
 	})
 
 	describe('getAvailableModels', () => {
 		test('should fetch models from API and filter image-supporting models', async () => {
 			process.env.OPENROUTER_API_KEY = 'sk-test123'
-			const { getAvailableModels } = await import('../../src/services/providers')
-			const models = await getAvailableModels()
+			const { getAvailableModels, PROVIDERS } = await import('../../src/services/providers')
+			const models = await getAvailableModels(PROVIDERS.openrouter)
 			expect(models).toContain('anthropic/claude-sonnet-4.6')
 			expect(models).not.toContain('text-only-model')
 		})
 
 		test('should return cached models on subsequent calls', async () => {
 			process.env.OPENROUTER_API_KEY = 'sk-test123'
-			const { getAvailableModels } = await import('../../src/services/providers')
-			await getAvailableModels()
+			const { getAvailableModels, PROVIDERS } = await import('../../src/services/providers')
+			await getAvailableModels(PROVIDERS.openrouter)
 			const callCount1 = mockFetch.mock.calls.length
-			await getAvailableModels()
+			await getAvailableModels(PROVIDERS.openrouter)
 			expect(mockFetch.mock.calls.length).toBe(callCount1)
 		})
 
 		test('should return fallback models on API failure', async () => {
 			process.env.OPENROUTER_API_KEY = 'sk-test123'
 			global.fetch = vi.fn(() => Promise.reject(new Error('API Error'))) as any
-			const { getAvailableModels } = await import('../../src/services/providers')
-			const models = await getAvailableModels()
+			const { getAvailableModels, PROVIDERS } = await import('../../src/services/providers')
+			const models = await getAvailableModels(PROVIDERS.openrouter)
 			expect(models).toContain('anthropic/claude-sonnet-4.6')
+		})
+
+		test('should return static models for providers without a models API', async () => {
+			const { getAvailableModels, PROVIDERS } = await import('../../src/services/providers')
+			const models = await getAvailableModels(PROVIDERS.deepseek)
+			expect(models).toContain('deepseek-chat')
 		})
 	})
 })

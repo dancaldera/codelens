@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; frame-src 'none'">
+  <title>CodeLens Settings</title>
+  <link rel="stylesheet" href="styles/settings.css">
+</head>
+<body>
+  <main class="settings">
+    <h1>Settings</h1>
+
+    <section class="field">
+      <label for="provider">Provider</label>
+      <select id="provider"></select>
+      <p id="capabilities" class="hint"></p>
+    </section>
+
+    <section class="field">
+      <label id="keyLabel" for="apiKey">API key</label>
+      <input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…">
+      <p class="hint">Saved to <code>.env</code> — never leaves this machine except to your provider.</p>
+    </section>
+
+    <button id="save" type="button">Save</button>
+    <p id="status" role="status"></p>
+
+    <section class="shortcuts">
+      <h2>Shortcuts</h2>
+      <dl>
+        <div><dt>Ctrl/Cmd+H</dt><dd>Capture screenshot</dd></div>
+        <div><dt>Shift+Ctrl/Cmd+H</dt><dd>Toggle voice note</dd></div>
+        <div><dt>Ctrl/Cmd+Enter</dt><dd>Analyze now</dd></div>
+        <div><dt>Ctrl/Cmd+M</dt><dd>Cycle model</dd></div>
+        <div><dt>Shift+Ctrl/Cmd+M</dt><dd>Cycle voice model</dd></div>
+        <div><dt>Ctrl/Cmd+B</dt><dd>Toggle overlay</dd></div>
+        <div><dt>Ctrl/Cmd+G</dt><dd>Reset session</dd></div>
+        <div><dt>Ctrl/Cmd+,</dt><dd>This window</dd></div>
+      </dl>
+    </section>
+  </main>
+  <script src="dist/src/settingsRenderer.js"></script>
+</body>
+</html>

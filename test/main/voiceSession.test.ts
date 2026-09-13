@@ -1,15 +1,25 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
-const fetchTranscriptionModels = vi.fn(async () => [
-	{ id: 'openai/gpt-4o-mini-transcribe', name: 'OpenAI: GPT-4o Mini Transcribe' },
-	{ id: 'openai/whisper-1', name: 'OpenAI: Whisper' },
-])
-const isOpenRouterConfigured = vi.fn(() => true)
+const openRouterProvider = {
+	id: 'openrouter',
+	label: 'OpenRouter',
+	envKey: 'OPENROUTER_API_KEY',
+	baseUrl: 'https://openrouter.ai/api/v1',
+	vision: true,
+	transcription: 'json' as const,
+	defaultModel: 'anthropic/claude-sonnet-4.6',
+	models: null,
+	transcriptionModels: [],
+	defaultTranscriptionModel: 'openai/gpt-4o-mini-transcribe',
+}
+const getAvailableTranscriptionModels = vi.fn(async () => ['openai/gpt-4o-mini-transcribe', 'openai/whisper-1'])
+const isProviderConfigured = vi.fn(() => true)
 const transcribeAudio = vi.fn(async () => 'Please solve this in TypeScript.')
 
-vi.mock('../../src/services/openrouter/client', () => ({
-	fetchTranscriptionModels: (...args: unknown[]) => fetchTranscriptionModels(...args),
-	isOpenRouterConfigured: () => isOpenRouterConfigured(),
+vi.mock('../../src/services/providers', () => ({
+	getAvailableTranscriptionModels: (...args: unknown[]) => getAvailableTranscriptionModels(...args),
+	getProvider: () => openRouterProvider,
+	isProviderConfigured: (...args: unknown[]) => isProviderConfigured(...args),
 }))
 
 vi.mock('../../src/services/stt', () => ({
@@ -62,6 +72,7 @@ describe('VoiceSession', () => {
 			audioBase64: 'UklGRg==',
 			mimeType: 'audio/webm',
 			model: 'openai/gpt-4o-mini-transcribe',
+			provider: openRouterProvider,
 		})
 		expect(session.getTranscript()).toBe('Please solve this in TypeScript.')
 		expect(send).toHaveBeenCalledWith('voice-transcript-ready')

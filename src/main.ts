@@ -5,6 +5,7 @@ import { AnalysisSession } from './main/analysisSession'
 import { loadEnvironment } from './main/env'
 import { registerIpcHandlers } from './main/ipcHandlers'
 import { ScreenshotSession } from './main/screenshotSession'
+import { openSettingsWindow } from './main/settingsWindow'
 import { registerShortcuts } from './main/shortcuts'
 import { VoiceSession } from './main/voiceSession'
 import { createOverlayWindow, resolveRendererPaths } from './main/window'
@@ -22,9 +23,9 @@ let analysisTimer: NodeJS.Timeout | null = null
 let isQuitting = false
 let pendingAnalysisRequest = false
 let pendingSingleScreenshotAnalysis = false
+const rendererPaths = resolveRendererPaths(__dirname)
 
 function createWindow(): void {
-	const rendererPaths = resolveRendererPaths(__dirname)
 	mainWindow = createOverlayWindow({ app, logger, ...rendererPaths })
 
 	screenshotSession = new ScreenshotSession({
@@ -78,6 +79,7 @@ function registerApplicationShortcuts(
 		cancelScheduledAnalysis,
 		onReset: resetSession,
 		onQuit: () => app.quit(),
+		onOpenSettings: () => openSettingsWindow(rendererPaths, logger),
 		increaseOpacity,
 		decreaseOpacity,
 		logger,
@@ -91,6 +93,7 @@ function registerApplicationIpcHandlers(
 ): void {
 	registerIpcHandlers({
 		ipcMain,
+		app,
 		getWindow: () => mainWindow,
 		screenshotSession,
 		analysisSession,

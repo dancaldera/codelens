@@ -5,11 +5,13 @@ import type { App } from 'electron'
 import type { Logger } from '../lib'
 
 export function loadEnvironment(app: App, logger: Logger): void {
-	const envPaths = new Set([
-		path.join(app.isPackaged ? path.dirname(process.execPath) : process.cwd(), '.env'),
-		path.join(process.cwd(), '.env'),
-		path.join(__dirname, '..', '..', '..', '.env'),
-	])
+	// Order mirrors configStore.getConfigPath: the settings window writes to
+	// userData when packaged and to the project directory when unpackaged.
+	const envPaths = new Set(
+		app.isPackaged
+			? [path.join(app.getPath('userData'), '.env'), path.join(path.dirname(process.execPath), '.env')]
+			: [path.join(process.cwd(), '.env'), path.join(__dirname, '..', '..', '..', '.env')],
+	)
 
 	for (const envPath of envPaths) {
 		if (fs.existsSync(envPath)) {

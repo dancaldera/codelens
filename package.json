@@ -51,6 +51,7 @@
     "files": [
       "dist/**/*",
       "index.html",
+      "settings.html",
       "package.json",
       "styles/**/*",
       "vendor/**/*"

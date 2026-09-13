@@ -28,6 +28,8 @@ interface ApiInterface {
 	onVoiceStatus: (callback: (status: string) => void) => Unsubscribe
 	onVoiceTranscriptReady: (callback: () => void) => Unsubscribe
 	resizeWindow: (width: number, height: number) => void
+	getSettingsConfig: () => Promise<SettingsConfig | null>
+	saveSettingsConfig: (payload: SaveSettingsPayload) => Promise<{ ok: boolean; error?: string }>
 }
 
 function onIpc<T>(channel: string, callback: (payload: T) => void): Unsubscribe {
@@ -91,6 +93,8 @@ contextBridge.exposeInMainWorld('api', {
 		}
 		ipcRenderer.send(IPC_CHANNELS.RESIZE_WINDOW, payload)
 	},
+	getSettingsConfig: () => ipcRenderer.invoke(IPC_CHANNELS.GET_SETTINGS_CONFIG),
+	saveSettingsConfig: (payload: SaveSettingsPayload) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_SETTINGS_CONFIG, payload),
 } as ApiInterface)
 
 declare global {
