@@ -19,6 +19,7 @@ export const IPC_CHANNELS = {
 	RESIZE_WINDOW: 'resize-window',
 	GET_SETTINGS_CONFIG: 'get-settings-config',
 	SAVE_SETTINGS_CONFIG: 'save-settings-config',
+	CLOSE_WINDOW: 'close-window',
 } as const
 
 export const MAX_SCREENSHOTS = 2

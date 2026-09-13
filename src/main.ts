@@ -5,6 +5,7 @@ import { AnalysisSession } from './main/analysisSession'
 import { loadEnvironment } from './main/env'
 import { registerIpcHandlers } from './main/ipcHandlers'
 import { ScreenshotSession } from './main/screenshotSession'
+import { loadSecretsIntoEnv } from './main/secretStore'
 import { openSettingsWindow } from './main/settingsWindow'
 import { registerShortcuts } from './main/shortcuts'
 import { VoiceSession } from './main/voiceSession'
@@ -256,6 +257,7 @@ function cancelScheduledAnalysis(): void {
 
 app.whenReady().then(() => {
 	loadEnvironment(app, logger)
+	loadSecretsIntoEnv(app, logger)
 	createWindow()
 })
 

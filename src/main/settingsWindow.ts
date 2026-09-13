@@ -19,7 +19,8 @@ export function openSettingsWindow({ preloadPath, settingsIndexPath }: SettingsW
 		height: 560,
 		resizable: false,
 		show: false,
-		title: 'CodeLens Settings',
+		frame: false,
+		transparent: true,
 		autoHideMenuBar: true,
 		alwaysOnTop: true,
 		webPreferences: {

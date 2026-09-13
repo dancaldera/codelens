@@ -30,6 +30,7 @@ interface ApiInterface {
 	resizeWindow: (width: number, height: number) => void
 	getSettingsConfig: () => Promise<SettingsConfig | null>
 	saveSettingsConfig: (payload: SaveSettingsPayload) => Promise<{ ok: boolean; error?: string }>
+	closeWindow: () => void
 }
 
 function onIpc<T>(channel: string, callback: (payload: T) => void): Unsubscribe {
@@ -95,6 +96,7 @@ contextBridge.exposeInMainWorld('api', {
 	},
 	getSettingsConfig: () => ipcRenderer.invoke(IPC_CHANNELS.GET_SETTINGS_CONFIG),
 	saveSettingsConfig: (payload: SaveSettingsPayload) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_SETTINGS_CONFIG, payload),
+	closeWindow: () => ipcRenderer.send(IPC_CHANNELS.CLOSE_WINDOW),
 } as ApiInterface)
 
 declare global {

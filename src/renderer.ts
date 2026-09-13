@@ -187,7 +187,7 @@ window.addEventListener('DOMContentLoaded', () => {
 					modelLabel: missingKey ? 'No API Key' : 'STT Unavailable',
 					vendor: '',
 					dataset: info,
-					title: missingKey ? 'API key missing — press Ctrl/Cmd+, to configure' : 'Provider has no voice transcription',
+					title: missingKey ? 'API key missing — press Ctrl/Cmd+P to configure' : 'Provider has no voice transcription',
 					position: '',
 				}
 			} else if (typeof info === 'object') {

@@ -1,4 +1,4 @@
-import type { App, BrowserWindow, IpcMain } from 'electron'
+import { type App, BrowserWindow, type IpcMain } from 'electron'
 import {
 	IPC_CHANNELS,
 	isValidResizeWindowPayload,
@@ -30,6 +30,7 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
 		IPC_CHANNELS.RESIZE_WINDOW,
 		IPC_CHANNELS.VOICE_AUDIO_RECORDED,
 		IPC_CHANNELS.VOICE_CAPTURE_STATE,
+		IPC_CHANNELS.CLOSE_WINDOW,
 	]) {
 		options.ipcMain.removeAllListeners(channel)
 	}
@@ -88,6 +89,10 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
 	// settings window, not the overlay renderer (they share the preload).
 	const isSettingsFrame = (event: Electron.IpcMainInvokeEvent): boolean =>
 		event.senderFrame?.url.endsWith('/settings.html') ?? false
+
+	options.ipcMain.on(IPC_CHANNELS.CLOSE_WINDOW, (event) => {
+		BrowserWindow.fromWebContents(event.sender)?.close()
+	})
 
 	options.ipcMain.handle(IPC_CHANNELS.GET_SETTINGS_CONFIG, (event) => {
 		if (!isSettingsFrame(event)) {

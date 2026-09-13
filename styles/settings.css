@@ -4,12 +4,21 @@
 	padding: 0;
 }
 
+html,
+body {
+	height: 100%;
+	background: transparent;
+}
+
 body {
 	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-	background: #0d1117;
-	color: #e6edf3;
-	padding: 24px;
+	background: #000;
+	color: #fff;
+	padding: 0 20px 20px;
 	font-size: 14px;
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	border-radius: 12px;
+	overflow: hidden;
 }
 
 .settings {
@@ -19,15 +28,45 @@ body {
 	max-width: 380px;
 }
 
+/* Frameless window: the title bar doubles as the drag region. */
+.titlebar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 0;
+	-webkit-app-region: drag;
+	-webkit-user-select: none;
+	user-select: none;
+}
+
 h1 {
-	font-size: 18px;
+	font-size: 15px;
 	font-weight: 600;
 }
 
+#close {
+	-webkit-app-region: no-drag;
+	background: #000;
+	border: 1px solid #fff;
+	border-radius: 4px;
+	color: #fff;
+	width: 26px;
+	height: 26px;
+	padding: 0;
+	font-size: 15px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+#close:hover {
+	background: #fff;
+	color: #000;
+}
+
 h2 {
-	font-size: 13px;
+	font-size: 12px;
 	font-weight: 600;
-	color: #8b949e;
+	color: #fff;
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
 	margin-bottom: 8px;
@@ -46,10 +85,10 @@ label {
 
 select,
 input {
-	background: #161b22;
-	border: 1px solid #30363d;
-	border-radius: 6px;
-	color: #e6edf3;
+	background: #000;
+	border: 1px solid #fff;
+	border-radius: 4px;
+	color: #fff;
 	padding: 8px 10px;
 	font-size: 14px;
 	font-family: inherit;
@@ -58,27 +97,28 @@ input {
 
 select:focus,
 input:focus {
-	outline: none;
-	border-color: #58a6ff;
+	outline: 1px solid #fff;
+	outline-offset: 1px;
 }
 
 .hint {
 	font-size: 12px;
-	color: #8b949e;
+	color: #fff;
+	opacity: 0.7;
 }
 
 .hint code {
-	background: #161b22;
-	padding: 1px 4px;
+	border: 1px solid #fff;
+	padding: 0 4px;
 	border-radius: 4px;
 	font-size: 11px;
 }
 
-button {
-	background: #238636;
-	border: 1px solid #2ea043;
-	border-radius: 6px;
-	color: #fff;
+button#save {
+	background: #fff;
+	border: 1px solid #fff;
+	border-radius: 4px;
+	color: #000;
 	padding: 8px 16px;
 	font-size: 14px;
 	font-weight: 500;
@@ -86,30 +126,28 @@ button {
 	align-self: flex-start;
 }
 
-button:hover {
-	background: #2ea043;
+button#save:hover {
+	background: #000;
+	color: #fff;
 }
 
-button:disabled {
-	opacity: 0.5;
+button#save:disabled {
+	opacity: 0.4;
 	cursor: default;
 }
 
 #status {
 	font-size: 12px;
 	min-height: 16px;
-}
-
-#status.ok {
-	color: #3fb950;
+	color: #fff;
 }
 
 #status.error {
-	color: #f85149;
+	text-decoration: underline;
 }
 
 .shortcuts {
-	border-top: 1px solid #21262d;
+	border-top: 1px solid #fff;
 	padding-top: 16px;
 }
 
@@ -121,10 +159,11 @@ button:disabled {
 }
 
 .shortcuts dt {
-	color: #8b949e;
+	color: #fff;
+	opacity: 0.7;
 	font-family: ui-monospace, monospace;
 }
 
 .shortcuts dd {
-	color: #e6edf3;
+	color: #fff;
 }

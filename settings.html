@@ -8,7 +8,10 @@
 </head>
 <body>
   <main class="settings">
-    <h1>Settings</h1>
+    <header class="titlebar">
+      <h1>Settings</h1>
+      <button id="close" type="button" aria-label="Close" title="Close">&times;</button>
+    </header>
 
     <section class="field">
       <label for="provider">Provider</label>
@@ -19,7 +22,7 @@
     <section class="field">
       <label id="keyLabel" for="apiKey">API key</label>
       <input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…">
-      <p class="hint">Saved to <code>.env</code> — never leaves this machine except to your provider.</p>
+      <p id="storageHint" class="hint"></p>
     </section>
 
     <button id="save" type="button">Save</button>
@@ -35,7 +38,7 @@
         <div><dt>Shift+Ctrl/Cmd+M</dt><dd>Cycle voice model</dd></div>
         <div><dt>Ctrl/Cmd+B</dt><dd>Toggle overlay</dd></div>
         <div><dt>Ctrl/Cmd+G</dt><dd>Reset session</dd></div>
-        <div><dt>Ctrl/Cmd+,</dt><dd>This window</dd></div>
+        <div><dt>Ctrl/Cmd+P</dt><dd>This window</dd></div>
       </dl>
     </section>
   </main>

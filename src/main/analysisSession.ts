@@ -172,7 +172,7 @@ export class AnalysisSession {
 			const provider = getProvider()
 
 			if (imagePaths.length && !provider.vision) {
-				const notice = `## Provider without image support\n**${provider.label}** cannot analyze screenshots. Switch to a vision-capable provider with \`Ctrl/Cmd+,\`.`
+				const notice = `## Provider without image support\n**${provider.label}** cannot analyze screenshots. Switch to a vision-capable provider with \`Ctrl/Cmd+P\`.`
 				this.options.getWindow()?.webContents.send(IPC_CHANNELS.ANALYSIS_RESULT, notice)
 				return
 			}
@@ -210,7 +210,7 @@ export class AnalysisSession {
 
 An error occurred during screenshot analysis: ${error instanceof Error ? error.message : 'Unknown error'}
 
-Please try again or check your provider API key configuration (Ctrl/Cmd+,).`
+Please try again or check your provider API key configuration (Ctrl/Cmd+P).`
 
 		this.options.getWindow()?.webContents.send(IPC_CHANNELS.ANALYSIS_RESULT, errorMessage)
 	}

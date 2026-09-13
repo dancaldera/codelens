@@ -7,9 +7,10 @@ window.addEventListener('DOMContentLoaded', () => {
 	const keyLabel = document.getElementById('keyLabel')
 	const capabilities = document.getElementById('capabilities')
 	const saveButton = document.getElementById('save') as HTMLButtonElement | null
+	const closeButton = document.getElementById('close') as HTMLButtonElement | null
 	const status = document.getElementById('status')
 
-	if (!providerSelect || !apiKeyInput || !keyLabel || !capabilities || !saveButton || !status) {
+	if (!providerSelect || !apiKeyInput || !keyLabel || !capabilities || !saveButton || !closeButton || !status) {
 		console.error('Required settings DOM elements not found')
 		return
 	}
@@ -63,6 +64,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
 	keyInput.addEventListener('input', stashCurrentKey)
 
+	closeButton.addEventListener('click', () => window.api.closeWindow())
+
 	save.addEventListener('click', () => {
 		stashCurrentKey()
 		save.disabled = true
@@ -91,6 +94,12 @@ window.addEventListener('DOMContentLoaded', () => {
 			if (!config) {
 				setStatus('Failed to load settings.', 'error')
 				return
+			}
+			const storageHint = document.getElementById('storageHint')
+			if (storageHint) {
+				storageHint.textContent = config.secureStorage
+					? 'Saved to your OS keychain — encrypted, never leaves this machine except to your provider.'
+					: 'OS keychain unavailable — saved to .env in plaintext.'
 			}
 			providers = config.providers
 			Object.assign(editedKeys, config.keys)

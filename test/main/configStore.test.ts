@@ -31,4 +31,11 @@ describe('upsertEnv', () => {
 
 		expect(result).toBe('OPENROUTER_API_KEY=sk-abc\n')
 	})
+
+	test('drops lines whose keys are in the remove set', () => {
+		const content = 'OPENAI_API_KEY=plaintext\nLOG_LEVEL=debug\n'
+		const result = upsertEnv(content, { CODELENS_PROVIDER: 'openai' }, new Set(['OPENAI_API_KEY']))
+
+		expect(result).toBe('LOG_LEVEL=debug\nCODELENS_PROVIDER=openai\n')
+	})
 })

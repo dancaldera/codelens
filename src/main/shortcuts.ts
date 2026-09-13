@@ -23,9 +23,16 @@ export interface RegisterShortcutsOptions {
 
 export function registerShortcuts(options: RegisterShortcutsOptions): void {
 	const register = (accelerator: string, callback: () => void) => {
-		const registered = options.globalShortcut.register(accelerator, callback)
-		if (!registered) {
-			options.logger.warn('Failed to register global shortcut', { accelerator })
+		try {
+			const registered = options.globalShortcut.register(accelerator, callback)
+			if (!registered) {
+				options.logger.warn('Failed to register global shortcut', { accelerator })
+			}
+		} catch (error) {
+			options.logger.warn('Failed to register global shortcut', {
+				accelerator,
+				error: error instanceof Error ? error.message : String(error),
+			})
 		}
 	}
 
@@ -61,7 +68,7 @@ export function registerShortcuts(options: RegisterShortcutsOptions): void {
 	register('CommandOrControl+2', options.increaseOpacity)
 	register('CommandOrControl+M', () => options.analysisSession.switchModel())
 	register('Shift+CommandOrControl+M', () => options.voiceSession.switchModel())
-	register('CommandOrControl+,', options.onOpenSettings)
+	register('CommandOrControl+P', options.onOpenSettings)
 
 	register('CommandOrControl+Enter', () => {
 		if (!options.getWindow()) return

@@ -49,6 +49,7 @@ interface ProviderInfo {
 
 interface SettingsConfig {
 	provider: string
+	secureStorage: boolean
 	providers: ProviderInfo[]
 	keys: Record<string, string>
 }
