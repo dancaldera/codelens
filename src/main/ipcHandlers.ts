@@ -1,39 +1,29 @@
-import type { BrowserWindow, IpcMain, Shell } from 'electron'
+import type { BrowserWindow, IpcMain } from 'electron'
 import {
 	IPC_CHANNELS,
 	isValidResizeWindowPayload,
-	isValidScreenshotIndex,
 	isValidVoiceAudioPayload,
 	isValidVoiceCaptureStatePayload,
 } from '../ipc'
+import type { Logger } from '../lib'
 import type { AnalysisSession } from './analysisSession'
 import type { ScreenshotSession } from './screenshotSession'
 import type { VoiceSession } from './voiceSession'
 
-interface IpcLogger {
-	info: (message: string, meta?: Record<string, unknown>) => void
-	warn: (message: string, meta?: Record<string, unknown>) => void
-	error: (message: string, meta?: Record<string, unknown>) => void
-}
-
 export interface RegisterIpcHandlersOptions {
 	ipcMain: IpcMain
-	shell: Shell
 	getWindow: () => BrowserWindow | null
 	screenshotSession: ScreenshotSession
 	analysisSession: AnalysisSession
 	voiceSession: VoiceSession
 	cancelScheduledAnalysis: () => void
 	scheduleAnalysis: (delay?: number, allowSingleScreenshot?: boolean) => void
-	logger: IpcLogger
+	logger: Logger
 }
 
 export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
 	for (const channel of [
 		IPC_CHANNELS.RESIZE_WINDOW,
-		IPC_CHANNELS.REQUEST_SCREENSHOT,
-		IPC_CHANNELS.OPEN_SCREENSHOT,
-		IPC_CHANNELS.SUBMIT_PROMPT,
 		IPC_CHANNELS.VOICE_AUDIO_RECORDED,
 		IPC_CHANNELS.VOICE_CAPTURE_STATE,
 	]) {
@@ -53,29 +43,6 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
 
 		window.setSize(Math.round(payload.width), Math.round(payload.height))
 		options.logger.info('Window resized', { width: payload.width, height: payload.height })
-	})
-
-	options.ipcMain.on(IPC_CHANNELS.REQUEST_SCREENSHOT, () => {
-		void options.screenshotSession.capture()
-	})
-
-	options.ipcMain.on(IPC_CHANNELS.OPEN_SCREENSHOT, (_event, index: unknown) => {
-		if (!isValidScreenshotIndex(index)) {
-			options.logger.warn('Rejected invalid screenshot index', { index })
-			return
-		}
-
-		const screenshotPath = options.screenshotSession.getPath(index)
-		if (!screenshotPath) {
-			options.logger.warn('Screenshot not available', { index })
-			return
-		}
-
-		void options.shell.openPath(screenshotPath).then((errorMessage) => {
-			if (errorMessage) {
-				options.logger.warn('Failed to open screenshot', { screenshotPath, errorMessage })
-			}
-		})
 	})
 
 	options.ipcMain.handle(IPC_CHANNELS.GET_CURRENT_MODEL, async () => {
@@ -109,13 +76,5 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
 				error: error instanceof Error ? error.message : String(error),
 			})
 		})
-	})
-
-	options.ipcMain.on(IPC_CHANNELS.SUBMIT_PROMPT, async () => {
-		const window = options.getWindow()
-		if (!window) return
-
-		options.cancelScheduledAnalysis()
-		options.scheduleAnalysis()
 	})
 }

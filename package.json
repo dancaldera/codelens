@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "AI-powered code analysis from screenshots - CodeLens visual code analyzer",
   "main": "dist/src/main.js",
+  "packageManager": "pnpm@12.3.4",
   "engines": {
     "node": ">=20"
   },

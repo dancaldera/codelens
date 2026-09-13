@@ -76,7 +76,7 @@ describe('ScreenshotSession', () => {
 		expect(window.show).toHaveBeenCalledTimes(1)
 		expect(window.webContents.send).toHaveBeenCalledWith(
 			'screenshot-image',
-			expect.objectContaining({ index: 1, data: Buffer.alloc(1500).toString('base64') }),
+			expect.objectContaining({ index: 1, url: expect.stringContaining('screenshot-1-1000.png') }),
 		)
 
 		await session.reset()

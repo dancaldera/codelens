@@ -3,26 +3,17 @@ import {
 	IPC_CHANNELS,
 	isValidLoadingStatusPayload,
 	isValidResizeWindowPayload,
-	isValidScreenshotIndex,
 	isValidVoiceAudioPayload,
 	isValidVoiceCaptureStatePayload,
-	type LoadingStatusPayload,
-	type ModelChangedPayload,
-	type ScreenshotImagePayload,
-	type VoiceAudioPayload,
-	type VoiceCaptureStatePayload,
 } from './ipc'
 
 type Unsubscribe = () => void
 
 interface ApiInterface {
-	submitPrompt: (prompt: string) => void
 	onAnalysisResult: (callback: (result: string) => void) => Unsubscribe
 	onContextReset: (callback: () => void) => Unsubscribe
-	captureScreenshot: () => void
 	onScreenshotImage: (callback: (imageData: ScreenshotImagePayload) => void) => Unsubscribe
 	onClearScreenshots: (callback: () => void) => Unsubscribe
-	openScreenshot: (index: number) => void
 	onShowLoading: (callback: (status?: LoadingStatusPayload) => void) => Unsubscribe
 	onHideLoading: (callback: () => void) => Unsubscribe
 	onModelChanged: (callback: (model: string | ModelChangedPayload) => void) => Unsubscribe
@@ -52,20 +43,11 @@ function onIpcSignal(channel: string, callback: () => void): Unsubscribe {
 }
 
 contextBridge.exposeInMainWorld('api', {
-	submitPrompt: (prompt: string) => ipcRenderer.send(IPC_CHANNELS.SUBMIT_PROMPT, prompt),
 	onAnalysisResult: (callback: (result: string) => void) => onIpc(IPC_CHANNELS.ANALYSIS_RESULT, callback),
 	onContextReset: (callback: () => void) => onIpcSignal(IPC_CHANNELS.CONTEXT_RESET, callback),
-	captureScreenshot: () => ipcRenderer.send(IPC_CHANNELS.REQUEST_SCREENSHOT),
 	onScreenshotImage: (callback: (imageData: ScreenshotImagePayload) => void) =>
 		onIpc(IPC_CHANNELS.SCREENSHOT_IMAGE, callback),
 	onClearScreenshots: (callback: () => void) => onIpcSignal(IPC_CHANNELS.CLEAR_SCREENSHOTS, callback),
-	openScreenshot: (index: number) => {
-		if (!isValidScreenshotIndex(index)) {
-			console.warn('Rejected invalid screenshot index', index)
-			return
-		}
-		ipcRenderer.send(IPC_CHANNELS.OPEN_SCREENSHOT, index)
-	},
 	onShowLoading: (callback: (status?: LoadingStatusPayload) => void) => {
 		const listener = (_event: IpcRendererEvent, payload?: LoadingStatusPayload) => {
 			if (typeof payload === 'undefined' || isValidLoadingStatusPayload(payload)) {

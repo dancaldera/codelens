@@ -1,13 +1,11 @@
 import * as path from 'node:path'
 import { type App, BrowserWindow } from 'electron'
-
-interface WindowLogger {
-	warn: (message: string, meta?: Record<string, unknown>) => void
-}
+import { OVERLAY_MIN_HEIGHT, OVERLAY_MIN_WIDTH } from '../ipc'
+import type { Logger } from '../lib'
 
 export interface OverlayWindowOptions {
 	app: App
-	logger: WindowLogger
+	logger: Logger
 	preloadPath: string
 	indexPath: string
 }
@@ -16,8 +14,8 @@ export function createOverlayWindow({ app, logger, preloadPath, indexPath }: Ove
 	const window = new BrowserWindow({
 		width: 1400,
 		height: 2000,
-		minWidth: 600,
-		minHeight: 400,
+		minWidth: OVERLAY_MIN_WIDTH,
+		minHeight: OVERLAY_MIN_HEIGHT,
 		frame: false,
 		opacity: 0.8,
 		alwaysOnTop: true,
@@ -50,7 +48,7 @@ function disableAutomaticBoundsAdjustment(window: BrowserWindow): void {
 	window.setBounds = (bounds, _animate) => originalSetBounds(bounds, false)
 }
 
-function configureOverlayBehavior(window: BrowserWindow, app: App, logger: WindowLogger): void {
+function configureOverlayBehavior(window: BrowserWindow, app: App, logger: Logger): void {
 	window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
 	window.setAlwaysOnTop(true, 'floating')
 	window.setFullScreenable(false)

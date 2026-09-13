@@ -1,19 +1,13 @@
 import type { BrowserWindow } from 'electron'
-import { IPC_CHANNELS, type ModelChangedPayload, type VoiceAudioPayload, type VoiceCaptureStatePayload } from '../ipc'
+import { IPC_CHANNELS } from '../ipc'
+import type { Logger } from '../lib'
 import { fetchTranscriptionModels, isOpenRouterConfigured } from '../services/openrouter/client'
 import { transcribeAudio } from '../services/stt'
-
-interface VoiceLogger {
-	debug: (message: string, meta?: Record<string, unknown>) => void
-	info: (message: string, meta?: Record<string, unknown>) => void
-	warn: (message: string, meta?: Record<string, unknown>) => void
-	error: (message: string, meta?: Record<string, unknown>) => void
-}
 
 export interface VoiceSessionOptions {
 	getWindow: () => BrowserWindow | null
 	onVoiceSettled?: () => void
-	logger: VoiceLogger
+	logger: Logger
 }
 
 export class VoiceSession {

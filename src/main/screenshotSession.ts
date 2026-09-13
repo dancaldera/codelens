@@ -2,29 +2,24 @@ import { execFile } from 'node:child_process'
 import * as fsPromises from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import * as util from 'node:util'
 import { type BrowserWindow, desktopCapturer, screen } from 'electron'
-import { IPC_CHANNELS } from '../ipc'
+import { IPC_CHANNELS, MAX_SCREENSHOTS } from '../ipc'
+import type { Logger } from '../lib'
 
-const MAX_SCREENSHOTS = 2
+const execFileAsync = util.promisify(execFile)
+
 const SCREENSHOT_DIR = path.join(os.tmpdir(), 'codelens-screenshots')
 const HIDE_TIMEOUT_MS = 250
 const HIDE_SETTLE_MS = 150
 const DEFAULT_CAPTURE_SIZE = { width: 1920, height: 1080 }
 
-interface ScreenshotLogger {
-	debug: (message: string, meta?: Record<string, unknown>) => void
-	info: (message: string, meta?: Record<string, unknown>) => void
-	warn: (message: string, meta?: Record<string, unknown>) => void
-	error: (message: string, meta?: Record<string, unknown>) => void
-}
-
 export interface ScreenshotSessionOptions {
 	getWindow: () => BrowserWindow | null
 	hasContext: () => boolean
-	isWaitingForVoice?: () => boolean
 	onShouldAnalyze: () => void
-	logger: ScreenshotLogger
+	logger: Logger
 }
 
 export class ScreenshotSession {
@@ -117,8 +112,7 @@ export class ScreenshotSession {
 		const window = this.options.getWindow()
 		window?.webContents.send(IPC_CHANNELS.SCREENSHOT_IMAGE, {
 			index: this.screenshotCount,
-			path: filePath,
-			data: buffer.toString('base64'),
+			url: pathToFileURL(filePath).href,
 		})
 
 		if (this.shouldAnalyzeAfterSave()) {
@@ -151,10 +145,6 @@ export class ScreenshotSession {
 				this.options.logger.warn('Failed to clean stale screenshots', { error })
 			}
 		}
-	}
-
-	getPath(index: number): string | undefined {
-		return this.screenshotPaths[index - 1]
 	}
 
 	private shouldAnalyzeAfterSave(): boolean {
@@ -262,8 +252,7 @@ export class ScreenshotSession {
 			await fsPromises.mkdir(SCREENSHOT_DIR, { recursive: true })
 
 			const filePath = path.join(SCREENSHOT_DIR, `fallback-screenshot-${Date.now()}.png`)
-			const execFilePromise = util.promisify(execFile)
-			await execFilePromise('/usr/sbin/screencapture', ['-x', '-T', '0', filePath])
+			await execFileAsync('/usr/sbin/screencapture', ['-x', '-T', '0', filePath])
 
 			try {
 				const buffer = await fsPromises.readFile(filePath)

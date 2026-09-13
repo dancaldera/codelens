@@ -1,15 +1,9 @@
 import type { BrowserWindow, GlobalShortcut } from 'electron'
 import { IPC_CHANNELS } from '../ipc'
+import type { Logger } from '../lib'
 import type { AnalysisSession } from './analysisSession'
 import type { ScreenshotSession } from './screenshotSession'
 import type { VoiceSession } from './voiceSession'
-
-interface ShortcutLogger {
-	debug: (message: string, meta?: Record<string, unknown>) => void
-	warn: (message: string, meta?: Record<string, unknown>) => void
-	info: (message: string, meta?: Record<string, unknown>) => void
-	error: (message: string, meta?: Record<string, unknown>) => void
-}
 
 export interface RegisterShortcutsOptions {
 	globalShortcut: GlobalShortcut
@@ -23,7 +17,7 @@ export interface RegisterShortcutsOptions {
 	onQuit: () => void
 	increaseOpacity: () => void
 	decreaseOpacity: () => void
-	logger: ShortcutLogger
+	logger: Logger
 }
 
 export function registerShortcuts(options: RegisterShortcutsOptions): void {

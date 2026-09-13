@@ -87,6 +87,9 @@ export const createLogger = (service: string) => {
 	return logger.child({ service })
 }
 
+// Minimal logger shape accepted by session/handler options
+export type Logger = Pick<winston.Logger, 'debug' | 'info' | 'warn' | 'error'>
+
 // Performance logging utility
 export const logPerformance = (operation: string, startTime: number, meta?: Record<string, unknown>) => {
 	const duration = Date.now() - startTime

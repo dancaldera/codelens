@@ -1,20 +1,14 @@
 import type { BrowserWindow } from 'electron'
-import { IPC_CHANNELS, type ModelChangedPayload } from '../ipc'
+import { IPC_CHANNELS } from '../ipc'
+import type { Logger } from '../lib'
 import { getAvailableModels, isAnyProviderConfigured } from '../services/providers'
 import { analyzeImagesSmart } from '../services/smartAnalyzer'
-
-interface AnalysisLogger {
-	debug: (message: string, meta?: Record<string, unknown>) => void
-	info: (message: string, meta?: Record<string, unknown>) => void
-	warn: (message: string, meta?: Record<string, unknown>) => void
-	error: (message: string, meta?: Record<string, unknown>) => void
-}
 
 export interface AnalysisSessionOptions {
 	getWindow: () => BrowserWindow | null
 	getImagePaths: () => string[]
 	getVoiceContext?: () => string | undefined
-	logger: AnalysisLogger
+	logger: Logger
 }
 
 export class AnalysisSession {

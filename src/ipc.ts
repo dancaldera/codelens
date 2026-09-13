@@ -1,11 +1,8 @@
 export const IPC_CHANNELS = {
-	SUBMIT_PROMPT: 'submit-prompt',
 	ANALYSIS_RESULT: 'analysis-result',
 	CONTEXT_RESET: 'context-reset',
-	REQUEST_SCREENSHOT: 'request-screenshot',
 	SCREENSHOT_IMAGE: 'screenshot-image',
 	CLEAR_SCREENSHOTS: 'clear-screenshots',
-	OPEN_SCREENSHOT: 'open-screenshot',
 	SHOW_LOADING: 'show-loading',
 	HIDE_LOADING: 'hide-loading',
 	MODEL_CHANGED: 'model-changed',
@@ -22,43 +19,10 @@ export const IPC_CHANNELS = {
 	RESIZE_WINDOW: 'resize-window',
 } as const
 
-export type LoadingState = 'waiting' | 'recording' | 'transcribing' | 'analyzing'
-
-export interface LoadingStatusPayload {
-	state: LoadingState
-	title: string
-	message?: string
-}
-
-export type VoiceCaptureState = 'idle' | 'recording' | 'processing' | 'error'
-
-export interface VoiceCaptureStatePayload {
-	state: VoiceCaptureState
-}
-
-export interface ResizeWindowPayload {
-	width: number
-	height: number
-}
-
-export interface ScreenshotImagePayload {
-	index: number
-	data: string
-	path: string
-}
-
-export interface VoiceAudioPayload {
-	data: string
-	mimeType: string
-	durationMs: number
-}
-
-export interface ModelChangedPayload {
-	provider: string
-	model: string
-	index?: number
-	count?: number
-}
+export const MAX_SCREENSHOTS = 2
+export const OVERLAY_MIN_WIDTH = 600
+export const OVERLAY_MIN_HEIGHT = 400
+export const OVERLAY_MAX_SIZE = 4000
 
 export function isValidResizeWindowPayload(payload: unknown): payload is ResizeWindowPayload {
 	if (!payload || typeof payload !== 'object') return false
@@ -67,15 +31,11 @@ export function isValidResizeWindowPayload(payload: unknown): payload is ResizeW
 	return (
 		isFinitePositiveNumber(width) &&
 		isFinitePositiveNumber(height) &&
-		width >= 300 &&
-		height >= 200 &&
-		width <= 4000 &&
-		height <= 4000
+		width >= OVERLAY_MIN_WIDTH &&
+		height >= OVERLAY_MIN_HEIGHT &&
+		width <= OVERLAY_MAX_SIZE &&
+		height <= OVERLAY_MAX_SIZE
 	)
-}
-
-export function isValidScreenshotIndex(index: unknown, maxScreenshots = 2): index is number {
-	return Number.isInteger(index) && Number(index) >= 1 && Number(index) <= maxScreenshots
 }
 
 export function isValidLoadingStatusPayload(payload: unknown): payload is LoadingStatusPayload {

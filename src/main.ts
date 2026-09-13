@@ -1,5 +1,5 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, shell } from 'electron'
-import { IPC_CHANNELS, type LoadingStatusPayload } from './ipc'
+import { app, BrowserWindow, globalShortcut, ipcMain } from 'electron'
+import { IPC_CHANNELS } from './ipc'
 import { createLogger, suppressElectronErrors } from './lib'
 import { AnalysisSession } from './main/analysisSession'
 import { loadEnvironment } from './main/env'
@@ -30,7 +30,6 @@ function createWindow(): void {
 	screenshotSession = new ScreenshotSession({
 		getWindow: () => mainWindow,
 		hasContext: () => analysisSession?.hasPreviousAnalysis() ?? false,
-		isWaitingForVoice: () => voiceSession?.isVoiceBusy() ?? false,
 		onShouldAnalyze: () => scheduleAnalysis(500),
 		logger,
 	})
@@ -49,8 +48,8 @@ function createWindow(): void {
 	})
 
 	void screenshotSession.cleanupStaleFiles()
-	registerApplicationShortcuts()
-	registerApplicationIpcHandlers()
+	registerApplicationShortcuts(screenshotSession, analysisSession, voiceSession)
+	registerApplicationIpcHandlers(screenshotSession, analysisSession, voiceSession)
 
 	mainWindow.webContents.once('dom-ready', () => {
 		updateOpacity()
@@ -63,9 +62,11 @@ function createWindow(): void {
 	})
 }
 
-function registerApplicationShortcuts(): void {
-	if (!screenshotSession || !analysisSession || !voiceSession) return
-
+function registerApplicationShortcuts(
+	screenshotSession: ScreenshotSession,
+	analysisSession: AnalysisSession,
+	voiceSession: VoiceSession,
+): void {
 	globalShortcut.unregisterAll()
 	registerShortcuts({
 		globalShortcut,
@@ -83,12 +84,13 @@ function registerApplicationShortcuts(): void {
 	})
 }
 
-function registerApplicationIpcHandlers(): void {
-	if (!screenshotSession || !analysisSession || !voiceSession) return
-
+function registerApplicationIpcHandlers(
+	screenshotSession: ScreenshotSession,
+	analysisSession: AnalysisSession,
+	voiceSession: VoiceSession,
+): void {
 	registerIpcHandlers({
 		ipcMain,
-		shell,
 		getWindow: () => mainWindow,
 		screenshotSession,
 		analysisSession,
@@ -249,8 +251,8 @@ function cancelScheduledAnalysis(): void {
 	pendingSingleScreenshotAnalysis = false
 }
 
-app.whenReady().then(async () => {
-	await loadEnvironment(app, logger)
+app.whenReady().then(() => {
+	loadEnvironment(app, logger)
 	createWindow()
 })
 

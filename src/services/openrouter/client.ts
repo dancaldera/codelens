@@ -122,6 +122,21 @@ interface ChatCompletionResponse {
 }
 
 /**
+ * Shared OpenRouter request headers (attribution + optional auth/JSON body).
+ */
+export function openRouterHeaders(json = false): Record<string, string> {
+	const headers: Record<string, string> = {
+		'HTTP-Referer': process.env.OPENROUTER_SITE_URL || 'https://codelens.app',
+		'X-Title': process.env.OPENROUTER_SITE_NAME || 'CodeLens',
+	}
+	if (json) headers['Content-Type'] = 'application/json'
+	if (process.env.OPENROUTER_API_KEY) {
+		headers.Authorization = `Bearer ${process.env.OPENROUTER_API_KEY}`
+	}
+	return headers
+}
+
+/**
  * Send a chat completion request to OpenRouter and return the first choice's content.
  * Mirrors the stt.ts fetch pattern (same headers, AbortController timeout, error shape).
  */
@@ -130,12 +145,7 @@ export async function chatCompletion(body: ChatCompletionRequest): Promise<strin
 
 	const response = await fetch(OPENROUTER_CHAT_ENDPOINT, {
 		method: 'POST',
-		headers: {
-			Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-			'Content-Type': 'application/json',
-			'HTTP-Referer': process.env.OPENROUTER_SITE_URL || 'https://codelens.app',
-			'X-Title': process.env.OPENROUTER_SITE_NAME || 'CodeLens',
-		},
+		headers: openRouterHeaders(true),
 		body: JSON.stringify(body),
 		signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
 	})
@@ -164,111 +174,77 @@ export function validateOpenRouterConfiguration(): void {
 	logger.debug('OpenRouter configuration validated successfully')
 }
 
+interface ModelQuery {
+	params: Record<string, string>
+	filter: (model: OpenRouterModel) => boolean
+	order: (models: ProgrammingModel[]) => ProgrammingModel[]
+	fallback: ProgrammingModel[]
+	label: string
+}
+
+async function fetchModels({ params, filter, order, fallback, label }: ModelQuery): Promise<ProgrammingModel[]> {
+	try {
+		logger.debug(`Fetching ${label} models from OpenRouter API`)
+
+		const url = new URL(OPENROUTER_MODELS_ENDPOINT)
+		for (const [key, value] of Object.entries(params)) {
+			url.searchParams.set(key, value)
+		}
+
+		const response = await fetch(url, { method: 'GET', headers: openRouterHeaders() })
+		if (!response.ok) {
+			throw new Error(`OpenRouter API returned ${response.status}: ${response.statusText}`)
+		}
+
+		const data = (await response.json()) as { data?: OpenRouterModel[] }
+		const models = order((data.data ?? []).filter(filter).map(toProgrammingModel))
+
+		if (!models.length) {
+			logger.warn(`OpenRouter returned no ${label} models; using fallback catalog`)
+			return fallback
+		}
+
+		logger.debug(`Found ${models.length} ${label} models`)
+		return models
+	} catch (error) {
+		logger.error(`Failed to fetch ${label} models from OpenRouter`, { error })
+		return fallback
+	}
+}
+
+function toProgrammingModel(model: OpenRouterModel): ProgrammingModel {
+	return {
+		id: model.id,
+		name: model.name,
+		contextLength: model.context_length,
+		created: model.created,
+		promptPrice: model.pricing.prompt,
+		completionPrice: model.pricing.completion,
+	}
+}
+
 /**
  * Fetch programming models that support image input from OpenRouter API
  * @returns Array of programming models with image support, ordered by CodeLens preference first
  */
-export async function fetchProgrammingModels(): Promise<ProgrammingModel[]> {
-	try {
-		logger.debug('Fetching programming models from OpenRouter API')
-
-		const url = new URL(OPENROUTER_MODELS_ENDPOINT)
-		url.searchParams.set('category', 'programming')
-		url.searchParams.set('output_modalities', 'text')
-
-		const headers: Record<string, string> = {
-			'HTTP-Referer': process.env.OPENROUTER_SITE_URL || 'https://codelens.app',
-			'X-Title': process.env.OPENROUTER_SITE_NAME || 'CodeLens',
-		}
-
-		if (process.env.OPENROUTER_API_KEY) {
-			headers.Authorization = `Bearer ${process.env.OPENROUTER_API_KEY}`
-		}
-
-		const response = await fetch(url, {
-			method: 'GET',
-			headers,
-		})
-
-		if (!response.ok) {
-			throw new Error(`OpenRouter API returned ${response.status}: ${response.statusText}`)
-		}
-
-		const data = (await response.json()) as { data?: OpenRouterModel[] }
-
-		const modelsWithImageSupport = orderProgrammingModels(
-			(data.data ?? []).filter(isVisionTextModel).map((model) => ({
-				id: model.id,
-				name: model.name,
-				contextLength: model.context_length,
-				created: model.created,
-				promptPrice: model.pricing.prompt,
-				completionPrice: model.pricing.completion,
-			})),
-		)
-
-		if (!modelsWithImageSupport.length) {
-			logger.warn('OpenRouter returned no programming vision models; using fallback catalog')
-			return FALLBACK_PROGRAMMING_VISION_MODELS
-		}
-
-		logger.debug(`Found ${modelsWithImageSupport.length} programming models with image support`)
-
-		return modelsWithImageSupport
-	} catch (error) {
-		logger.error('Failed to fetch programming models from OpenRouter', { error })
-		return FALLBACK_PROGRAMMING_VISION_MODELS
-	}
+export function fetchProgrammingModels(): Promise<ProgrammingModel[]> {
+	return fetchModels({
+		params: { category: 'programming', output_modalities: 'text' },
+		filter: isVisionTextModel,
+		order: orderProgrammingModels,
+		fallback: FALLBACK_PROGRAMMING_VISION_MODELS,
+		label: 'programming vision',
+	})
 }
 
-export async function fetchTranscriptionModels(): Promise<ProgrammingModel[]> {
-	try {
-		logger.debug('Fetching transcription models from OpenRouter API')
-
-		const url = new URL(OPENROUTER_MODELS_ENDPOINT)
-		url.searchParams.set('output_modalities', 'transcription')
-
-		const headers: Record<string, string> = {
-			'HTTP-Referer': process.env.OPENROUTER_SITE_URL || 'https://codelens.app',
-			'X-Title': process.env.OPENROUTER_SITE_NAME || 'CodeLens',
-		}
-
-		if (process.env.OPENROUTER_API_KEY) {
-			headers.Authorization = `Bearer ${process.env.OPENROUTER_API_KEY}`
-		}
-
-		const response = await fetch(url, {
-			method: 'GET',
-			headers,
-		})
-
-		if (!response.ok) {
-			throw new Error(`OpenRouter API returned ${response.status}: ${response.statusText}`)
-		}
-
-		const data = (await response.json()) as { data?: OpenRouterModel[] }
-		const transcriptionModels = orderTranscriptionModels(
-			(data.data ?? []).filter(isTranscriptionModel).map((model) => ({
-				id: model.id,
-				name: model.name,
-				contextLength: model.context_length,
-				created: model.created,
-				promptPrice: model.pricing.prompt,
-				completionPrice: model.pricing.completion,
-			})),
-		)
-
-		if (!transcriptionModels.length) {
-			logger.warn('OpenRouter returned no transcription models; using fallback catalog')
-			return FALLBACK_TRANSCRIPTION_MODELS
-		}
-
-		logger.debug(`Found ${transcriptionModels.length} transcription models`)
-		return transcriptionModels
-	} catch (error) {
-		logger.error('Failed to fetch transcription models from OpenRouter', { error })
-		return FALLBACK_TRANSCRIPTION_MODELS
-	}
+export function fetchTranscriptionModels(): Promise<ProgrammingModel[]> {
+	return fetchModels({
+		params: { output_modalities: 'transcription' },
+		filter: isTranscriptionModel,
+		order: orderTranscriptionModels,
+		fallback: FALLBACK_TRANSCRIPTION_MODELS,
+		label: 'transcription',
+	})
 }
 
 function isVisionTextModel(model: OpenRouterModel): boolean {

@@ -17,28 +17,7 @@ declare const DOMPurify: {
 	sanitize: (html: string, config?: Record<string, unknown>) => string
 }
 
-interface ScreenshotData {
-	index: number
-	path: string
-	data: string
-}
-
-interface ModelInfo {
-	provider: string
-	model: string
-	index?: number
-	count?: number
-}
-
 type RecordingStatusKind = 'recording' | 'processing' | 'ready' | 'error'
-
-type LoadingState = 'waiting' | 'recording' | 'transcribing' | 'analyzing'
-
-interface LoadingStatusPayload {
-	state: LoadingState
-	title: string
-	message?: string
-}
 
 window.addEventListener('DOMContentLoaded', () => {
 	const screenshots = document.getElementById('screenshots')
@@ -65,7 +44,6 @@ window.addEventListener('DOMContentLoaded', () => {
 	const MIN_OVERLAY_WIDTH = 600
 	const MIN_OVERLAY_HEIGHT = 400
 	const MAX_OVERLAY_SIZE = 4000
-	const screenshotData = new Map<number, ScreenshotData>()
 	let mediaRecorder: MediaRecorder | null = null
 	let mediaStream: MediaStream | null = null
 	let voiceChunks: Blob[] = []
@@ -92,7 +70,7 @@ window.addEventListener('DOMContentLoaded', () => {
 		return { vendor, name: nameParts.join('/') }
 	}
 
-	function formatModelPosition(info: ModelInfo): string {
+	function formatModelPosition(info: ModelChangedPayload): string {
 		if (typeof info.index !== 'number' || typeof info.count !== 'number' || info.count <= 0) return ''
 
 		return `${info.index + 1}/${info.count}`
@@ -116,12 +94,12 @@ window.addEventListener('DOMContentLoaded', () => {
 	function createModelBadge(
 		div: HTMLDivElement,
 		defaults: BadgeState,
-		labelObjectState: (info: ModelInfo) => BadgeState,
+		labelObjectState: (info: ModelChangedPayload) => BadgeState,
 	): {
 		render: () => void
 		flash: (autoHide?: boolean) => void
 		setLabels: (next: Partial<BadgeState>) => void
-		apply: (info: string | ModelInfo | null) => void
+		apply: (info: string | ModelChangedPayload | null) => void
 	} {
 		let pulseTimeout: ReturnType<typeof setTimeout> | null = null
 		let hideTimeout: ReturnType<typeof setTimeout> | null = null
@@ -194,7 +172,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			state = { ...defaults, ...next }
 		}
 
-		function apply(info: string | ModelInfo | null): void {
+		function apply(info: string | ModelChangedPayload | null): void {
 			if (!info) return
 
 			clearTimers()
@@ -622,12 +600,11 @@ window.addEventListener('DOMContentLoaded', () => {
 	sttBadge.flash()
 
 	// Handle screenshot images
-	window.api.onScreenshotImage((data: ScreenshotData) => {
+	window.api.onScreenshotImage((data: ScreenshotImagePayload) => {
 		const slot = document.getElementById(`screenshot${data.index}`) as HTMLDivElement | null
 		if (!slot) return
 
-		screenshotData.set(data.index, data)
-		slot.style.backgroundImage = `url(data:image/png;base64,${data.data})`
+		slot.style.backgroundImage = `url("${data.url}")`
 		slot.textContent = ''
 		slot.classList.add('active')
 	})
@@ -694,7 +671,6 @@ window.addEventListener('DOMContentLoaded', () => {
 		hideLoadingStatus()
 		resultDiv.replaceChildren()
 		resultDiv.classList.remove('visible')
-		screenshotData.clear()
 		screenshotsDiv.querySelectorAll('.screenshot').forEach((slot, i) => {
 			const element = slot as HTMLDivElement
 			element.style.backgroundImage = ''
@@ -706,7 +682,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
 	// Handle screenshot clear
 	window.api.onClearScreenshots(() => {
-		screenshotData.clear()
 		screenshotsDiv.querySelectorAll('.screenshot').forEach((slot, i) => {
 			const element = slot as HTMLDivElement
 			element.style.backgroundImage = ''

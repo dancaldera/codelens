@@ -1,5 +1,5 @@
 import { createLogger, logApiCall } from '../lib/logger'
-import { DEFAULT_TRANSCRIPTION_MODEL, validateOpenRouterConfiguration } from './openrouter/client'
+import { DEFAULT_TRANSCRIPTION_MODEL, openRouterHeaders, validateOpenRouterConfiguration } from './openrouter/client'
 
 const logger = createLogger('SttService')
 
@@ -39,12 +39,7 @@ export async function transcribeAudio({
 	try {
 		const response = await fetch(OPENROUTER_STT_ENDPOINT, {
 			method: 'POST',
-			headers: {
-				Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-				'Content-Type': 'application/json',
-				'HTTP-Referer': process.env.OPENROUTER_SITE_URL || 'https://codelens.app',
-				'X-Title': process.env.OPENROUTER_SITE_NAME || 'CodeLens',
-			},
+			headers: openRouterHeaders(true),
 			body: JSON.stringify({
 				model,
 				input_audio: {

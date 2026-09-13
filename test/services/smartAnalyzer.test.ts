@@ -8,9 +8,7 @@ const analyzeMock = vi.fn(async () => 'voice-only answer')
 
 vi.mock('electron', () => ({ app: mockApp }))
 vi.mock('../../src/services/openrouter/service', () => ({
-	OpenRouterService: class {
-		analyze = analyzeMock
-	},
+	analyze: (...args: unknown[]) => analyzeMock(...args),
 }))
 
 describe('Smart Analyzer', () => {
@@ -41,6 +39,7 @@ describe('Smart Analyzer', () => {
 				images: [],
 				prompt: expect.stringContaining('Explain binary search in TypeScript.'),
 			}),
+			expect.objectContaining({ model: 'model-a' }),
 		)
 	})
 })

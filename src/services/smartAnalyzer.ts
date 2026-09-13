@@ -2,11 +2,9 @@ import * as fs from 'node:fs'
 import { createLogger, logPerformance } from '../lib/logger'
 import { getMimeType, validateImageFile } from '../lib/utils'
 import { DEFAULT_PROGRAMMING_VISION_MODEL } from './openrouter/client'
-import { type AnalysisRequest, type ImageContent, OpenRouterService } from './openrouter/service'
+import { type AnalysisRequest, analyze, type ImageContent } from './openrouter/service'
 
 const logger = createLogger('SmartAnalyzer')
-
-const TIMEOUT_MS = 60000
 
 export const SMART_PROMPT = `You are CodeLens, an expert visual analyst. You receive one or more screenshots and must produce the single most useful response for the user.
 
@@ -137,38 +135,26 @@ export async function analyzeImagesSmart({
 		return '## No screenshots or voice context\nCapture at least one screenshot or record a voice note to analyze.'
 	}
 
-	const timeout = setTimeout(() => {
-		logger.warn(`Smart analysis still running after ${TIMEOUT_MS}ms`)
-	}, TIMEOUT_MS)
-
-	try {
-		const images = imagePaths.length ? await processImages(imagePaths) : []
-		if (imagePaths.length > 0 && !images.length) {
-			return '## Failed to read screenshots\nVerify the screenshot files and try again.'
-		}
-
-		logger.info('Executing smart analysis', {
-			model,
-			images: images.length,
-			hasVoiceContext,
-		})
-
-		const request: AnalysisRequest = {
-			images,
-			prompt: buildAnalysisPrompt(voiceContext, images.length > 0),
-			previousContext,
-		}
-		const markdown = await new OpenRouterService({ model }).analyze(request)
-
-		logPerformance('Smart analysis completed', startTime)
-		return markdown.trim() || '## Empty response\nThe model returned no content. Try again.'
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error)
-		logger.error('Smart analysis failed', { error: message })
-		return `## Analysis failed\n${message}\n\nCheck your API key and try again.`
-	} finally {
-		clearTimeout(timeout)
+	const images = imagePaths.length ? await processImages(imagePaths) : []
+	if (imagePaths.length > 0 && !images.length) {
+		return '## Failed to read screenshots\nVerify the screenshot files and try again.'
 	}
+
+	logger.info('Executing smart analysis', {
+		model,
+		images: images.length,
+		hasVoiceContext,
+	})
+
+	const request: AnalysisRequest = {
+		images,
+		prompt: buildAnalysisPrompt(voiceContext, images.length > 0),
+		previousContext,
+	}
+	const markdown = await analyze(request, { model })
+
+	logPerformance('Smart analysis completed', startTime)
+	return markdown.trim() || '## Empty response\nThe model returned no content. Try again.'
 }
 
 function buildAnalysisPrompt(voiceContext?: string, hasImages = true): string {
