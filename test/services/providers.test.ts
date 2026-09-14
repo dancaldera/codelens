@@ -74,9 +74,10 @@ describe('Provider Management', () => {
 		test('should fetch models from API and filter image-supporting models', async () => {
 			process.env.OPENROUTER_API_KEY = 'sk-test123'
 			const { getAvailableModels, PROVIDERS } = await import('../../src/services/providers')
-			const models = await getAvailableModels(PROVIDERS.openrouter)
-			expect(models).toContain('anthropic/claude-sonnet-4.6')
-			expect(models).not.toContain('text-only-model')
+			const { ids, error } = await getAvailableModels(PROVIDERS.openrouter)
+			expect(ids).toContain('anthropic/claude-sonnet-4.6')
+			expect(ids).not.toContain('text-only-model')
+			expect(error).toBeNull()
 		})
 
 		test('should return cached models on subsequent calls', async () => {
@@ -88,18 +89,20 @@ describe('Provider Management', () => {
 			expect(mockFetch.mock.calls.length).toBe(callCount1)
 		})
 
-		test('should return fallback models on API failure', async () => {
+		test('should return fallback models with an error on API failure', async () => {
 			process.env.OPENROUTER_API_KEY = 'sk-test123'
 			global.fetch = vi.fn(() => Promise.reject(new Error('API Error'))) as any
 			const { getAvailableModels, PROVIDERS } = await import('../../src/services/providers')
-			const models = await getAvailableModels(PROVIDERS.openrouter)
-			expect(models).toContain('anthropic/claude-sonnet-4.6')
+			const { ids, error } = await getAvailableModels(PROVIDERS.openrouter)
+			expect(ids).toContain('anthropic/claude-sonnet-4.6')
+			expect(error).toBe('API Error')
 		})
 
 		test('should return static models for providers without a models API', async () => {
 			const { getAvailableModels, PROVIDERS } = await import('../../src/services/providers')
-			const models = await getAvailableModels(PROVIDERS.deepseek)
-			expect(models).toContain('deepseek-chat')
+			const { ids, error } = await getAvailableModels(PROVIDERS.deepseek)
+			expect(ids).toContain('deepseek-chat')
+			expect(error).toBeNull()
 		})
 	})
 })

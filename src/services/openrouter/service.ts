@@ -42,7 +42,9 @@ export async function analyze(request: AnalysisRequest, options: AnalyzeOptions 
 						content: [{ type: 'text', text: userText }, ...request.images],
 					},
 				],
-				max_tokens: options.maxTokens ?? 2000,
+				// Reasoning models spend part of max_tokens on hidden reasoning before
+				// emitting content, so the budget must cover both phases.
+				max_tokens: options.maxTokens ?? 8000,
 				temperature: options.temperature ?? 0.2,
 			},
 			provider,

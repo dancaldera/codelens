@@ -1,6 +1,5 @@
 import { createLogger } from '../lib/logger'
 import {
-	FALLBACK_PROGRAMMING_VISION_MODELS,
 	FALLBACK_TRANSCRIPTION_MODELS,
 	fetchProgrammingModels,
 	fetchTranscriptionModels,
@@ -107,7 +106,16 @@ export function isProviderConfigured(id?: string): boolean {
 	return configured
 }
 
-const modelCache = new Map<string, ProgrammingModel[]>()
+/**
+ * Resolved model list for a provider. `error` is set when the list comes from the
+ * built-in fallback catalog because the provider's live model API failed.
+ */
+export interface AvailableModels {
+	ids: string[]
+	error: string | null
+}
+
+const modelCache = new Map<string, AvailableModels>()
 
 export function clearModelCache(id?: string): void {
 	if (id) {
@@ -117,37 +125,29 @@ export function clearModelCache(id?: string): void {
 	}
 }
 
-export async function getAvailableModels(provider: ProviderDef): Promise<string[]> {
+export async function getAvailableModels(provider: ProviderDef): Promise<AvailableModels> {
 	const cached = modelCache.get(provider.id)
-	if (cached) return cached.map((m) => m.id)
+	if (cached) return cached
 
-	let models: ProgrammingModel[]
-	if (provider.id === 'openrouter') {
-		try {
-			models = await fetchProgrammingModels()
-		} catch (error) {
-			logger.error('Failed to fetch models, using fallback', { error })
-			models = FALLBACK_PROGRAMMING_VISION_MODELS
-		}
-	} else {
-		models = provider.models ?? []
-	}
+	const available: AvailableModels =
+		provider.id === 'openrouter'
+			? await fetchProgrammingModels().then(toAvailableModels)
+			: { ids: (provider.models ?? []).map((m) => m.id), error: null }
 
-	modelCache.set(provider.id, models)
-	return models.map((m) => m.id)
+	modelCache.set(provider.id, available)
+	return available
 }
 
-export async function getAvailableTranscriptionModels(provider: ProviderDef): Promise<string[]> {
-	if (!provider.transcription) return []
+export async function getAvailableTranscriptionModels(provider: ProviderDef): Promise<AvailableModels> {
+	if (!provider.transcription) return { ids: [], error: null }
 
 	if (provider.id === 'openrouter') {
-		try {
-			const models = await fetchTranscriptionModels()
-			if (models.length) return models.map((m) => m.id)
-		} catch (error) {
-			logger.error('Failed to fetch transcription models, using fallback', { error })
-		}
+		return fetchTranscriptionModels().then(toAvailableModels)
 	}
 
-	return provider.transcriptionModels.map((m) => m.id)
+	return { ids: provider.transcriptionModels.map((m) => m.id), error: null }
+}
+
+function toAvailableModels(catalog: { models: ProgrammingModel[]; error: string | null }): AvailableModels {
+	return { ids: catalog.models.map((m) => m.id), error: catalog.error }
 }

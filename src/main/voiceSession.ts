@@ -14,6 +14,7 @@ export class VoiceSession {
 	private latestTranscript: string | null = null
 	private currentModelIndex = 0
 	private availableModels: string[] = []
+	private lastModelsError: string | null = null
 	private modelInitializationPromise: Promise<void> | null = null
 	private isTranscribing = false
 	private captureState: VoiceCaptureStatePayload['state'] = 'idle'
@@ -66,17 +67,20 @@ export class VoiceSession {
 		const currentModel = this.availableModels[this.currentModelIndex]
 		if (!currentModel) return null
 
-		return {
+		const info: ModelChangedPayload = {
 			provider: getProvider().id,
 			model: currentModel,
 			index: this.currentModelIndex,
 			count: this.availableModels.length,
 		}
+		if (this.lastModelsError) info.error = this.lastModelsError
+		return info
 	}
 
 	reloadModels(): Promise<void> {
 		this.availableModels = []
 		this.currentModelIndex = 0
+		this.lastModelsError = null
 		return this.initializeModels()
 	}
 
@@ -168,10 +172,9 @@ export class VoiceSession {
 				transcriptLength: transcript.length,
 			})
 		} catch (error) {
-			this.options.logger.error('Voice transcription failed', {
-				error: error instanceof Error ? error.message : String(error),
-			})
-			window.webContents.send(IPC_CHANNELS.VOICE_STATUS, 'Transcription failed')
+			const message = error instanceof Error ? error.message : String(error)
+			this.options.logger.error('Voice transcription failed', { error: message })
+			window.webContents.send(IPC_CHANNELS.VOICE_STATUS, `Transcription failed: ${message.slice(0, 80)}`)
 		} finally {
 			this.isTranscribing = false
 			this.captureState = 'idle'
@@ -197,15 +200,24 @@ export class VoiceSession {
 			return
 		}
 
-		this.availableModels = await getAvailableTranscriptionModels(provider)
-		this.currentModelIndex = 0
+		try {
+			const available = await getAvailableTranscriptionModels(provider)
+			this.availableModels = available.ids
+			this.currentModelIndex = 0
+			this.lastModelsError = available.error
 
-		this.options.logger.info('STT models initialized', {
-			provider: provider.id,
-			models: this.availableModels,
-			count: this.availableModels.length,
-			defaultModel: this.availableModels[0],
-		})
+			this.options.logger.info('STT models initialized', {
+				provider: provider.id,
+				models: this.availableModels,
+				count: this.availableModels.length,
+				defaultModel: this.availableModels[0],
+				catalogError: available.error,
+			})
+		} catch (error) {
+			this.options.logger.error('Failed to fetch STT models', { error })
+			window?.webContents.send(IPC_CHANNELS.STT_MODEL_CHANGED, 'models-error')
+			return
+		}
 
 		const modelInfo = this.getCurrentModelInfo()
 		if (modelInfo) {

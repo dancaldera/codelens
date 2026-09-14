@@ -313,7 +313,9 @@ body {
 }
 
 #modelInfo[data-model='no-key'],
-#sttModelInfo[data-model='no-key'] {
+#sttModelInfo[data-model='no-key'],
+#modelInfo[data-model='models-error'],
+#sttModelInfo[data-model='models-error'] {
 	border-color: rgba(251, 191, 36, 0.55);
 	color: var(--accent-amber);
 }

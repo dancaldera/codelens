@@ -15,6 +15,7 @@ export class AnalysisSession {
 	private previousAnalysis: string | null = null
 	private currentModelIndex = 0
 	private availableModels: string[] = []
+	private lastModelsError: string | null = null
 	private isAnalysisRunning = false
 	private pendingAnalysis = false
 	private analysisPromise: Promise<void> | null = null
@@ -50,17 +51,20 @@ export class AnalysisSession {
 		const currentModel = this.availableModels[this.currentModelIndex]
 		if (!currentModel) return null
 
-		return {
+		const info: ModelChangedPayload = {
 			provider: getProvider().id,
 			model: currentModel,
 			index: this.currentModelIndex,
 			count: this.availableModels.length,
 		}
+		if (this.lastModelsError) info.error = this.lastModelsError
+		return info
 	}
 
 	reloadProvider(): Promise<void> {
 		this.availableModels = []
 		this.currentModelIndex = 0
+		this.lastModelsError = null
 		return this.initializeProvider()
 	}
 
@@ -77,14 +81,17 @@ export class AnalysisSession {
 		}
 
 		try {
-			this.availableModels = await getAvailableModels(provider)
+			const available = await getAvailableModels(provider)
+			this.availableModels = available.ids
 			this.currentModelIndex = 0
+			this.lastModelsError = available.error
 
 			this.options.logger.info('Provider initialized', {
 				provider: provider.id,
 				models: this.availableModels,
 				count: this.availableModels.length,
 				defaultModel: this.availableModels[0],
+				catalogError: available.error,
 			})
 
 			const modelInfo = this.getCurrentModelInfo()
@@ -93,7 +100,7 @@ export class AnalysisSession {
 			}
 		} catch (error) {
 			this.options.logger.error('Failed to fetch models', { error })
-			window?.webContents.send(IPC_CHANNELS.MODEL_CHANGED, 'no-key')
+			window?.webContents.send(IPC_CHANNELS.MODEL_CHANGED, 'models-error')
 		}
 	}
 

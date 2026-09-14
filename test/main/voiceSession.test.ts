@@ -12,7 +12,10 @@ const openRouterProvider = {
 	transcriptionModels: [],
 	defaultTranscriptionModel: 'openai/gpt-4o-mini-transcribe',
 }
-const getAvailableTranscriptionModels = vi.fn(async () => ['openai/gpt-4o-mini-transcribe', 'openai/whisper-1'])
+const getAvailableTranscriptionModels = vi.fn(async () => ({
+	ids: ['openai/gpt-4o-mini-transcribe', 'openai/whisper-1'],
+	error: null,
+}))
 const isProviderConfigured = vi.fn(() => true)
 const transcribeAudio = vi.fn(async () => 'Please solve this in TypeScript.')
 

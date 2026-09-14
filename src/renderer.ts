@@ -180,18 +180,26 @@ window.addEventListener('DOMContentLoaded', () => {
 
 			clearTimers()
 
-			if (info === 'no-key' || info === 'no-stt') {
+			if (info === 'no-key' || info === 'no-stt' || info === 'models-error') {
 				const missingKey = info === 'no-key'
 				state = {
 					...defaults,
-					modelLabel: missingKey ? 'No API Key' : 'STT Unavailable',
+					modelLabel: missingKey ? 'No API Key' : info === 'no-stt' ? 'STT Unavailable' : 'Model list failed',
 					vendor: '',
 					dataset: info,
-					title: missingKey ? 'API key missing — press Ctrl/Cmd+P to configure' : 'Provider has no voice transcription',
+					title: missingKey
+						? 'API key missing — press Ctrl/Cmd+P to configure'
+						: info === 'no-stt'
+							? 'Provider has no voice transcription'
+							: 'Could not load the model list — check API key, credits, and network',
 					position: '',
 				}
 			} else if (typeof info === 'object') {
 				state = labelObjectState(info)
+				if (info.error) {
+					state.dataset = 'models-error'
+					state.title = `Live model list failed: ${info.error} — showing the built-in fallback catalog`
+				}
 			} else {
 				const { vendor, name } = splitModelId(info)
 				state = {

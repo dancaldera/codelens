@@ -7,7 +7,7 @@ vi.mock('../../src/services/smartAnalyzer', () => ({
 }))
 
 vi.mock('../../src/services/providers', () => ({
-	getAvailableModels: vi.fn(async () => ['model-a']),
+	getAvailableModels: vi.fn(async () => ({ ids: ['model-a'], error: null })),
 	getProvider: vi.fn(() => ({
 		id: 'openrouter',
 		label: 'OpenRouter',

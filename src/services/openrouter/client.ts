@@ -5,6 +5,7 @@ const logger = createLogger('OpenRouterClient')
 
 const OPENROUTER_MODELS_ENDPOINT = 'https://openrouter.ai/api/v1/models'
 const REQUEST_TIMEOUT_MS = 50000
+const MODELS_REQUEST_TIMEOUT_MS = 15000
 
 export const DEFAULT_PROGRAMMING_VISION_MODEL = 'anthropic/claude-sonnet-4.6'
 export const DEFAULT_TRANSCRIPTION_MODEL = 'openai/gpt-4o-mini-transcribe'
@@ -70,6 +71,8 @@ export interface OpenRouterModel {
 	architecture: ModelArchitecture
 	context_length: number | null
 	created?: number
+	/** Non-null when OpenRouter has scheduled the endpoint for shutdown. */
+	expiration_date?: string | null
 	pricing: {
 		prompt: string
 		completion: string
@@ -105,9 +108,26 @@ export interface ChatCompletionRequest {
 	temperature: number
 }
 
+interface ChatContentPart {
+	type?: string
+	text?: string
+}
+
 interface ChatCompletionResponse {
-	choices?: { message?: { content?: string } }[]
-	error?: { message?: string }
+	choices?: {
+		message?: { content?: string | ChatContentPart[] | null }
+		finish_reason?: string | null
+	}[]
+	error?: { message?: string; code?: number | string } | string
+}
+
+/**
+ * Model catalog result. `error` is set when the live OpenRouter fetch failed and
+ * `models` contains the built-in fallback catalog instead of live data.
+ */
+export interface ModelCatalog {
+	models: ProgrammingModel[]
+	error: string | null
 }
 
 /**
@@ -128,22 +148,76 @@ export function providerHeaders(provider: ProviderDef, json = false): Record<str
 export async function chatCompletion(body: ChatCompletionRequest, provider: ProviderDef): Promise<string> {
 	validateProviderConfiguration(provider)
 
-	const response = await fetch(`${provider.baseUrl}/chat/completions`, {
-		method: 'POST',
-		headers: providerHeaders(provider, true),
-		body: JSON.stringify(body),
-		signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-	})
-
-	const result = (await response.json().catch(() => ({}))) as ChatCompletionResponse
-
-	if (!response.ok) {
-		throw new Error(
-			result.error?.message || `${provider.label} API returned ${response.status}: ${response.statusText}`,
-		)
+	let response: Response
+	try {
+		response = await fetch(`${provider.baseUrl}/chat/completions`, {
+			method: 'POST',
+			headers: providerHeaders(provider, true),
+			body: JSON.stringify(body),
+			signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+		})
+	} catch (error) {
+		throw new Error(`${provider.label} request failed: ${describeFetchError(error)}`)
 	}
 
-	return result.choices?.[0]?.message?.content ?? ''
+	const result = (await response.json().catch(() => ({}))) as ChatCompletionResponse
+	const apiError = extractApiError(result.error)
+
+	if (!response.ok) {
+		throw new Error(apiError || `${provider.label} API returned ${response.status}: ${response.statusText}`)
+	}
+
+	// OpenRouter can answer 200 with an `error` payload when the upstream provider
+	// fails mid-generation (rate limits, moderation, "no allowed providers").
+	if (apiError) {
+		throw new Error(apiError)
+	}
+
+	const choice = result.choices?.[0]
+	const content = extractTextContent(choice?.message?.content)
+	if (content) {
+		return content
+	}
+
+	throw new Error(describeEmptyCompletion(provider, body.model, choice?.finish_reason))
+}
+
+function extractApiError(error: ChatCompletionResponse['error']): string | null {
+	if (!error) return null
+	if (typeof error === 'string') return error
+	if (typeof error.message === 'string' && error.message.trim()) return error.message
+	if (error.code !== undefined) return `error code ${String(error.code)}`
+	return 'unknown provider error'
+}
+
+function extractTextContent(content: string | ChatContentPart[] | null | undefined): string {
+	if (typeof content === 'string') return content
+	if (!Array.isArray(content)) return ''
+	return content
+		.filter((part) => part?.type === 'text' && typeof part.text === 'string')
+		.map((part) => part.text as string)
+		.join('')
+}
+
+function describeEmptyCompletion(provider: ProviderDef, model: string, finishReason?: string | null): string {
+	switch (finishReason) {
+		case 'length':
+			return `${model} hit the token limit before producing a response (common with reasoning models). Try again or switch model with Ctrl/Cmd+M.`
+		case 'content_filter':
+			return `${provider.label} blocked the response from ${model} (content filter).`
+		case 'error':
+			return `${provider.label} reported a generation error for ${model} without details.`
+		default:
+			return `${model} returned an empty response.`
+	}
+}
+
+function describeFetchError(error: unknown): string {
+	if (error instanceof Error) {
+		if (error.name === 'TimeoutError' || error.name === 'AbortError') return 'request timed out'
+		return error.message
+	}
+	return String(error)
 }
 
 /**
@@ -170,7 +244,7 @@ interface ModelQuery {
 	label: string
 }
 
-async function fetchModels({ params, filter, order, fallback, label }: ModelQuery): Promise<ProgrammingModel[]> {
+async function fetchModels({ params, filter, order, fallback, label }: ModelQuery): Promise<ModelCatalog> {
 	try {
 		logger.debug(`Fetching ${label} models from OpenRouter API`)
 
@@ -187,24 +261,32 @@ async function fetchModels({ params, filter, order, fallback, label }: ModelQuer
 			headers.Authorization = `Bearer ${process.env.OPENROUTER_API_KEY}`
 		}
 
-		const response = await fetch(url, { method: 'GET', headers })
+		const response = await fetch(url, {
+			method: 'GET',
+			headers,
+			signal: AbortSignal.timeout(MODELS_REQUEST_TIMEOUT_MS),
+		})
 		if (!response.ok) {
 			throw new Error(`OpenRouter API returned ${response.status}: ${response.statusText}`)
 		}
 
 		const data = (await response.json()) as { data?: OpenRouterModel[] }
-		const models = order((data.data ?? []).filter(filter).map(toProgrammingModel))
+		const models = order(
+			(data.data ?? []).filter((model) => isActiveModel(model) && filter(model)).map(toProgrammingModel),
+		)
 
 		if (!models.length) {
-			logger.warn(`OpenRouter returned no ${label} models; using fallback catalog`)
-			return fallback
+			const message = `OpenRouter returned no ${label} models`
+			logger.warn(`${message}; using fallback catalog`)
+			return { models: fallback, error: message }
 		}
 
 		logger.debug(`Found ${models.length} ${label} models`)
-		return models
+		return { models, error: null }
 	} catch (error) {
+		const message = describeFetchError(error)
 		logger.error(`Failed to fetch ${label} models from OpenRouter`, { error })
-		return fallback
+		return { models: fallback, error: message }
 	}
 }
 
@@ -221,11 +303,11 @@ function toProgrammingModel(model: OpenRouterModel): ProgrammingModel {
 
 /**
  * Fetch programming models that support image input from OpenRouter API
- * @returns Array of programming models with image support, ordered by CodeLens preference first
+ * @returns Model catalog with live data, or the fallback catalog plus an error message
  */
-export function fetchProgrammingModels(): Promise<ProgrammingModel[]> {
+export function fetchProgrammingModels(): Promise<ModelCatalog> {
 	return fetchModels({
-		params: { category: 'programming', output_modalities: 'text' },
+		params: { category: 'programming' },
 		filter: isVisionTextModel,
 		order: orderProgrammingModels,
 		fallback: FALLBACK_PROGRAMMING_VISION_MODELS,
@@ -233,9 +315,9 @@ export function fetchProgrammingModels(): Promise<ProgrammingModel[]> {
 	})
 }
 
-export function fetchTranscriptionModels(): Promise<ProgrammingModel[]> {
+export function fetchTranscriptionModels(): Promise<ModelCatalog> {
 	return fetchModels({
-		params: { output_modalities: 'transcription' },
+		params: {},
 		filter: isTranscriptionModel,
 		order: orderTranscriptionModels,
 		fallback: FALLBACK_TRANSCRIPTION_MODELS,
@@ -247,7 +329,15 @@ function isVisionTextModel(model: OpenRouterModel): boolean {
 	const inputModalities = model.architecture?.input_modalities ?? []
 	const outputModalities = model.architecture?.output_modalities ?? []
 
-	return inputModalities.includes('image') && outputModalities.includes('text')
+	// Requests always send a text prompt plus image content, so the model must
+	// accept both modalities and answer with text.
+	return inputModalities.includes('text') && inputModalities.includes('image') && outputModalities.includes('text')
+}
+
+function isActiveModel(model: OpenRouterModel): boolean {
+	if (!model.expiration_date) return true
+	const expiresAt = Date.parse(model.expiration_date)
+	return Number.isNaN(expiresAt) || expiresAt > Date.now()
 }
 
 function isTranscriptionModel(model: OpenRouterModel): boolean {
@@ -263,7 +353,9 @@ function orderProgrammingModels(models: ProgrammingModel[]): ProgrammingModel[] 
 		return model ? [model] : []
 	})
 	const preferredIds = new Set(preferredModels.map((model) => model.id))
-	const remainingModels = models.filter((model) => !preferredIds.has(model.id))
+	const remainingModels = models
+		.filter((model) => !preferredIds.has(model.id))
+		.sort((a, b) => (b.created ?? 0) - (a.created ?? 0))
 
 	return [...preferredModels, ...remainingModels]
 }

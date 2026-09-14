@@ -36,6 +36,8 @@ interface ModelChangedPayload {
 	model: string
 	index?: number
 	count?: number
+	/** Set when the model list comes from the fallback catalog after a fetch error. */
+	error?: string
 }
 
 interface ProviderInfo {

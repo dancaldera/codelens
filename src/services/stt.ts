@@ -4,6 +4,8 @@ import type { ProviderDef } from './providers'
 
 const logger = createLogger('SttService')
 
+const STT_REQUEST_TIMEOUT_MS = 30000
+
 export interface TranscribeAudioOptions {
 	audioBase64: string
 	mimeType: string
@@ -20,9 +22,11 @@ interface SttResponse {
 		output_tokens?: number
 		cost?: number
 	}
-	error?: {
-		message?: string
-	}
+	error?:
+		| {
+				message?: string
+		  }
+		| string
 }
 
 export async function transcribeAudio({
@@ -51,6 +55,7 @@ export async function transcribeAudio({
 				provider.transcription === 'json'
 					? JSON.stringify({ model: resolvedModel, input_audio: { data: audioBase64, format } })
 					: buildMultipartBody(audioBase64, mimeType, format, resolvedModel),
+			signal: AbortSignal.timeout(STT_REQUEST_TIMEOUT_MS),
 		})
 
 		const result = (await response.json().catch(() => ({}))) as SttResponse
@@ -61,10 +66,14 @@ export async function transcribeAudio({
 			format,
 		})
 
+		const apiError = extractSttError(result.error)
 		if (!response.ok) {
-			throw new Error(
-				result.error?.message || `${provider.label} STT API returned ${response.status}: ${response.statusText}`,
-			)
+			throw new Error(apiError || `${provider.label} STT API returned ${response.status}: ${response.statusText}`)
+		}
+
+		// Providers can answer 200 with an `error` payload when the upstream call fails.
+		if (apiError) {
+			throw new Error(apiError)
 		}
 
 		return (result.text ?? '').trim()
@@ -77,6 +86,11 @@ export async function transcribeAudio({
 		})
 		throw new Error(`${provider.label} STT call failed: ${error instanceof Error ? error.message : String(error)}`)
 	}
+}
+
+function extractSttError(error: SttResponse['error']): string | null {
+	if (!error) return null
+	return typeof error === 'string' ? error : (error.message ?? null)
 }
 
 function buildMultipartBody(audioBase64: string, mimeType: string, format: string, model: string): FormData {
