@@ -4,9 +4,9 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import * as util from 'node:util'
-import { type BrowserWindow, desktopCapturer, screen } from 'electron'
+import { type BrowserWindow, desktopCapturer, nativeImage, screen, systemPreferences } from 'electron'
 import { IPC_CHANNELS, MAX_SCREENSHOTS } from '../ipc'
-import type { Logger } from '../lib'
+import { capImageSize, isJpegBuffer, type Logger } from '../lib'
 
 const execFileAsync = util.promisify(execFile)
 
@@ -14,6 +14,16 @@ const SCREENSHOT_DIR = path.join(os.tmpdir(), 'codelens-screenshots')
 const HIDE_TIMEOUT_MS = 250
 const HIDE_SETTLE_MS = 150
 const DEFAULT_CAPTURE_SIZE = { width: 1920, height: 1080 }
+
+export const SCREEN_CAPTURE_DENIED_NOTICE = `## Screen recording permission needed
+
+macOS is blocking CodeLens from capturing the screen, so screenshots silently fail.
+
+To fix it:
+
+1. Open **System Settings → Privacy & Security → Screen & System Audio Recording**.
+2. Enable **CodeLens** (for the dev build started from a terminal, the entry to enable is **Electron**).
+3. Quit CodeLens with \`Ctrl/Cmd+Q\` and start it again — macOS only applies the permission after a restart.`
 
 export interface ScreenshotSessionOptions {
 	getWindow: () => BrowserWindow | null
@@ -39,6 +49,11 @@ export class ScreenshotSession {
 
 		if (this.isCapturing) {
 			this.options.logger.warn('Screenshot capture already in progress')
+			return
+		}
+
+		if (this.isScreenCaptureDenied()) {
+			this.notifyScreenCaptureDenied()
 			return
 		}
 
@@ -72,6 +87,9 @@ export class ScreenshotSession {
 
 			if (!success) {
 				this.options.logger.error('All screenshot methods failed')
+				if (this.isScreenCaptureDenied()) {
+					this.notifyScreenCaptureDenied()
+				}
 			}
 		} catch (error) {
 			this.options.logger.error('Screenshot operation failed', {
@@ -91,7 +109,10 @@ export class ScreenshotSession {
 
 		const nextSlot = this.screenshotCount >= MAX_SCREENSHOTS ? 1 : this.screenshotCount + 1
 		const slotIndex = nextSlot - 1
-		const filePath = path.join(SCREENSHOT_DIR, `screenshot-${nextSlot}-${Date.now()}.png`)
+		const filePath = path.join(
+			SCREENSHOT_DIR,
+			`screenshot-${nextSlot}-${Date.now()}.${isJpegBuffer(buffer) ? 'jpg' : 'png'}`,
+		)
 		await fsPromises.writeFile(filePath, buffer)
 
 		const previousPath = this.screenshotPaths[slotIndex]
@@ -137,7 +158,10 @@ export class ScreenshotSession {
 			const entries = await fsPromises.readdir(SCREENSHOT_DIR)
 			await Promise.all(
 				entries
-					.filter((entry) => /^screenshot-\d+-\d+\.png$/.test(entry) || /^fallback-screenshot-\d+\.png$/.test(entry))
+					.filter(
+						(entry) =>
+							/^screenshot-\d+-\d+\.(png|jpe?g)$/.test(entry) || /^fallback-screenshot-\d+\.(png|jpe?g)$/.test(entry),
+					)
 					.map((entry) => this.deleteFile(path.join(SCREENSHOT_DIR, entry), 'Failed to delete stale screenshot file')),
 			)
 		} catch (error) {
@@ -170,7 +194,7 @@ export class ScreenshotSession {
 				displayId: source.display_id,
 			})
 
-			const buffer = source.thumbnail.toPNG()
+			const buffer = source.thumbnail.toJPEG(80)
 			if (buffer.length <= 1000) return false
 
 			await this.save(buffer, 'desktopCapturer')
@@ -224,10 +248,10 @@ export class ScreenshotSession {
 	}
 
 	private getScaledDisplaySize(display: Electron.Display): { width: number; height: number } {
-		return {
-			width: Math.round(display.size.width * display.scaleFactor),
-			height: Math.round(display.size.height * display.scaleFactor),
-		}
+		return capImageSize(
+			Math.round(display.size.width * display.scaleFactor),
+			Math.round(display.size.height * display.scaleFactor),
+		)
 	}
 
 	private async waitForWindowHidden(window: BrowserWindow): Promise<void> {
@@ -255,8 +279,8 @@ export class ScreenshotSession {
 			await execFileAsync('/usr/sbin/screencapture', ['-x', '-T', '0', filePath])
 
 			try {
-				const buffer = await fsPromises.readFile(filePath)
-				await this.save(buffer, 'screencapture')
+				const raw = await fsPromises.readFile(filePath)
+				await this.save(this.encodeForModel(raw), 'screencapture')
 				return true
 			} finally {
 				await this.deleteFile(filePath, 'Failed to delete temporary screenshot file')
@@ -266,6 +290,34 @@ export class ScreenshotSession {
 				error: error instanceof Error ? error.message : String(error),
 			})
 			return false
+		}
+	}
+
+	private isScreenCaptureDenied(): boolean {
+		if (process.platform !== 'darwin') return false
+		try {
+			const status = systemPreferences?.getMediaAccessStatus?.('screen')
+			return status === 'denied' || status === 'restricted'
+		} catch {
+			return false
+		}
+	}
+
+	private notifyScreenCaptureDenied(): void {
+		this.options.logger.warn('Screen recording permission denied; notifying user')
+		this.options.getWindow()?.webContents.send(IPC_CHANNELS.ANALYSIS_RESULT, SCREEN_CAPTURE_DENIED_NOTICE)
+	}
+
+	private encodeForModel(buffer: Buffer): Buffer {
+		try {
+			const image = nativeImage.createFromBuffer(buffer)
+			if (image.isEmpty()) return buffer
+			const { width, height } = image.getSize()
+			const capped = capImageSize(width, height)
+			const resized = capped.width !== width ? image.resize(capped) : image
+			return resized.toJPEG(80)
+		} catch {
+			return buffer
 		}
 	}
 

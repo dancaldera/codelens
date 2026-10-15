@@ -119,6 +119,7 @@ export interface SmartAnalysisOptions {
 	previousContext?: string
 	voiceContext?: string
 	model?: string
+	onChunk?: (chunk: string) => void
 }
 
 export async function analyzeImagesSmart({
@@ -126,6 +127,7 @@ export async function analyzeImagesSmart({
 	previousContext,
 	voiceContext,
 	model,
+	onChunk,
 }: SmartAnalysisOptions): Promise<string> {
 	const startTime = Date.now()
 
@@ -150,7 +152,7 @@ export async function analyzeImagesSmart({
 		prompt: buildAnalysisPrompt(voiceContext, images.length > 0),
 		previousContext,
 	}
-	const markdown = await analyze(request, { model })
+	const markdown = await analyze(request, { model, onChunk })
 
 	logPerformance('Smart analysis completed', startTime)
 	return markdown.trim() || '## Empty response\nThe model returned no content. Try again.'

@@ -1,6 +1,7 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { App } from 'electron'
+import type { SaveSettingsPayload, SettingsConfig } from '../ipc'
 import type { Logger } from '../lib'
 import { isProviderConfigured, listProviders } from '../services/providers'
 import { isSecureStorageAvailable, saveSecret } from './secretStore'

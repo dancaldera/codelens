@@ -35,7 +35,7 @@ export function createOverlayWindow({ app, logger, preloadPath, indexPath }: Ove
 	disableAutomaticBoundsAdjustment(window)
 	configureOverlayBehavior(window, app, logger)
 
-	window.loadFile(indexPath)
+	loadRendererPage(window, indexPath, 'index.html')
 	window.setPosition(50, 50, false)
 
 	return window
@@ -69,14 +69,19 @@ function configureOverlayBehavior(window: BrowserWindow, app: App, logger: Logge
 	}
 }
 
-export function resolveRendererPaths(distDir: string): {
+export function loadRendererPage(window: BrowserWindow, filePath: string, page: string): Promise<void> {
+	const devServerUrl = process.env.ELECTRON_RENDERER_URL
+	return devServerUrl ? window.loadURL(`${devServerUrl}/${page}`) : window.loadFile(filePath)
+}
+
+export function resolveRendererPaths(mainDir: string): {
 	preloadPath: string
 	indexPath: string
 	settingsIndexPath: string
 } {
 	return {
-		preloadPath: path.join(distDir, 'preload.js'),
-		indexPath: path.join(distDir, '..', '..', 'index.html'),
-		settingsIndexPath: path.join(distDir, '..', '..', 'settings.html'),
+		preloadPath: path.join(mainDir, '..', 'preload', 'preload.js'),
+		indexPath: path.join(mainDir, '..', 'renderer', 'index.html'),
+		settingsIndexPath: path.join(mainDir, '..', 'renderer', 'settings.html'),
 	}
 }

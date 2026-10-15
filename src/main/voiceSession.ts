@@ -1,5 +1,5 @@
 import type { BrowserWindow } from 'electron'
-import { IPC_CHANNELS } from '../ipc'
+import { IPC_CHANNELS, type ModelChangedPayload, type VoiceAudioPayload, type VoiceCaptureStatePayload } from '../ipc'
 import type { Logger } from '../lib'
 import { getAvailableTranscriptionModels, getProvider, isProviderConfigured } from '../services/providers'
 import { transcribeAudio } from '../services/stt'

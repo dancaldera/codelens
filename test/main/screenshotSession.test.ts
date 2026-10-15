@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 const getSources = vi.fn()
+const getMediaAccessStatus = vi.fn(() => 'granted')
 
 vi.mock('electron', () => ({
 	desktopCapturer: {
 		getSources,
 	},
+	systemPreferences: { getMediaAccessStatus },
+	nativeImage: { createFromBuffer: vi.fn(() => ({ isEmpty: () => true })) },
 	screen: {
 		getDisplayMatching: vi.fn(() => ({ id: 1, size: { width: 1440, height: 900 }, scaleFactor: 2 })),
 		getPrimaryDisplay: vi.fn(() => ({ id: 1, size: { width: 1440, height: 900 }, scaleFactor: 2 })),
@@ -43,6 +46,8 @@ describe('ScreenshotSession', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
 		getSources.mockReset()
+		getMediaAccessStatus.mockReset()
+		getMediaAccessStatus.mockReturnValue('granted')
 		dateSpy = vi.spyOn(Date, 'now')
 	})
 
@@ -57,7 +62,7 @@ describe('ScreenshotSession', () => {
 				id: 'screen:1:0',
 				name: 'Entire Screen',
 				display_id: '1',
-				thumbnail: { toPNG: () => Buffer.alloc(1500) },
+				thumbnail: { toJPEG: () => Buffer.concat([Buffer.from([0xff, 0xd8]), Buffer.alloc(1500)]) },
 			},
 		])
 		const window = createWindowMock()
@@ -76,7 +81,7 @@ describe('ScreenshotSession', () => {
 		expect(window.show).toHaveBeenCalledTimes(1)
 		expect(window.webContents.send).toHaveBeenCalledWith(
 			'screenshot-image',
-			expect.objectContaining({ index: 1, url: expect.stringContaining('screenshot-1-1000.png') }),
+			expect.objectContaining({ index: 1, url: expect.stringContaining('screenshot-1-1000.jpg') }),
 		)
 
 		await session.reset()
@@ -89,13 +94,13 @@ describe('ScreenshotSession', () => {
 				id: 'window:1:0',
 				name: 'Editor',
 				display_id: '',
-				thumbnail: { toPNG: () => Buffer.from('wrong-window') },
+				thumbnail: { toJPEG: () => Buffer.from('wrong-window') },
 			},
 			{
 				id: 'screen:1:0',
 				name: 'Entire Screen',
 				display_id: '1',
-				thumbnail: { toPNG: () => Buffer.alloc(1500) },
+				thumbnail: { toJPEG: () => Buffer.concat([Buffer.from([0xff, 0xd8]), Buffer.alloc(1500)]) },
 			},
 		])
 		const window = createWindowMock()
@@ -143,5 +148,24 @@ describe('ScreenshotSession', () => {
 		})
 
 		await session.reset()
+	})
+
+	test('explains the screen-recording fix instead of failing silently when permission is denied', async () => {
+		getMediaAccessStatus.mockReturnValue('denied')
+		const window = createWindowMock()
+		const { ScreenshotSession, SCREEN_CAPTURE_DENIED_NOTICE } = await import('../../src/main/screenshotSession')
+		const session = new ScreenshotSession({
+			getWindow: () => window,
+			hasContext: () => false,
+			onShouldAnalyze: vi.fn(),
+			logger,
+		})
+
+		await session.capture()
+
+		expect(getSources).not.toHaveBeenCalled()
+		expect(window.hide).not.toHaveBeenCalled()
+		expect(window.webContents.send).toHaveBeenCalledWith('analysis-result', SCREEN_CAPTURE_DENIED_NOTICE)
+		expect(SCREEN_CAPTURE_DENIED_NOTICE).toContain('Screen & System Audio Recording')
 	})
 })

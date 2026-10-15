@@ -1,21 +1,11 @@
 // CodeLens Renderer - TypeScript
 
-// Type declarations for external libraries
-declare const marked: {
-	parse: (markdown: string) => string
-	setOptions: (options: { highlight?: (code: string, lang: string) => string; breaks?: boolean }) => void
-}
-
-declare const hljs: {
-	highlight: (code: string, options: { language: string }) => { value: string }
-	highlightAuto: (code: string) => { value: string }
-	highlightElement: (element: HTMLElement) => void
-	getLanguage: (name: string) => unknown
-}
-
-declare const DOMPurify: {
-	sanitize: (html: string, config?: Record<string, unknown>) => string
-}
+import DOMPurify from 'dompurify'
+import hljs from 'highlight.js/lib/common'
+import { marked } from 'marked'
+import type { LoadingStatusPayload, ModelChangedPayload, ScreenshotImagePayload } from './ipc'
+import 'highlight.js/styles/github-dark.css'
+import '../styles/app.css'
 
 type RecordingStatusKind = 'recording' | 'processing' | 'ready' | 'error'
 
@@ -52,6 +42,8 @@ window.addEventListener('DOMContentLoaded', () => {
 	let recordingStatusTimer: ReturnType<typeof setInterval> | null = null
 	let currentRecordingStatus = ''
 	let currentRecordingStatusKind: RecordingStatusKind = 'ready'
+	let streamedMarkdown = ''
+	let streamRenderQueued = false
 
 	function formatProviderLabel(provider: string): string {
 		const normalized = provider.toLowerCase()
@@ -437,7 +429,7 @@ window.addEventListener('DOMContentLoaded', () => {
 	}
 
 	function renderSanitizedMarkdown(markdown: string): void {
-		const unsafeHtml = marked.parse(markdown)
+		const unsafeHtml = marked.parse(markdown) as string
 		const safeHtml = DOMPurify.sanitize(unsafeHtml, {
 			USE_PROFILES: { html: true },
 			ADD_ATTR: ['class'],
@@ -583,16 +575,7 @@ window.addEventListener('DOMContentLoaded', () => {
 		void startVoiceRecording()
 	}
 
-	// Configure marked.js
-	marked.setOptions({
-		highlight: (code: string, lang: string): string => {
-			if (lang && hljs.getLanguage(lang)) {
-				return hljs.highlight(code, { language: lang }).value
-			}
-			return hljs.highlightAuto(code).value
-		},
-		breaks: true,
-	})
+	marked.setOptions({ breaks: true })
 
 	// Initialize screenshot slots
 	function initScreenshots(): void {
@@ -621,8 +604,25 @@ window.addEventListener('DOMContentLoaded', () => {
 		slot.classList.add('active')
 	})
 
-	// Handle analysis resultDivs
+	// Streamed chunks render incrementally (no syntax highlighting until the
+	// final result, to keep per-chunk work cheap); the result event below
+	// remains the authoritative complete markdown.
+	window.api.onAnalysisChunk((chunk: string) => {
+		streamedMarkdown += chunk
+		hideLoadingStatus()
+		resultDiv.classList.add('visible')
+		if (!streamRenderQueued) {
+			streamRenderQueued = true
+			requestAnimationFrame(() => {
+				streamRenderQueued = false
+				renderSanitizedMarkdown(streamedMarkdown)
+				scheduleRenderedContentLayoutUpdate()
+			})
+		}
+	})
+
 	window.api.onAnalysisResult((markdown: string) => {
+		streamedMarkdown = ''
 		hideLoadingStatus()
 		renderSanitizedMarkdown(markdown)
 		resultDiv.classList.add('visible')
@@ -680,6 +680,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 	// Handle context reset
 	window.api.onContextReset(() => {
+		streamedMarkdown = ''
 		hideLoadingStatus()
 		resultDiv.replaceChildren()
 		resultDiv.classList.remove('visible')

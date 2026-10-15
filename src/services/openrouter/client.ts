@@ -182,6 +182,90 @@ export async function chatCompletion(body: ChatCompletionRequest, provider: Prov
 	throw new Error(describeEmptyCompletion(provider, body.model, choice?.finish_reason))
 }
 
+interface ChatCompletionChunk {
+	choices?: {
+		delta?: { content?: string | ChatContentPart[] | null }
+		finish_reason?: string | null
+	}[]
+	error?: ChatCompletionResponse['error']
+}
+
+/**
+ * Streaming variant of chatCompletion: parses the provider's SSE stream,
+ * forwards each text delta to onChunk, and resolves with the full text.
+ */
+export async function chatCompletionStream(
+	body: ChatCompletionRequest,
+	provider: ProviderDef,
+	onChunk: (chunk: string) => void,
+): Promise<string> {
+	validateProviderConfiguration(provider)
+
+	let response: Response
+	try {
+		response = await fetch(`${provider.baseUrl}/chat/completions`, {
+			method: 'POST',
+			headers: providerHeaders(provider, true),
+			body: JSON.stringify({ ...body, stream: true }),
+			signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+		})
+	} catch (error) {
+		throw new Error(`${provider.label} request failed: ${describeFetchError(error)}`)
+	}
+
+	if (!response.ok || !response.body) {
+		const result = (await response.json().catch(() => ({}))) as ChatCompletionResponse
+		throw new Error(
+			extractApiError(result.error) || `${provider.label} API returned ${response.status}: ${response.statusText}`,
+		)
+	}
+
+	logger.debug('Streaming chat completion', { provider: provider.id, model: body.model })
+	const reader = response.body.getReader()
+	const decoder = new TextDecoder()
+	let buffer = ''
+	let content = ''
+	let finishReason: string | null | undefined
+
+	const handleLine = (line: string): void => {
+		const data = line.startsWith('data:') ? line.slice(5).trim() : ''
+		if (!data || data === '[DONE]') return
+		let chunk: ChatCompletionChunk
+		try {
+			chunk = JSON.parse(data) as ChatCompletionChunk
+		} catch {
+			return
+		}
+		const apiError = extractApiError(chunk.error)
+		if (apiError) throw new Error(apiError)
+		const choice = chunk.choices?.[0]
+		if (choice?.finish_reason) finishReason = choice.finish_reason
+		const text = extractTextContent(choice?.delta?.content)
+		if (text) {
+			content += text
+			onChunk(text)
+		}
+	}
+
+	for (;;) {
+		const { done, value } = await reader.read()
+		if (done) break
+		buffer += decoder.decode(value, { stream: true })
+		const lines = buffer.split('\n')
+		buffer = lines.pop() ?? ''
+		for (const line of lines) handleLine(line)
+	}
+	if (buffer.trim()) handleLine(buffer)
+
+	logger.debug('Streaming chat completion finished', {
+		provider: provider.id,
+		model: body.model,
+		chars: content.length,
+	})
+	if (content) return content
+	throw new Error(describeEmptyCompletion(provider, body.model, finishReason))
+}
+
 function extractApiError(error: ChatCompletionResponse['error']): string | null {
 	if (!error) return null
 	if (typeof error === 'string') return error
@@ -347,13 +431,20 @@ function isTranscriptionModel(model: OpenRouterModel): boolean {
 }
 
 function orderProgrammingModels(models: ProgrammingModel[]): ProgrammingModel[] {
+	// The live catalog can omit our preferred models (the programming category
+	// is not exhaustive), which silently made the newest preview model the
+	// default. Seed the list from the curated fallback entries so the proven
+	// models always lead the cycle; live API data refreshes their metadata.
 	const modelsById = new Map(models.map((model) => [model.id, model]))
+	for (const fallback of FALLBACK_PROGRAMMING_VISION_MODELS) {
+		if (!modelsById.has(fallback.id)) modelsById.set(fallback.id, fallback)
+	}
 	const preferredModels = PREFERRED_PROGRAMMING_VISION_MODEL_IDS.flatMap((id) => {
 		const model = modelsById.get(id)
 		return model ? [model] : []
 	})
 	const preferredIds = new Set(preferredModels.map((model) => model.id))
-	const remainingModels = models
+	const remainingModels = [...modelsById.values()]
 		.filter((model) => !preferredIds.has(model.id))
 		.sort((a, b) => (b.created ?? 0) - (a.created ?? 0))
 

@@ -150,7 +150,7 @@ CodeLens also requests microphone permission when using voice context (`Shift+Cm
 To capture individual application windows instead of just desktop screenshots:
 
 1. **Go to System Preferences > Security & Privacy > Privacy > Screen Recording**
-2. **Find your app** in the list (may appear as "Electron" or "CodeLens")
+2. **Find your app** in the list ("CodeLens" for packaged builds, "CodeLens Dev" for `pnpm run dev:mac`)
 3. **Check the checkbox** to enable screen recording permission
 4. **Completely quit and restart** the application
 
@@ -171,11 +171,21 @@ The app has a fallback mechanism:
 ## Development
 
 **Development:**
-- `npm run dev` - Start development with hot reload
-- `npm run build` - Compile TypeScript to JavaScript
-- `npm start` - Build and run the application
-- `npm run typescript-check` - Type check without compilation
-- `npm run watch` - Watch TypeScript files for changes
+- `pnpm run dev:mac` - Start development on macOS (recommended there — see below)
+- `pnpm run dev:mac:setup` - One-time: build the signed dev app and open Screen Recording settings
+- `pnpm run dev` - Start development with hot reload (other platforms)
+- `pnpm run build` - Bundle main/preload/renderer with electron-vite
+- `pnpm start` - Build and run the application
+- `pnpm run typescript-check` - Type check without compilation
+- `pnpm run watch` - Rebuild bundles on change
+
+On macOS, plain `pnpm run dev` runs as the stock "Electron" binary, so Screen
+Recording permission attaches to Electron and breaks whenever dependencies are
+reinstalled (screenshots then fail). `pnpm run dev:mac` instead launches
+through a locally signed `dev-app/CodeLens Dev.app` with a stable identity:
+grant **CodeLens Dev** screen recording once and it keeps working across
+reinstalls and Electron updates. Set `CODELENS_CODESIGN_IDENTITY` to pick the
+signing certificate (defaults to the first keychain codesigning identity).
 
 **Code Quality:**
 - `npm run format` - Format code with Biome
@@ -239,7 +249,7 @@ For local macOS packaging, the default script intentionally sets `mac.identity=n
 - npm for package management and script execution, with Vitest for testing
 - Winston for structured logging with Electron error suppression
 - Unified CSS architecture (single app.css file)
-- Local renderer vendor assets with a restrictive Content Security Policy
+- Locally bundled renderer assets with a restrictive Content Security Policy
 - Concurrent development workflow with hot reload
 
 **File Structure:**

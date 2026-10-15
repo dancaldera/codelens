@@ -61,7 +61,7 @@ export function readSecrets(app: App, logger: Logger): Record<string, string> {
 	return secrets
 }
 
-// Overlay saved secrets onto process.env after dotenv so keychain-stored
+// Overlay saved secrets onto process.env after .env loading so keychain-stored
 // credentials win over stale .env plaintext.
 export function loadSecretsIntoEnv(app: App, logger: Logger): void {
 	if (!isSecureStorageAvailable()) return

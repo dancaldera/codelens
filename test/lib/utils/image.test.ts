@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { getMimeType, validateImageFile } from '../../../src/lib/utils/image'
+import { capImageSize, getMimeType, isJpegBuffer, MAX_IMAGE_EDGE, validateImageFile } from '../../../src/lib/utils/image'
 
 describe('Image utilities', () => {
 	describe('getMimeType', () => {
@@ -73,4 +73,24 @@ describe('Image utilities', () => {
 			expect(result.error).toBeUndefined()
 		})
 	})
+
+describe('capImageSize', () => {
+	test('caps the long edge of a retina screenshot preserving aspect ratio', () => {
+		expect(capImageSize(2880, 1800)).toEqual({ width: MAX_IMAGE_EDGE, height: 980 })
+	})
+	test('leaves smaller images untouched', () => {
+		expect(capImageSize(1440, 900)).toEqual({ width: 1440, height: 900 })
+	})
+	test('caps portrait images by height', () => {
+		expect(capImageSize(1000, 3136)).toEqual({ width: 500, height: MAX_IMAGE_EDGE })
+	})
+})
+
+describe('isJpegBuffer', () => {
+	test('detects the JPEG SOI marker only', () => {
+		expect(isJpegBuffer(Buffer.from([0xff, 0xd8, 0xff, 0xe0]))).toBe(true)
+		expect(isJpegBuffer(Buffer.from([0x89, 0x50, 0x4e, 0x47]))).toBe(false)
+		expect(isJpegBuffer(Buffer.alloc(0))).toBe(false)
+	})
+})
 })

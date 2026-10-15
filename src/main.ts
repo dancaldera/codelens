@@ -1,5 +1,5 @@
 import { app, BrowserWindow, globalShortcut, ipcMain } from 'electron'
-import { IPC_CHANNELS } from './ipc'
+import { IPC_CHANNELS, type LoadingStatusPayload } from './ipc'
 import { createLogger, suppressElectronErrors } from './lib'
 import { AnalysisSession } from './main/analysisSession'
 import { loadEnvironment } from './main/env'
@@ -255,7 +255,29 @@ function cancelScheduledAnalysis(): void {
 	pendingSingleScreenshotAnalysis = false
 }
 
+// Exactly one overlay may own the global shortcuts. Without this lock every
+// relaunch stacked another invisible instance at the same position, and the
+// newest one silently stole the shortcuts from the rest.
+const hasSingleInstanceLock = app.requestSingleInstanceLock()
+if (!hasSingleInstanceLock) {
+	app.quit()
+}
+
+// A relaunch usually means "is this thing running?" — answer visibly by
+// resurfacing the overlay and re-flashing the model badges.
+app.on('second-instance', () => {
+	if (!mainWindow) return
+	if (!mainWindow.isVisible()) mainWindow.show()
+	mainWindow.moveTop()
+	const modelInfo = analysisSession?.getCurrentModelInfo()
+	if (modelInfo) mainWindow.webContents.send(IPC_CHANNELS.MODEL_CHANGED, modelInfo)
+	const sttModelInfo = voiceSession?.getCurrentModelInfo()
+	if (sttModelInfo) mainWindow.webContents.send(IPC_CHANNELS.STT_MODEL_CHANGED, sttModelInfo)
+	logger.info('Second instance launch redirected to the running overlay')
+})
+
 app.whenReady().then(() => {
+	if (!hasSingleInstanceLock) return
 	loadEnvironment(app, logger)
 	loadSecretsIntoEnv(app, logger)
 	createWindow()

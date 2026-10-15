@@ -210,4 +210,94 @@ describe('fetchProgrammingModels', () => {
 		expect(models).toEqual(FALLBACK_PROGRAMMING_VISION_MODELS)
 		expect(error).toContain('401')
 	})
+
+	test('preferred models lead the list even when the API omits them', async () => {
+		global.fetch = vi.fn(async () =>
+			jsonResponse({
+				data: [
+					{
+						id: 'vendor/random-preview',
+						name: 'Random Preview',
+						architecture: { input_modalities: ['text', 'image'], output_modalities: ['text'] },
+						context_length: 128000,
+						created: 999,
+						pricing: { prompt: '0', completion: '0' },
+					},
+				],
+			}),
+		) as never
+
+		const { fetchProgrammingModels, DEFAULT_PROGRAMMING_VISION_MODEL } = await import(
+			'../../../src/services/openrouter/client'
+		)
+		const { models, error } = await fetchProgrammingModels()
+
+		expect(error).toBeNull()
+		expect(models[0]?.id).toBe(DEFAULT_PROGRAMMING_VISION_MODEL)
+		expect(models.map((m) => m.id)).toContain('vendor/random-preview')
+	})
+})
+
+function sseResponse(events: string[]) {
+	const encoder = new TextEncoder()
+	const body = new ReadableStream<Uint8Array>({
+		start(controller) {
+			// Split mid-line on purpose: the parser must buffer partial lines.
+			const payload = events.map((event) => `data: ${event}\n\n`).join('')
+			controller.enqueue(encoder.encode(payload.slice(0, 17)))
+			controller.enqueue(encoder.encode(payload.slice(17)))
+			controller.close()
+		},
+	})
+	return { ok: true, status: 200, statusText: 'OK', body, json: () => Promise.resolve({}) }
+}
+
+describe('chatCompletionStream', () => {
+	const realFetch = global.fetch
+	const request = {
+		model: 'anthropic/claude-sonnet-4.6',
+		messages: [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }],
+		max_tokens: 8000,
+		temperature: 0.2,
+	}
+	beforeEach(() => {
+		process.env.OPENROUTER_API_KEY = 'sk-test123'
+	})
+	afterEach(() => {
+		global.fetch = realFetch
+	})
+
+	test('emits deltas in order and resolves with the full text', async () => {
+		let sentBody = ''
+		global.fetch = vi.fn(async (_url: unknown, init: { body?: string }) => {
+			sentBody = init?.body ?? ''
+			return sseResponse([
+				JSON.stringify({ choices: [{ delta: { content: 'Hello ' } }] }),
+				JSON.stringify({ choices: [{ delta: { content: [{ type: 'text', text: 'world' }] } }] }),
+				JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }] }),
+				'[DONE]',
+			])
+		}) as never
+		const chunks: string[] = []
+		const { chatCompletionStream } = await import('../../../src/services/openrouter/client')
+		await expect(chatCompletionStream(request, openRouterProvider, (c) => chunks.push(c))).resolves.toBe('Hello world')
+		expect(chunks).toEqual(['Hello ', 'world'])
+		expect(JSON.parse(sentBody)).toMatchObject({ stream: true })
+	})
+
+	test('throws on a mid-stream error payload', async () => {
+		global.fetch = vi.fn(async () =>
+			sseResponse([JSON.stringify({ error: { message: 'rate limited mid-stream' } })]),
+		) as never
+		const { chatCompletionStream } = await import('../../../src/services/openrouter/client')
+		await expect(chatCompletionStream(request, openRouterProvider, () => {})).rejects.toThrow('rate limited mid-stream')
+	})
+
+	test('throws a token-limit explanation for an empty stream ending in length', async () => {
+		global.fetch = vi.fn(async () =>
+			sseResponse([JSON.stringify({ choices: [{ delta: {}, finish_reason: 'length' }] })]),
+		) as never
+		const { chatCompletionStream } = await import('../../../src/services/openrouter/client')
+		await expect(chatCompletionStream(request, openRouterProvider, () => {})).rejects.toThrow(/token limit/)
+	})
 })

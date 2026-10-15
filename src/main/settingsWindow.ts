@@ -1,5 +1,6 @@
 import { BrowserWindow } from 'electron'
 import type { Logger } from '../lib'
+import { loadRendererPage } from './window'
 
 export interface SettingsWindowPaths {
 	preloadPath: string
@@ -31,7 +32,7 @@ export function openSettingsWindow({ preloadPath, settingsIndexPath }: SettingsW
 		},
 	})
 
-	void settingsWindow.loadFile(settingsIndexPath).catch((error) => {
+	void loadRendererPage(settingsWindow, settingsIndexPath, 'settings.html').catch((error) => {
 		logger.error('Failed to load settings window', {
 			error: error instanceof Error ? error.message : String(error),
 		})

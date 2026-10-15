@@ -1,6 +1,6 @@
 import { createLogger, logApiCall } from '../../lib/logger'
 import { getProvider, type ProviderDef } from '../providers'
-import { chatCompletion } from './client'
+import { type ChatCompletionRequest, chatCompletion, chatCompletionStream } from './client'
 
 const logger = createLogger('AnalysisService')
 
@@ -20,6 +20,7 @@ export interface AnalyzeOptions {
 	maxTokens?: number
 	temperature?: number
 	provider?: ProviderDef
+	onChunk?: (chunk: string) => void
 }
 
 export async function analyze(request: AnalysisRequest, options: AnalyzeOptions = {}): Promise<string> {
@@ -32,23 +33,19 @@ export async function analyze(request: AnalysisRequest, options: AnalyzeOptions 
 	const apiCallStart = Date.now()
 	logger.info('Calling chat API', { provider: provider.id, model, images: request.images.length })
 
+	const body: ChatCompletionRequest = {
+		model,
+		messages: [{ role: 'user', content: [{ type: 'text', text: userText }, ...request.images] }],
+		// Reasoning models spend part of max_tokens on hidden reasoning before
+		// emitting content, so the budget must cover both phases.
+		max_tokens: options.maxTokens ?? 8000,
+		temperature: options.temperature ?? 0.2,
+	}
+
 	try {
-		const content = await chatCompletion(
-			{
-				model,
-				messages: [
-					{
-						role: 'user',
-						content: [{ type: 'text', text: userText }, ...request.images],
-					},
-				],
-				// Reasoning models spend part of max_tokens on hidden reasoning before
-				// emitting content, so the budget must cover both phases.
-				max_tokens: options.maxTokens ?? 8000,
-				temperature: options.temperature ?? 0.2,
-			},
-			provider,
-		)
+		const content = options.onChunk
+			? await chatCompletionStream(body, provider, options.onChunk)
+			: await chatCompletion(body, provider)
 
 		logApiCall('POST', '/chat/completions', 200, Date.now() - apiCallStart, {
 			provider: provider.id,

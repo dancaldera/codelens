@@ -91,6 +91,7 @@ describe('AnalysisSession', () => {
 			previousContext: undefined,
 			voiceContext: 'Please explain this with a recursive approach.',
 			model: 'model-a',
+			onChunk: expect.any(Function),
 		})
 	})
 
@@ -116,6 +117,7 @@ describe('AnalysisSession', () => {
 			previousContext: undefined,
 			voiceContext: 'Explain binary search in TypeScript.',
 			model: 'model-a',
+			onChunk: expect.any(Function),
 		})
 		expect(send).toHaveBeenCalledWith('analysis-result', 'voice-only result')
 	})
@@ -150,5 +152,25 @@ describe('AnalysisSession', () => {
 
 		expect(send).toHaveBeenCalledWith('analysis-result', 'first result')
 		expect(send).toHaveBeenCalledWith('analysis-result', 'second result')
+	})
+
+	test('forwards streamed chunks to the renderer before the final result', async () => {
+		analyzeImagesSmart.mockImplementationOnce(async (options: { onChunk?: (chunk: string) => void }) => {
+			options.onChunk?.('## Partial ')
+			options.onChunk?.('result')
+			return '## Partial result'
+		})
+		const send = vi.fn()
+		const window = { webContents: { send, executeJavaScript: vi.fn(async () => undefined), isDestroyed: () => false } } as never
+		const { AnalysisSession } = await import('../../src/main/analysisSession')
+		const session = new AnalysisSession({ getWindow: () => window, getImagePaths: () => ['screen.png'], logger })
+
+		await session.triggerAnalysis()
+
+		const channels = send.mock.calls.map(([channel]) => channel)
+		expect(channels.indexOf('analysis-chunk')).toBeGreaterThanOrEqual(0)
+		expect(channels.indexOf('analysis-chunk')).toBeLessThan(channels.lastIndexOf('analysis-result'))
+		expect(send).toHaveBeenCalledWith('analysis-chunk', '## Partial ')
+		expect(send).toHaveBeenCalledWith('analysis-result', '## Partial result')
 	})
 })

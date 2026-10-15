@@ -1,5 +1,6 @@
 // CodeLens Settings Renderer - TypeScript
-// Uses ambient IPC types (see ipc-types.d.ts) and window.api from preload.
+import type { ProviderInfo } from './ipc'
+import '../styles/settings.css'
 
 window.addEventListener('DOMContentLoaded', () => {
 	const providerSelect = document.getElementById('provider') as HTMLSelectElement | null

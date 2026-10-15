@@ -2,44 +2,47 @@
   "name": "codelens",
   "version": "1.0.0",
   "description": "AI-powered code analysis from screenshots - CodeLens visual code analyzer",
-  "main": "dist/src/main.js",
+  "main": "dist/main/main.js",
   "packageManager": "pnpm@12.3.4",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc",
-    "start": "npm run build && electron .",
+    "build": "electron-vite build",
+    "start": "electron-vite build && electron .",
     "typescript-check": "tsc --noEmit",
-    "dev": "nodemon --watch src --watch index.html --watch styles --ext ts,html,css --exec \"npm run build && electron .\"",
-    "watch": "tsc -w",
+    "dev": "electron-vite dev",
+    "watch": "electron-vite build --watch",
     "format": "biome format --write",
     "lint": "biome lint --write",
     "check": "biome check --write",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "package": "npm run build && electron-builder build --mac -c.mac.identity=null",
-    "package-mac-signed": "npm run build && electron-builder build --mac",
-    "package-win": "npm run build && electron-builder build --win",
-    "package-linux": "npm run build && electron-builder build --linux",
-    "package-all": "npm run build && electron-builder build -mwl",
-    "setup": "node node_modules/electron/install.js && husky"
+    "package": "pnpm run build && electron-builder build --mac -c.mac.identity=null",
+    "package-mac-signed": "pnpm run build && electron-builder build --mac",
+    "package-win": "pnpm run build && electron-builder build --win",
+    "package-linux": "pnpm run build && electron-builder build --linux",
+    "package-all": "pnpm run build && electron-builder build -mwl",
+    "setup": "node node_modules/electron/install.js && pnpm rebuild esbuild && husky",
+    "dev:mac": "node scripts/dev-mac.mjs",
+    "dev:mac:setup": "node scripts/dev-mac.mjs --setup"
   },
-  "dependencies": {
-    "dotenv": "^17.4.2",
-    "winston": "^3.19.0"
-  },
+  "author": "Daniel Caldera",
   "devDependencies": {
     "@biomejs/biome": "2.4.12",
     "@types/node": "^25.6.0",
     "@vitest/coverage-v8": "^4.1.4",
+    "dompurify": "^3.4.17",
     "electron": "^41.2.1",
     "electron-builder": "^26.8.1",
+    "electron-vite": "^5.0.0",
+    "highlight.js": "^11.12.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
-    "nodemon": "^3.1.14",
+    "marked": "^18.1.1",
     "typescript": "^6.0.3",
+    "vite": "^8.3.4",
     "vitest": "^4.1.4"
   },
   "lint-staged": {
@@ -50,11 +53,7 @@
     "productName": "CodeLens",
     "files": [
       "dist/**/*",
-      "index.html",
-      "settings.html",
-      "package.json",
-      "styles/**/*",
-      "vendor/**/*"
+      "package.json"
     ],
     "directories": {
       "output": "release/"
@@ -85,6 +84,5 @@
       ],
       "category": "Development"
     }
-  },
-  "author": "Daniel Caldera"
+  }
 }

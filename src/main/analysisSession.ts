@@ -1,5 +1,5 @@
 import type { BrowserWindow } from 'electron'
-import { IPC_CHANNELS } from '../ipc'
+import { IPC_CHANNELS, type ModelChangedPayload } from '../ipc'
 import type { Logger } from '../lib'
 import { getAvailableModels, getProvider, isProviderConfigured } from '../services/providers'
 import { analyzeImagesSmart } from '../services/smartAnalyzer'
@@ -197,6 +197,7 @@ export class AnalysisSession {
 				previousContext: this.previousAnalysis || undefined,
 				voiceContext,
 				model: currentModel,
+				onChunk: (chunk) => this.options.getWindow()?.webContents.send(IPC_CHANNELS.ANALYSIS_CHUNK, chunk),
 			})
 
 			this.previousAnalysis = markdownResult

@@ -1,4 +1,13 @@
 import { contextBridge, type IpcRendererEvent, ipcRenderer } from 'electron'
+import type {
+	LoadingStatusPayload,
+	ModelChangedPayload,
+	SaveSettingsPayload,
+	ScreenshotImagePayload,
+	SettingsConfig,
+	VoiceAudioPayload,
+	VoiceCaptureStatePayload,
+} from './ipc'
 import {
 	IPC_CHANNELS,
 	isValidLoadingStatusPayload,
@@ -11,6 +20,7 @@ type Unsubscribe = () => void
 
 interface ApiInterface {
 	onAnalysisResult: (callback: (result: string) => void) => Unsubscribe
+	onAnalysisChunk: (callback: (chunk: string) => void) => Unsubscribe
 	onContextReset: (callback: () => void) => Unsubscribe
 	onScreenshotImage: (callback: (imageData: ScreenshotImagePayload) => void) => Unsubscribe
 	onClearScreenshots: (callback: () => void) => Unsubscribe
@@ -47,6 +57,7 @@ function onIpcSignal(channel: string, callback: () => void): Unsubscribe {
 
 contextBridge.exposeInMainWorld('api', {
 	onAnalysisResult: (callback: (result: string) => void) => onIpc(IPC_CHANNELS.ANALYSIS_RESULT, callback),
+	onAnalysisChunk: (callback: (chunk: string) => void) => onIpc(IPC_CHANNELS.ANALYSIS_CHUNK, callback),
 	onContextReset: (callback: () => void) => onIpcSignal(IPC_CHANNELS.CONTEXT_RESET, callback),
 	onScreenshotImage: (callback: (imageData: ScreenshotImagePayload) => void) =>
 		onIpc(IPC_CHANNELS.SCREENSHOT_IMAGE, callback),
